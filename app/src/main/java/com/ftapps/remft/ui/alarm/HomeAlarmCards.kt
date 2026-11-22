@@ -1,6 +1,5 @@
 package com.ftapps.remft.ui.alarm
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -15,6 +14,9 @@ import com.ftapps.remft.domain.alarm.AlarmInput
 import com.ftapps.remft.domain.alarm.AlarmPlanner
 import com.ftapps.remft.domain.alarm.ReminderProfile
 import com.ftapps.remft.ui.components.GradientCard
+import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.components.RemftFilledButton
 import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
@@ -33,17 +35,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.NotificationsPaused
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -73,7 +71,7 @@ import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
-import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
@@ -236,101 +234,159 @@ private fun UrgentAlarmCardDarkPreview() {
 @Composable
 private fun AlarmProblemBanner(env: AlarmEnvironment, problem: AlarmProblem) {
     var sheet by remember { mutableStateOf(false) }
-    Surface(
-        color = RemftTheme.colors.warning.container,
-        contentColor = RemftTheme.colors.warning.onContainer,
-        shape = MarkedShapes.medium,
-        modifier = Modifier
+    AlarmProblemBannerContent(problem, onClick = { sheet = true })
+    if (sheet) AlarmFixSheet(env, problem) { sheet = false }
+}
+
+@Composable
+fun AlarmProblemBannerContent(problem: AlarmProblem, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val warning = RemftTheme.colors.warning
+    MarkedCard(
+        color = warning.container,
+        contentColor = warning.onContainer,
+        onClick = onClick,
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = Space.x2)
-            .heightIn(min = 48.dp)
-            .clickable { sheet = true }
+            .heightIn(min = Sizes.touchTarget)
             .testTag("alarm-banner"),
     ) {
-        Row(Modifier.padding(Space.x3), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.WarningAmber, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(Space.x2))
+        Row(Modifier.padding(start = Space.x4, top = Space.x3, end = Space.x3, bottom = Space.x3), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.WarningAmber, contentDescription = null, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(Space.x3))
             Text(stringResource(problemText(problem)), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(Space.x2))
-            Text(stringResource(R.string.alarm_banner_fix), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+            Text(
+                stringResource(R.string.alarm_banner_fix),
+                style = MaterialTheme.typography.labelLarge,
+                color = warning.onColor,
+                modifier = Modifier
+                    .background(warning.color, MarkedShapes.pill)
+                    .padding(horizontal = Space.x3, vertical = Space.x1),
+            )
         }
     }
-    if (sheet) AlarmFixSheet(env, problem) { sheet = false }
+}
+
+@Composable
+fun AlarmFixSheet(env: AlarmEnvironment, problem: AlarmProblem, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    AlarmFixSheetContent(
+        problem = problem,
+        onOpen = {
+            env.health.open(context, permissionFor(problem))
+            onDismiss()
+        },
+        onDismiss = onDismiss,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AlarmFixSheet(env: AlarmEnvironment, problem: AlarmProblem, onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = MarkedShapes.sheet,
-        modifier = Modifier.widthIn(max = Breakpoints.sheetMaxWidth).testTag("alarm-fix-sheet"),
-    ) {
+private fun AlarmFixSheetContent(problem: AlarmProblem, onOpen: () -> Unit, onDismiss: () -> Unit) {
+    val warning = RemftTheme.colors.warning
+    RemftBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("alarm-fix-sheet")) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = Space.x6, vertical = Space.x2)) {
-            Text(stringResource(problemText(problem)), style = MaterialTheme.typography.titleMedium)
+            Box(
+                Modifier.size(Sizes.touchTarget).background(warning.container, MarkedShapes.pill),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = warning.onContainer) }
+            Spacer(Modifier.height(Space.x4))
+            Text(stringResource(problemText(problem)), style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(Space.x3))
-            Text(stringResource(fixText(problem)), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(Space.x5))
-            Button(
-                onClick = {
-                    env.health.open(context, permissionFor(problem))
-                    onDismiss()
-                },
-                shape = MarkedShapes.pill,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("alarm-fix-open"),
-            ) { Text(stringResource(R.string.alarm_fix_open)) }
+            Text(stringResource(fixText(problem)), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(Space.x6))
+            RemftFilledButton(
+                stringResource(R.string.alarm_fix_open),
+                onClick = onOpen,
+                modifier = Modifier.fillMaxWidth().testTag("alarm-fix-open"),
+            )
             Spacer(Modifier.height(Space.x4))
         }
     }
 }
 
 @Composable
-private fun MissedAlarmCard(env: AlarmEnvironment, missed: List<com.ftapps.remft.domain.alarm.AlarmInput>) {
+private fun MissedAlarmCard(env: AlarmEnvironment, missed: List<AlarmInput>) {
     val summary = AlarmRinging.missedSummary(missed) ?: return
     val first = summary.first
     val format by remember(env) { env.settings.flow(SettingKeys.DateFormat).map { DateFormatId.parse(it) } }
         .collectAsStateWithLifecycle(DateFormatId.System)
-    val urgent = RemftTheme.colors.urgent
     val now = env.clock.instant()
     val time = DateFormats.time(first.fireAt.atZone(env.clock.zone).toLocalDateTime(), format)
-    Surface(
+    MissedAlarmCardContent(
+        title = first.taskTitle,
+        whenText = stringResource(R.string.alarm_missed_ago).fill("time" to time, "ago" to relativePastText(first.fireAt, now)),
+        moreCount = summary.moreCount,
+        onClick = { env.ring.showMissed(first) },
+    )
+}
+
+@Composable
+fun MissedAlarmCardContent(title: String, whenText: String, moreCount: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val urgent = RemftTheme.colors.urgent
+    MarkedCard(
         color = urgent.container,
         contentColor = urgent.onContainer,
-        shape = MarkedShapes.medium,
-        modifier = Modifier
+        onClick = onClick,
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = Space.x2)
-            .clickable { env.ring.showMissed(first) }
             .testTag("missed-alarm-card"),
     ) {
-        Row(Modifier.padding(Space.x3), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.NotificationsPaused, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(Space.x2))
+        Row(
+            Modifier.heightIn(min = 72.dp).padding(start = Space.x4, top = Space.x3, end = Space.x2, bottom = Space.x3),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(40.dp).background(urgent.color, MarkedShapes.pill),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Outlined.NotificationsPaused, contentDescription = null, tint = urgent.onColor, modifier = Modifier.size(22.dp)) }
+            Spacer(Modifier.width(Space.x3))
             Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.alarm_missed_cardTitle),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Text(first.taskTitle, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    stringResource(R.string.alarm_missed_ago).fill("time" to time, "ago" to relativePastText(first.fireAt, now)),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.testTag("missed-alarm-when"),
-                )
+                Text(stringResource(R.string.alarm_missed_cardTitle), style = MaterialTheme.typography.labelLarge)
+                Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                Text(whenText, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("missed-alarm-when"))
             }
-            if (summary.moreCount > 0) {
+            if (moreCount > 0) {
                 Spacer(Modifier.width(Space.x2))
                 Text(
-                    stringResource(R.string.alarm_missed_cardMore).fill("n" to summary.moreCount),
+                    stringResource(R.string.alarm_missed_cardMore).fill("n" to moreCount),
                     style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.testTag("missed-alarm-more"),
+                    color = urgent.onColor,
+                    modifier = Modifier
+                        .background(urgent.color, MarkedShapes.pill)
+                        .padding(horizontal = Space.x3, vertical = Space.x1)
+                        .testTag("missed-alarm-more"),
                 )
             }
             Icon(Icons.Outlined.ChevronRight, contentDescription = null)
         }
     }
+}
+
+@Preview(name = "Missed alarm card light")
+@Composable
+private fun MissedAlarmCardLightPreview() {
+    RemftTheme(darkTheme = false) { PreviewSurface { MissedAlarmCardContent("Water the plants", "8:00 am · 2 h ago", 1, onClick = {}) } }
+}
+
+@Preview(name = "Missed alarm card dark")
+@Composable
+private fun MissedAlarmCardDarkPreview() {
+    RemftTheme(darkTheme = true) { PreviewSurface { MissedAlarmCardContent("Water the plants", "8:00 am · 2 h ago", 1, onClick = {}) } }
+}
+
+@Preview(name = "Alarm problem banner light")
+@Composable
+private fun AlarmProblemBannerLightPreview() {
+    RemftTheme(darkTheme = false) { PreviewSurface { AlarmProblemBannerContent(AlarmProblem.ALARM_VOLUME_OFF, onClick = {}) } }
+}
+
+@Preview(name = "Alarm problem banner dark")
+@Composable
+private fun AlarmProblemBannerDarkPreview() {
+    RemftTheme(darkTheme = true) { PreviewSurface { AlarmProblemBannerContent(AlarmProblem.ALARM_VOLUME_OFF, onClick = {}) } }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
