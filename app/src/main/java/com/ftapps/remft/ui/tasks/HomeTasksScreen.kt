@@ -52,17 +52,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -75,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ftapps.remft.R
+import com.ftapps.remft.domain.alarm.AlarmProblem
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.tasks.HomeBucket
 import com.ftapps.remft.domain.tasks.HomeGroup
@@ -82,8 +79,10 @@ import com.ftapps.remft.domain.tasks.Task
 import com.ftapps.remft.domain.tasks.TaskSort
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
+import com.ftapps.remft.ui.alarm.AlarmProblemBannerContent
 import com.ftapps.remft.ui.alarm.AlarmRefreshBox
-import com.ftapps.remft.ui.alarm.HomeAlarmCards
+import com.ftapps.remft.ui.alarm.HomeAlarmWarnings
+import com.ftapps.remft.ui.alarm.HomeUrgentAlarm
 import com.ftapps.remft.ui.alarm.UrgentAlarmCardContent
 import com.ftapps.remft.ui.backup.BackupReminderCardContent
 import com.ftapps.remft.ui.backup.HomeBackupReminder
@@ -162,13 +161,10 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
             deleter.request(task, message, deleteThis = { vm.delete(task, message) })
         },
     )
-    val density = LocalDensity.current
     val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val imeInset = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
     val barSpace = if (bottomPadding > 0.dp) Sizes.navBarHeight + navInset else navInset
-    val dockBottom = maxOf(barSpace, imeInset)
-    var dockHeightPx by remember { mutableIntStateOf(0) }
-    val dockHeight = with(density) { dockHeightPx.toDp() }
+    val bottomInset = maxOf(barSpace, imeInset)
     Column(Modifier.fillMaxSize()) {
         NameMarkTopBar {
             GlobalSearchButton()
@@ -187,7 +183,7 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                     stringResource(R.string.home_quickAddForDay).fill("date" to DateFormats.date(it.atStartOfDay(), format))
                 } ?: stringResource(R.string.home_quickAddHint)
                 val results = if (searching) rememberHomeSearch(searchQuery) else null
-                val listPadding = PaddingValues(start = Space.x4, end = Space.x4, top = 0.dp, bottom = dockHeight + Space.x4)
+                val listPadding = PaddingValues(start = Space.x4, end = Space.x4, top = 0.dp, bottom = bottomInset + Space.x4)
                 val header: LazyListScope.() -> Unit = {
                     item(key = "home-header") {
                         HomeHeader(
@@ -229,11 +225,22 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                             SearchField(searchQuery, { searchQuery = it }, stringResource(R.string.home_searchHint), "home-search")
                         }
                     }
-                    item(key = "home-alarms") { HomeAlarmCards(onOpenTask = onOpenTask) }
-                }
-                val footer: LazyListScope.() -> Unit = {
-                    item(key = "home-backup") { HomeBackupReminder() }
+                    item(key = "home-quick-add") {
+                        HomeQuickAddRow {
+                            HomeQuickAdd(quickAddHint, prefillDue = vm::defaultDueForSelection, modifier = Modifier.weight(1f))
+                            Spacer(Modifier.width(Space.x3))
+                            SquareFab(
+                                Icons.Filled.Add,
+                                stringResource(R.string.shell_fabNewTask),
+                                onClick = openSheet,
+                                modifier = Modifier.padding(top = Space.x2).testTag("home-fab"),
+                            )
+                        }
+                    }
+                    item(key = "home-alarm-warnings") { HomeAlarmWarnings() }
                     item(key = "home-onedrive") { HomeOneDriveCards(onOpenAutoBackup) }
+                    item(key = "home-backup") { HomeBackupReminder() }
+                    item(key = "home-urgent-alarm") { HomeUrgentAlarm(onOpenTask = onOpenTask) }
                 }
                 val searchResults: LazyListScope.(TaskSearchState) -> Unit = { found ->
                     homeSearchResults(found, searchQuery, format, env.repository.zone, state.now, rowActions)
@@ -252,7 +259,6 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                         LazyColumn(Modifier.weight(1f).fillMaxHeight().testTag("home-list"), contentPadding = listPadding) {
                             header()
                             if (results != null) searchResults(results) else homeBody(state, format, env.repository.zone, rowActions, vm::retry)
-                            footer()
                         }
                         Box(
                             Modifier
@@ -287,30 +293,12 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                             }
                             homeBody(state, format, env.repository.zone, rowActions, vm::retry)
                         }
-                        footer()
                     }
-                }
-                val dockWidth = if (wide) Modifier.width(maxWidth - SideCalendarWidth) else Modifier.fillMaxWidth()
-                HomeDock(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .then(dockWidth)
-                        .onSizeChanged { dockHeightPx = it.height },
-                    bottom = dockBottom,
-                ) {
-                    HomeQuickAdd(quickAddHint, prefillDue = vm::defaultDueForSelection, modifier = Modifier.weight(1f))
-                    Spacer(Modifier.width(Space.x3))
-                    SquareFab(
-                        Icons.Filled.Add,
-                        stringResource(R.string.shell_fabNewTask),
-                        onClick = openSheet,
-                        modifier = Modifier.padding(top = Space.x2).testTag("home-fab"),
-                    )
                 }
                 UndoSnackbarHost(
                     Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = dockHeight),
+                        .padding(bottom = bottomInset),
                 )
             }
         }
@@ -368,19 +356,12 @@ fun HomeHeader(dateLine: String, headline: String?, modifier: Modifier = Modifie
 }
 
 @Composable
-fun HomeDock(modifier: Modifier = Modifier, bottom: Dp = 0.dp, content: @Composable RowScope.() -> Unit) {
-    val fade = RemftTheme.tonal.level0
-    Box(
-        modifier
-            .background(Brush.verticalGradient(0f to fade.copy(alpha = 0f), 0.22f to fade.copy(alpha = 0.92f), 0.4f to fade, 1f to fade))
-            .padding(bottom = bottom),
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = Space.x4, end = Space.x4, top = Space.x4, bottom = Space.x1),
-            verticalAlignment = Alignment.Top,
-            content = content,
-        )
-    }
+fun HomeQuickAddRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier.fillMaxWidth().padding(bottom = Space.x1).testTag("home-quick-add-row"),
+        verticalAlignment = Alignment.Top,
+        content = content,
+    )
 }
 
 @Composable
@@ -541,6 +522,22 @@ private fun HomePreviewContent() {
             }
             Column(Modifier.padding(horizontal = Space.x4)) {
                 HomeHeader("Sunday, 22 Nov", "4 things today")
+                HomeQuickAddRow {
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .padding(vertical = Space.x2)
+                            .height(56.dp)
+                            .background(MaterialTheme.colorScheme.surface, MarkedShapes.pill),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text("Quick add a task…", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Space.x5))
+                    }
+                    Spacer(Modifier.width(Space.x3))
+                    SquareFab(Icons.Filled.Add, "New task", onClick = {}, modifier = Modifier.padding(top = Space.x2))
+                }
+                AlarmProblemBannerContent(AlarmProblem.NOTIFICATIONS_OFF, onClick = {})
+                BackupReminderCardContent(onLater = {}, onBackUpNow = {}, modifier = Modifier.padding(vertical = Space.x2))
                 UrgentAlarmCardContent("Call the electrician", "6:30 pm", "Rings in 2 h 10 min", onClick = {})
                 WeekStrip(today, setOf(today, today.plusDays(1), today.plusDays(3), today.plusDays(5)), null, onDaySelected = {}, modifier = Modifier.padding(vertical = Space.x2))
                 Spacer(Modifier.height(Space.x2))
@@ -556,22 +553,7 @@ private fun HomePreviewContent() {
                 GroupedCardItem(GroupPosition.Last) {
                     RemftListRow("Send the rent receipt", struck = true, leading = { CircleCheckbox(true, "Reopen", onToggle = {}) })
                 }
-                Spacer(Modifier.height(Space.x4))
-                BackupReminderCardContent(onLater = {}, onBackUpNow = {})
             }
-        }
-        HomeDock(Modifier.align(Alignment.BottomStart).fillMaxWidth(), bottom = Space.x4) {
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .background(MaterialTheme.colorScheme.surface, MarkedShapes.pill),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                Text("Quick add a task…", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Space.x5))
-            }
-            Spacer(Modifier.width(Space.x3))
-            SquareFab(Icons.Filled.Add, "New task", onClick = {})
         }
     }
 }
