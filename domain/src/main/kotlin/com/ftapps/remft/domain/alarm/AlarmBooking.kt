@@ -98,14 +98,20 @@ object AlarmBooking {
         profile: ReminderProfile = ReminderProfile.Factory,
         alarmSoundName: String? = null,
         reminderSoundName: String? = null,
+        shownPayloads: Map<Int, String?> = emptyMap(),
     ): Set<Int> {
         fun mine(alarm: AlarmInput): Boolean = alarm.taskId == taskId && (reminderId == null || alarm.reminderId == reminderId)
+        val targets = LinkedHashSet<Int>()
+        for ((id, payload) in shownPayloads) {
+            if (AlarmPlanner.shownForTask(payload, taskId, reminderId)) targets.add(id)
+        }
         val alarms = known.filter(::mine) + live.filter(::mine)
-        if (alarms.isEmpty()) return emptySet()
+        if (alarms.isEmpty()) return targets
         val candidates = HashSet<Int>()
         for (alarm in alarms) {
             candidates.addAll(planner.notificationIdsForAlarm(alarm, privacyMode, profile, alarmSoundName, reminderSoundName))
         }
-        return shownIds.filterTo(LinkedHashSet()) { it in candidates }
+        shownIds.filterTo(targets) { it in candidates }
+        return targets
     }
 }

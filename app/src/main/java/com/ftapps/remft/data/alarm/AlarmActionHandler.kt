@@ -19,12 +19,12 @@ class AlarmActionHandler(
     private val scheduler: AlarmScheduler,
     private val silencer: AlarmSilencer,
     private val gateway: AlarmGateway,
-    private val planner: AlarmPlanner,
     private val log: AlarmEventLog,
     private val appLog: AppLog,
     private val clock: Clock,
 ) {
     suspend fun handle(notificationId: Int?, actionId: String, payload: String?): ActionResult {
+        if (payload == AlarmPlanner.TEST_PAYLOAD) return answerTest(notificationId, actionId)
         val parsed = AlarmPlanner.parsePayload(payload) ?: return ActionResult.IGNORED
         val taskId = parsed.taskId
         val reminderId = parsed.reminderId
@@ -37,8 +37,8 @@ class AlarmActionHandler(
             reminderId = reminderId,
             detail = actionId,
         )
-        val config = try {
-            AlarmSettings.from(settings.snapshot())
+        try {
+            settings.snapshot()
         } catch (_: SettingsUnavailable) {
             appLog.warn("alarm.action_unverified", mapOf("action" to LogCode(actionId)))
             log.record(AlarmLogEvent.DEGRADED, AlarmLogLane.NOTIFICATION, taskId = taskId, reminderId = reminderId, detail = "$actionId not verified: settings unreadable")
@@ -46,10 +46,9 @@ class AlarmActionHandler(
         }
         return try {
             val asRang = runCatching { store.alarmsOfTask(taskId) }.getOrDefault(emptyList())
-            val sounds = scheduler.resolveSounds(config)
             val now = clock.instant()
-            val decision = NotificationActions.decide(NotificationEvent(notificationId, actionId, payload), asRang, now) { id, rid ->
-                planner.isOurs(id, rid, asRang, config.privacyMode, config.profile, sounds.alarm, sounds.reminder)
+            val decision = NotificationActions.decide(NotificationEvent(notificationId, actionId, payload), asRang, now) { id, _ ->
+                AlarmPlanner.isCurrentRing(id, parsed, asRang)
             }
             act(decision, notificationId, asRang)
         } catch (e: Exception) {
@@ -63,6 +62,7 @@ class AlarmActionHandler(
         NotificationDecision.Ignore, is NotificationDecision.OpenTask -> ActionResult.IGNORED
         is NotificationDecision.NotOurs -> {
             appLog.warn(NotificationActions.LOG_NOT_OURS, mapOf("action" to LogCode(decision.action)))
+            notificationId?.let { runCatching { gateway.cancelShown(it) } }
             ActionResult.NOT_OURS
         }
         is NotificationDecision.NotApplied -> notApplied(decision, notificationId)
@@ -100,6 +100,12 @@ class AlarmActionHandler(
         silencer.silence(taskId, silenceReminder, asRang, action)
         notificationId?.let { runCatching { gateway.cancelShown(it) } }
         scheduler.pass(reason = "action")
+        return ActionResult.APPLIED
+    }
+
+    private suspend fun answerTest(notificationId: Int?, actionId: String): ActionResult {
+        runCatching { gateway.cancelShown(notificationId ?: AlarmPlanner.TEST_NOTIFICATION_ID) }
+        log.record(AlarmLogEvent.TEST, AlarmLogLane.NOTIFICATION, urgent = true, detail = "test alarm answered: $actionId")
         return ActionResult.APPLIED
     }
 

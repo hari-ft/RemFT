@@ -119,7 +119,7 @@ object UrgentLookAhead {
         var best: UpcomingUrgent? = null
         for ((alarm, slots) in times) {
             if (!alarm.urgent) continue
-            val at = slots.firstOrNull { it.isAfter(now) } ?: continue
+            val at = slots.filter { it.isAfter(now) }.minOrNull() ?: continue
             if (at.isAfter(now.plus(window))) continue
             if (best == null || at.isBefore(best.at)) best = UpcomingUrgent(alarm, at)
         }

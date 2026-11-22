@@ -99,6 +99,8 @@ class AlarmSystemReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        const val EXACT_ALARM_PERMISSION_CHANGED = "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"
+
         val HANDLED = setOf(
             Intent.ACTION_LOCKED_BOOT_COMPLETED,
             Intent.ACTION_BOOT_COMPLETED,
@@ -106,6 +108,7 @@ class AlarmSystemReceiver : BroadcastReceiver() {
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
             "android.intent.action.QUICKBOOT_POWERON",
+            EXACT_ALARM_PERMISSION_CHANGED,
         )
     }
 }

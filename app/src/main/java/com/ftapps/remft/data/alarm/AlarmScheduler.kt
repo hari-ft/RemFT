@@ -130,6 +130,7 @@ class AlarmScheduler(
         val droppedCutoff = now.minus(IN_FLIGHT_GRACE)
         val dropped = booked.values.filter { it.fireAt.isBefore(droppedCutoff) }
         if (dropped.isNotEmpty()) {
+            catchUp(dropped, feed, config, now)
             pending.update { map -> dropped.forEach { map.remove(it.id) } }
             for (entry in dropped) {
                 log.record(
@@ -247,6 +248,37 @@ class AlarmScheduler(
         return PassOutcome.Done(desired.size, scheduled, rebooked, cancelled, failed, dropped.size, rebookNow)
     }
 
+    private suspend fun catchUp(dropped: List<BookedAlarm>, feed: List<AlarmInput>, config: AlarmSettings, now: Instant) {
+        val floor = now.minus(MISSED_LOOKBACK)
+        val latest = dropped
+            .filter { it.reminderId != null && !it.fireAt.isBefore(floor) }
+            .groupBy { it.reminderId }
+            .values
+            .map { rings -> rings.maxBy { it.fireAtMillis } }
+        if (latest.isEmpty()) return
+        val alreadyShown = gateway.shownPayloads().values.mapNotNullTo(HashSet()) { AlarmPlanner.parsePayload(it)?.reminderId }
+        for (entry in latest) {
+            if (entry.reminderId in alreadyShown) continue
+            val payload = AlarmPlanner.parsePayload(entry.payload) ?: continue
+            if (!AlarmPlanner.isCurrentRing(entry.id, payload, feed)) continue
+            val words = texts
+            val planned = entry.toPlanned()
+            val notification = if (config.privacyMode && words != null) planned.copy(title = words.privacyTitle, body = words.privateBody) else planned
+            val shown = runCatching { gateway.showMissed(notification) }
+            log.record(
+                if (shown.isSuccess) AlarmLogEvent.DELIVERED else AlarmLogEvent.DEGRADED,
+                AlarmLogLane.NOTIFICATION,
+                kind = entry.kind,
+                slotIndex = entry.slotIndex,
+                urgent = entry.urgent,
+                fireAt = entry.fireAt,
+                taskId = entry.taskId,
+                reminderId = entry.reminderId,
+                detail = if (shown.isSuccess) "id=${entry.id} missed, caught up" else "catch-up id=${entry.id} failed: ${shown.exceptionOrNull()?.javaClass?.simpleName}",
+            )
+        }
+    }
+
     suspend fun bookTest(): Boolean = mutex.withLock {
         try {
             val config = AlarmSettings.from(settings.snapshot())
@@ -285,5 +317,6 @@ class AlarmScheduler(
     companion object {
         val IN_FLIGHT_GRACE: Duration = Duration.ofMinutes(2)
         val HEARTBEAT: Duration = Duration.ofHours(6)
+        val MISSED_LOOKBACK: Duration = Duration.ofHours(24)
     }
 }

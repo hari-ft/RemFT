@@ -5,10 +5,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -105,7 +109,15 @@ fun AppShell(
                     if (wide && current != null) {
                         NavigationRailPanel(current, navigate, extended = extended)
                     }
-                    Box(Modifier.weight(1f).fillMaxHeight().hazeSource(hazeState)) {
+                    val sides = if (wide && current != null) WindowInsetsSides.End else WindowInsetsSides.Horizontal
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .hazeSource(hazeState)
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(sides))
+                            .testTag("shell-content"),
+                    ) {
                         RemftNavHost(navController, showBottomBar = !wide, onReplayTour = replayTour)
                     }
                 }

@@ -30,6 +30,7 @@ class AlarmSilencer(
             known = known,
             live = live,
             shownIds = gateway.shownIds(),
+            shownPayloads = gateway.shownPayloads(),
             privacyMode = config.privacyMode,
             profile = config.profile,
             alarmSoundName = sounds.alarm,

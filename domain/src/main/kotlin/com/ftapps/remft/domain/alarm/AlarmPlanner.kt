@@ -32,6 +32,7 @@ data class AlarmPayload(
     val chainIndex: Int?,
     val planned: Long?,
     val fireAt: Long?,
+    val base: Long? = null,
 )
 
 private class Ring(
@@ -90,6 +91,7 @@ class AlarmPlanner(private val texts: AlarmTexts) {
                     chainIndex = ring.index,
                     plannedMillis = ring.originalFireAt.toEpochMilli(),
                     fireAtMillis = fireAt.toEpochMilli(),
+                    baseMillis = alarm.fireAt.toEpochMilli(),
                 ),
                 kind = alarm.kind,
                 slotIndex = ring.index,
@@ -115,35 +117,6 @@ class AlarmPlanner(private val texts: AlarmTexts) {
         }
         return ids
     }
-
-    fun isOurs(
-        notificationId: Int?,
-        alarm: AlarmInput?,
-        privacyMode: Boolean,
-        profile: ReminderProfile = ReminderProfile.Factory,
-        alarmSoundName: String? = null,
-        reminderSoundName: String? = null,
-    ): Boolean {
-        if (notificationId == null || alarm == null) return false
-        return notificationId in notificationIdsForAlarm(alarm, privacyMode, profile, alarmSoundName, reminderSoundName)
-    }
-
-    fun isOurs(
-        notificationId: Int?,
-        reminderId: String,
-        feed: List<AlarmInput>,
-        privacyMode: Boolean,
-        profile: ReminderProfile = ReminderProfile.Factory,
-        alarmSoundName: String? = null,
-        reminderSoundName: String? = null,
-    ): Boolean = isOurs(
-        notificationId,
-        feed.firstOrNull { it.reminderId == reminderId },
-        privacyMode,
-        profile,
-        alarmSoundName,
-        reminderSoundName,
-    )
 
     fun testAlarm(now: Instant, soundName: String? = null): PlannedNotification = PlannedNotification(
         id = TEST_NOTIFICATION_ID,
@@ -179,7 +152,26 @@ class AlarmPlanner(private val texts: AlarmTexts) {
             applyHeld(rings, held)
             val times = IdentityHashMap<AlarmInput, MutableList<Instant>>()
             for (ring in rings) times.getOrPut(ring.alarm) { ArrayList() }.add(ring.fireAt)
+            for (slots in times.values) slots.sort()
             return times
+        }
+
+        fun isCurrentRing(notificationId: Int?, payload: AlarmPayload, alarms: List<AlarmInput>): Boolean {
+            if (notificationId == null || !NotificationIds.isRing(notificationId)) return false
+            val reminderId = payload.reminderId ?: return false
+            val alarm = alarms.firstOrNull { it.reminderId == reminderId } ?: return false
+            if (!ReminderStatus.isActive(alarm.status)) return false
+            if (payload.at != null && payload.at != alarm.remindAt) return false
+            val base = payload.base
+            if (base != null) return base == alarm.fireAt.toEpochMilli()
+            val planned = payload.planned ?: return true
+            return planned >= alarm.fireAt.toEpochMilli()
+        }
+
+        fun shownForTask(payload: String?, taskId: String, reminderId: String?): Boolean {
+            val parsed = parsePayload(payload) ?: return false
+            if (parsed.taskId != taskId) return false
+            return reminderId == null || parsed.reminderId == reminderId
         }
 
         fun heldRingsFromPayloads(payloads: Iterable<String?>, now: Instant): Map<HeldRing, Instant> {
@@ -220,6 +212,7 @@ class AlarmPlanner(private val texts: AlarmTexts) {
                 chainIndex = intField(decoded, "chainIndex")?.toInt(),
                 planned = intField(decoded, "planned"),
                 fireAt = intField(decoded, "fireAt"),
+                base = intField(decoded, "base"),
             )
         }
 
@@ -231,6 +224,7 @@ class AlarmPlanner(private val texts: AlarmTexts) {
             chainIndex: Int,
             plannedMillis: Long,
             fireAtMillis: Long,
+            baseMillis: Long? = null,
         ): String = buildString {
             append("{\"taskId\":").append(JsonPrimitive(taskId))
             append(",\"reminderId\":").append(JsonPrimitive(reminderId))
@@ -239,6 +233,7 @@ class AlarmPlanner(private val texts: AlarmTexts) {
             append(",\"chainIndex\":").append(chainIndex)
             append(",\"planned\":").append(plannedMillis)
             append(",\"fireAt\":").append(fireAtMillis)
+            if (baseMillis != null) append(",\"base\":").append(baseMillis)
             append('}')
         }
 
@@ -350,11 +345,11 @@ class AlarmPlanner(private val texts: AlarmTexts) {
             fun flag(x: Boolean, y: Boolean): Int = if (x == y) 0 else if (x) -1 else 1
             var c = flag(a.index == 0, b.index == 0)
             if (c != 0) return@Comparator c
+            c = flag(a.alarm.urgent, b.alarm.urgent)
+            if (c != 0) return@Comparator c
             c = flag(a.shifts == 0, b.shifts == 0)
             if (c != 0) return@Comparator c
             c = flag(a.alarm.kind == AlarmKind.DUE, b.alarm.kind == AlarmKind.DUE)
-            if (c != 0) return@Comparator c
-            c = flag(a.alarm.urgent, b.alarm.urgent)
             if (c != 0) return@Comparator c
             c = a.alarm.remindAt.compareTo(b.alarm.remindAt)
             if (c != 0) return@Comparator c
@@ -369,14 +364,22 @@ class AlarmPlanner(private val texts: AlarmTexts) {
 
         private fun spaceCollidingRings(rings: List<Ring>) {
             val byMinute = TreeMap<Long, MutableList<Ring>>()
-            for (ring in rings) byMinute.getOrPut(minuteOf(ring.fireAt)) { ArrayList() }.add(ring)
+            val chains = IdentityHashMap<AlarmInput, MutableList<Ring>>()
+            for (ring in rings) {
+                byMinute.getOrPut(minuteOf(ring.fireAt)) { ArrayList() }.add(ring)
+                chains.getOrPut(ring.alarm) { ArrayList() }.add(ring)
+            }
             while (byMinute.isNotEmpty()) {
                 val here = byMinute.pollFirstEntry().value
                 if (here.size < 2) continue
                 here.sortWith(ringPrecedence)
                 for (moved in here.drop(1)) {
-                    moved.shifts++
-                    byMinute.getOrPut(minuteOf(moved.fireAt)) { ArrayList() }.add(moved)
+                    for (ring in chains.getValue(moved.alarm)) {
+                        if (ring.index < moved.index) continue
+                        if (ring !== moved) byMinute[minuteOf(ring.fireAt)]?.removeIf { it === ring }
+                        ring.shifts++
+                        byMinute.getOrPut(minuteOf(ring.fireAt)) { ArrayList() }.add(ring)
+                    }
                 }
             }
         }
