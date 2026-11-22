@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -54,6 +53,7 @@ import com.ftapps.remft.domain.settings.SettingKey
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
@@ -275,7 +275,7 @@ private fun SoundOption(
         RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(Space.x3))
         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
         if (onPreview != null) {
-            IconButton(onClick = onPreview, modifier = Modifier.testTag("$tag-preview")) {
+            RemftIconButton(label = stringResource(if (playing) R.string.sound_stopPreview else R.string.sound_preview), onClick = onPreview, modifier = Modifier.testTag("$tag-preview")) {
                 Icon(
                     if (playing) Icons.Outlined.StopCircle else Icons.Outlined.PlayCircleOutline,
                     contentDescription = stringResource(if (playing) R.string.sound_stopPreview else R.string.sound_preview),

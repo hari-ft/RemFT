@@ -42,7 +42,6 @@ import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
@@ -78,6 +77,7 @@ import com.ftapps.remft.domain.notes.markdown.OutlineHeading
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.notes.NotesSheetTitle
 import com.ftapps.remft.ui.theme.JetBrainsMono
@@ -121,7 +121,7 @@ fun FormattingToolbar(onAction: (MdActionId) -> Unit, counts: String, modifier: 
             Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(horizontal = Space.x1)) {
                 MdActionId.entries.forEach { id ->
                     val look = lookOf(id)
-                    IconButton(onClick = { onAction(id) }, modifier = Modifier.testTag("action-${id.name.lowercase()}")) {
+                    RemftIconButton(label = stringResource(look.label), onClick = { onAction(id) }, modifier = Modifier.testTag("action-${id.name.lowercase()}")) {
                         Icon(look.icon, contentDescription = stringResource(look.label))
                     }
                 }
@@ -242,13 +242,13 @@ fun FindReplaceBar(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = Space.x2).testTag("find-count"),
                 )
-                IconButton(onClick = { if (matches.isNotEmpty()) index = (index - 1 + matches.size) % matches.size }) {
+                RemftIconButton(label = stringResource(R.string.common_previous), onClick = { if (matches.isNotEmpty()) index = (index - 1 + matches.size) % matches.size }) {
                     Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.common_previous))
                 }
-                IconButton(onClick = { if (matches.isNotEmpty()) index = (index + 1) % matches.size }) {
+                RemftIconButton(label = stringResource(R.string.common_next), onClick = { if (matches.isNotEmpty()) index = (index + 1) % matches.size }) {
                     Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.common_next))
                 }
-                IconButton(onClick = onClose, modifier = Modifier.testTag("find-close")) {
+                RemftIconButton(label = stringResource(R.string.notes_findClose), onClick = onClose, modifier = Modifier.testTag("find-close")) {
                     Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.notes_findClose))
                 }
             }

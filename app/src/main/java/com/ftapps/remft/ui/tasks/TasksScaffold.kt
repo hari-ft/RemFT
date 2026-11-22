@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTopBar
 import com.ftapps.remft.ui.theme.Space
 
@@ -40,7 +40,7 @@ fun TasksScaffold(
                 title = title,
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
+                        RemftIconButton(label = stringResource(R.string.common_close), onClick = onBack, modifier = Modifier.testTag("back")) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
                         }
                     }
@@ -48,7 +48,7 @@ fun TasksScaffold(
                 actions = {
                     actions()
                     if (onOpenSettings != null) {
-                        IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("open-settings")) {
+                        RemftIconButton(label = stringResource(R.string.settings_title), onClick = onOpenSettings, modifier = Modifier.testTag("open-settings")) {
                             Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings_title))
                         }
                     }

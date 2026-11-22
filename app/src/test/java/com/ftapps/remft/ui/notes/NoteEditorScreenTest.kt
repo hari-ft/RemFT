@@ -6,9 +6,11 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.ui.notes.editor.NoteEditorScreen
@@ -68,6 +70,16 @@ class NoteEditorScreenTest {
         compose.onNodeWithTag("note-source").performTextInput("word")
         compose.onNodeWithTag("action-h1").performScrollTo().performClick()
         assertEquals("# word", viewModel.source.text)
+    }
+
+    @Test
+    fun longPressOnAToolbarButtonShowsItsNameWithoutFormatting() {
+        val viewModel = show(null)
+        compose.onNodeWithTag("note-source").performTextInput("word")
+        assertEquals(0, compose.onAllNodesWithText("Heading 1").fetchSemanticsNodes().size)
+        compose.onNodeWithTag("action-h1").performScrollTo().performTouchInput { longClick() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Heading 1").fetchSemanticsNodes().size == 1 }
+        assertEquals("word", viewModel.source.text)
     }
 
     @Test

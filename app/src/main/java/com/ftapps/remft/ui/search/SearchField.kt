@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -36,6 +35,7 @@ import com.ftapps.remft.R
 import com.ftapps.remft.domain.Fold
 import com.ftapps.remft.domain.search.SearchMatch
 import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftThemeExtras
@@ -136,9 +136,7 @@ fun SearchField(
         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.padding(start = Space.x1)) },
         trailingIcon = {
             if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }, modifier = Modifier.testTag("$tag-clear")) {
-                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.common_clear))
-                }
+                RemftIconButton(icon = Icons.Outlined.Close, label = stringResource(R.string.common_clear), onClick = { onQueryChange("") }, modifier = Modifier.testTag("$tag-clear"))
             }
         },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),

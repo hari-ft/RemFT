@@ -6,7 +6,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -35,6 +34,7 @@ import com.ftapps.remft.domain.settings.SettingKey
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.domain.time.UtcText
+import com.ftapps.remft.ui.components.RemftIconButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
@@ -54,7 +54,7 @@ fun AlarmSettingsScaffold(
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
+                    RemftIconButton(label = stringResource(R.string.common_close), onClick = onBack, modifier = Modifier.testTag("back")) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
                     }
                 },

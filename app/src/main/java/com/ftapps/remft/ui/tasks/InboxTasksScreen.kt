@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -58,6 +57,7 @@ import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.MarkedCard
 import com.ftapps.remft.ui.components.RemftDialog
 import com.ftapps.remft.ui.components.RemftFilledButton
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.empty.EmptyIllustration
 import com.ftapps.remft.ui.empty.IllustratedEmptyState
@@ -139,7 +139,8 @@ fun InboxTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit) {
         bottomPadding = bottomPadding,
         onOpenSettings = onOpenSettings,
         actions = {
-            IconButton(
+            RemftIconButton(
+                label = stringResource(if (searching) R.string.common_close else R.string.common_search),
                 onClick = {
                     if (searching) vm.setQuery("")
                     searching = !searching
@@ -276,7 +277,8 @@ private fun CaptureRowContent(id: String, title: String, onPlan: () -> Unit, onC
 
 @Composable
 private fun CaptureAction(icon: ImageVector, description: String, onClick: () -> Unit, tag: String, tint: Color) {
-    IconButton(
+    RemftIconButton(
+        label = description,
         onClick = onClick,
         colors = IconButtonDefaults.iconButtonColors(contentColor = tint),
         modifier = Modifier.testTag(tag),

@@ -42,7 +42,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -82,6 +81,7 @@ import com.ftapps.remft.domain.time.UtcText
 import com.ftapps.remft.ui.components.ChipTone
 import com.ftapps.remft.ui.components.MarkedCard
 import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RoundIconButton
 import com.ftapps.remft.ui.components.SquareFab
 import com.ftapps.remft.ui.components.StatusChip
@@ -218,7 +218,7 @@ fun NotesScreen(
                 },
                 navigationIcon = {
                     if (searching) {
-                        IconButton(onClick = {
+                        RemftIconButton(label = stringResource(R.string.notes_closeSearch), onClick = {
                             searching = false
                             viewModel.setSearch("")
                         }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.notes_closeSearch)) }
@@ -241,7 +241,7 @@ fun NotesScreen(
                         onViewMode = viewModel::setViewMode,
                     )
                     ExternalMenu(onEditExternal, onImport, onOpenRecent, recents)
-                    IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("open-settings")) {
+                    RemftIconButton(label = stringResource(R.string.shell_settingsTooltip), onClick = onOpenSettings, modifier = Modifier.testTag("open-settings")) {
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.shell_settingsTooltip))
                     }
                 },
@@ -325,7 +325,7 @@ class NoteRowActions(
 
 @Composable
 private fun PinButton(note: NoteRow, actions: NoteRowActions) {
-    IconButton(onClick = { actions.togglePin(note) }, modifier = Modifier.testTag("pin-${note.id}")) {
+    RemftIconButton(label = stringResource(if (note.isPinned) R.string.note_unpin else R.string.note_pin), onClick = { actions.togglePin(note) }, modifier = Modifier.testTag("pin-${note.id}")) {
         Icon(
             if (note.isPinned) Icons.Outlined.Star else Icons.Outlined.StarBorder,
             contentDescription = stringResource(if (note.isPinned) R.string.note_unpin else R.string.note_pin),
@@ -429,7 +429,7 @@ private fun NoteCardContent(note: NoteRow, edited: String, actions: NoteRowActio
 private fun NoteMenu(note: NoteRow, actions: NoteRowActions) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }, modifier = Modifier.testTag("note-menu-${note.id}")) {
+        RemftIconButton(label = stringResource(R.string.note_actions), onClick = { open = true }, modifier = Modifier.testTag("note-menu-${note.id}")) {
             Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.note_actions))
         }
         NotesDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -481,7 +481,7 @@ private fun SortMenu(
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }, modifier = Modifier.testTag("notes-sort")) {
+        RemftIconButton(label = stringResource(R.string.sort_tooltip), onClick = { open = true }, modifier = Modifier.testTag("notes-sort")) {
             Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = stringResource(R.string.sort_tooltip))
         }
         NotesDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -546,7 +546,7 @@ private fun ExternalMenu(
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }, modifier = Modifier.testTag("notes-external")) {
+        RemftIconButton(label = stringResource(R.string.note_mdOpen), onClick = { open = true }, modifier = Modifier.testTag("notes-external")) {
             Icon(Icons.Outlined.FileOpen, contentDescription = stringResource(R.string.note_mdOpen))
         }
         NotesDropdownMenu(expanded = open, onDismissRequest = { open = false }) {

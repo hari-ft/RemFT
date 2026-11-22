@@ -11,8 +11,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -39,16 +37,12 @@ fun SectionScaffold(
                 title = title,
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
-                        }
+                        RemftIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, label = stringResource(R.string.common_close), onClick = onBack, modifier = Modifier.testTag("back"))
                     }
                 },
                 actions = {
                     if (onOpenSettings != null) {
-                        IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("open-settings")) {
-                            Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings_title))
-                        }
+                        RemftIconButton(icon = Icons.Outlined.Settings, label = stringResource(R.string.settings_title), onClick = onOpenSettings, modifier = Modifier.testTag("open-settings"))
                     }
                 },
             )

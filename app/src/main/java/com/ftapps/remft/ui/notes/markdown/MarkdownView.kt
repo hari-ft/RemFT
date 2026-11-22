@@ -46,7 +46,6 @@ import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -112,6 +111,7 @@ import com.ftapps.remft.domain.notes.markdown.OutlineHeading
 import com.ftapps.remft.domain.notes.markdown.ParsedMarkdown
 import com.ftapps.remft.domain.notes.markdown.children
 import com.ftapps.remft.domain.notes.markdown.textContent
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.theme.CodeStyle
 import com.ftapps.remft.ui.theme.JetBrainsMono
 import com.ftapps.remft.ui.theme.MarkedShapes
@@ -274,7 +274,7 @@ private fun HeadingBlock(block: Heading, foldable: ((Int) -> Unit)?, collapsed: 
     Row(verticalAlignment = Alignment.CenterVertically) {
         InlineText(block, headingStyle(block.level), Modifier.weight(1f).semantics { heading() })
         if (foldable != null) {
-            IconButton(onClick = { foldable(index) }, modifier = Modifier.testTag("fold-$index")) {
+            RemftIconButton(label = stringResource(R.string.note_outline), onClick = { foldable(index) }, modifier = Modifier.testTag("fold-$index")) {
                 Icon(
                     if (collapsed) Icons.Outlined.ExpandMore else Icons.Outlined.ExpandLess,
                     contentDescription = stringResource(R.string.note_outline),
@@ -577,7 +577,8 @@ fun CodePanel(code: String, info: String?) {
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(
+            RemftIconButton(
+                label = stringResource(if (copied) R.string.markdown_copied else R.string.markdown_copyCode),
                 onClick = {
                     clipScope.launch { runCatching { clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("code", code))) } }
                     copied = true

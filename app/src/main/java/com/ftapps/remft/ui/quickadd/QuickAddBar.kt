@@ -19,7 +19,6 @@ import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
@@ -63,6 +62,7 @@ import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.ui.components.ChipTone
 import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.chipColors
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.tasks.priorityLabel
@@ -164,7 +164,8 @@ private fun QuickAddField(
         keyboardActions = KeyboardActions(onDone = { onSubmit() }),
         trailingIcon = {
             if (text.isEmpty()) {
-                IconButton(
+                RemftIconButton(
+                    label = stringResource(R.string.task_quickParse_helpTooltip),
                     onClick = onHelp,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = scheme.onSurfaceVariant),
                     modifier = Modifier.testTag("$tag-help"),
@@ -172,7 +173,8 @@ private fun QuickAddField(
                     Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = stringResource(R.string.task_quickParse_helpTooltip))
                 }
             } else {
-                IconButton(
+                RemftIconButton(
+                    label = stringResource(R.string.task_addTask),
                     onClick = onSubmit,
                     colors = IconButtonDefaults.iconButtonColors(containerColor = scheme.primary, contentColor = scheme.onPrimary),
                     modifier = Modifier.padding(end = Space.x1).testTag("$tag-submit"),
@@ -284,7 +286,7 @@ private fun QuickAddChips(
                 modifier = Modifier.testTag("$tag-token-${chip.kind.id}"),
             )
         }
-        IconButton(onClick = onHelp, modifier = Modifier.testTag("$tag-help-inline")) {
+        RemftIconButton(label = stringResource(R.string.task_quickParse_helpTooltip), onClick = onHelp, modifier = Modifier.testTag("$tag-help-inline")) {
             Icon(
                 Icons.AutoMirrored.Outlined.HelpOutline,
                 contentDescription = stringResource(R.string.task_quickParse_helpTooltip),

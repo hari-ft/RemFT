@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,6 +40,7 @@ import com.ftapps.remft.domain.search.GlobalSearchKind
 import com.ftapps.remft.domain.search.PaletteEntry
 import com.ftapps.remft.domain.search.SearchRecent
 import com.ftapps.remft.domain.text.fill
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RoundIconButton
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.shell.FilesRoute
@@ -133,9 +133,7 @@ fun GlobalSearchRailEntry(extended: Boolean, modifier: Modifier = Modifier) {
     val shortcut = stringResource(R.string.search_global_shortcut)
     val label = stringResource(R.string.search_global_openWithShortcut).fill("shortcut" to shortcut)
     if (!extended) {
-        IconButton(onClick = search.palette::open, modifier = modifier.fillMaxWidth().testTag("global-search-rail")) {
-            Icon(Icons.Outlined.Search, contentDescription = label)
-        }
+        RemftIconButton(icon = Icons.Outlined.Search, label = label, onClick = search.palette::open, modifier = modifier.fillMaxWidth().testTag("global-search-rail"))
         return
     }
     val scheme = MaterialTheme.colorScheme

@@ -16,7 +16,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -96,8 +95,9 @@ fun RoundIconButton(
     container: Color = RemftTheme.tonal.level2,
     content: Color = MaterialTheme.colorScheme.onSurface,
 ) {
-    IconButton(
+    RemftIconButton(
         onClick = onClick,
+        label = contentDescription,
         colors = IconButtonDefaults.iconButtonColors(containerColor = container, contentColor = content),
         modifier = modifier.size(Sizes.touchTarget),
     ) { Icon(icon, contentDescription = contentDescription) }
@@ -105,6 +105,13 @@ fun RoundIconButton(
 
 @Composable
 fun SquareFab(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Tooltipped(contentDescription) {
+        SquareFabBody(icon, contentDescription, onClick, modifier)
+    }
+}
+
+@Composable
+private fun SquareFabBody(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier) {
     val scheme = MaterialTheme.colorScheme
     FloatingActionButton(
         onClick = onClick,

@@ -19,7 +19,6 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -47,6 +46,7 @@ import com.ftapps.remft.ui.components.CenteredList
 import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.theme.Breakpoints
@@ -88,9 +88,10 @@ fun AppLogScreen(onBack: () -> Unit, onOpenAlarmLog: () -> Unit) {
         onBack = onBack,
         snackbar = snackbar,
         actions = {
-            IconButton(
+            RemftIconButton(
+                label = shareTitle,
                 onClick = {
-                    val log = env?.appLog ?: return@IconButton
+                    val log = env?.appLog ?: return@RemftIconButton
                     scope.launch {
                         val text = withContext(Dispatchers.IO) { runCatching { log.exportText() }.getOrNull() }
                         val ok = text != null && shareAppLog(context, text, shareTitle)
@@ -101,7 +102,7 @@ fun AppLogScreen(onBack: () -> Unit, onOpenAlarmLog: () -> Unit) {
             ) {
                 Icon(Icons.Outlined.Share, contentDescription = shareTitle)
             }
-            IconButton(onClick = { confirmClear = true }, modifier = Modifier.testTag("app-log-clear")) {
+            RemftIconButton(label = stringResource(R.string.appLog_clear), onClick = { confirmClear = true }, modifier = Modifier.testTag("app-log-clear")) {
                 Icon(Icons.Outlined.DeleteSweep, contentDescription = stringResource(R.string.appLog_clear))
             }
         },

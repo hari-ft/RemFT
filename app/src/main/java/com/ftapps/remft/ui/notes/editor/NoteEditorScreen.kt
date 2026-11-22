@@ -42,7 +42,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
@@ -93,6 +92,7 @@ import com.ftapps.remft.domain.notes.markdown.OutlineHeading
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.files.FilesEnvironment
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
@@ -226,35 +226,35 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
             )
         },
         navigationIcon = {
-            IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
+            RemftIconButton(label = stringResource(R.string.common_close), onClick = onBack, modifier = Modifier.testTag("back")) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
             }
         },
         actions = {
             if (viewModel.isExternal) {
                 if (session?.writable == true) {
-                    IconButton(onClick = { viewModel.saveExternal(force = false) }, modifier = Modifier.testTag("external-save")) {
+                    RemftIconButton(label = stringResource(R.string.note_extSave), onClick = { viewModel.saveExternal(force = false) }, modifier = Modifier.testTag("external-save")) {
                         Icon(Icons.Outlined.Save, contentDescription = stringResource(R.string.note_extSave))
                     }
                 }
-                IconButton(onClick = viewModel::saveExternalAsNote, modifier = Modifier.testTag("external-save-as-note")) {
+                RemftIconButton(label = stringResource(R.string.note_extSaveAsNote), onClick = viewModel::saveExternalAsNote, modifier = Modifier.testTag("external-save-as-note")) {
                     Icon(Icons.AutoMirrored.Outlined.NoteAdd, contentDescription = stringResource(R.string.note_extSaveAsNote))
                 }
             } else {
-                IconButton(onClick = viewModel::togglePinned, modifier = Modifier.testTag("note-pin")) {
+                RemftIconButton(label = stringResource(if (viewModel.isPinned) R.string.note_unpin else R.string.note_pin), onClick = viewModel::togglePinned, modifier = Modifier.testTag("note-pin")) {
                     Icon(
                         if (viewModel.isPinned) Icons.Outlined.Star else Icons.Outlined.StarBorder,
                         contentDescription = stringResource(if (viewModel.isPinned) R.string.note_unpin else R.string.note_pin),
                         tint = if (viewModel.isPinned) RemftTheme.colors.note.color else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = viewModel::toggleArchived, modifier = Modifier.testTag("note-archive")) {
+                RemftIconButton(label = stringResource(if (viewModel.isArchived) R.string.note_unarchive else R.string.note_archive), onClick = viewModel::toggleArchived, modifier = Modifier.testTag("note-archive")) {
                     Icon(
                         if (viewModel.isArchived) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
                         contentDescription = stringResource(if (viewModel.isArchived) R.string.note_unarchive else R.string.note_archive),
                     )
                 }
-                IconButton(onClick = {
+                RemftIconButton(label = stringResource(R.string.note_deleteTooltip), onClick = {
                     scope.launch {
                         binOn = viewModel.binEnabled()
                         confirmDelete = true
@@ -263,7 +263,7 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
                     Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.note_deleteTooltip))
                 }
                 Box {
-                    IconButton(onClick = { menu = true }, modifier = Modifier.testTag("note-quick-menu")) {
+                    RemftIconButton(label = stringResource(R.string.note_actions), onClick = { menu = true }, modifier = Modifier.testTag("note-quick-menu")) {
                         Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.note_actions))
                     }
                     NotesDropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -451,11 +451,11 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                 Spacer(Modifier.weight(1f))
                 SaveIndicator(viewModel.saveState, viewModel.isExternal, viewModel.dirty)
                 CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
-                    IconButton(onClick = { outline = true }, modifier = Modifier.testTag("open-outline")) {
+                    RemftIconButton(label = stringResource(R.string.note_outline), onClick = { outline = true }, modifier = Modifier.testTag("open-outline")) {
                         Icon(Icons.AutoMirrored.Outlined.Toc, contentDescription = stringResource(R.string.note_outline))
                     }
                     if (viewModel.mode == EditorMode.Source) {
-                        IconButton(onClick = {
+                        RemftIconButton(label = stringResource(R.string.note_find), onClick = {
                             finding = !finding
                             replacing = finding
                         }, modifier = Modifier.testTag("open-find")) {
@@ -463,10 +463,10 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                         }
                     }
                     if (wide) {
-                        IconButton(onClick = { split = !split }, modifier = Modifier.testTag("toggle-split")) {
+                        RemftIconButton(label = stringResource(if (split) R.string.note_splitOff else R.string.note_splitOn), onClick = { split = !split }, modifier = Modifier.testTag("toggle-split")) {
                             Icon(Icons.Outlined.VerticalSplit, contentDescription = stringResource(if (split) R.string.note_splitOff else R.string.note_splitOn))
                         }
-                        IconButton(onClick = { focusMode = !focusMode }, modifier = Modifier.testTag("toggle-focus")) {
+                        RemftIconButton(label = stringResource(if (focusMode) R.string.note_focusOff else R.string.note_focusOn), onClick = { focusMode = !focusMode }, modifier = Modifier.testTag("toggle-focus")) {
                             Icon(Icons.Outlined.CenterFocusStrong, contentDescription = stringResource(if (focusMode) R.string.note_focusOff else R.string.note_focusOn))
                         }
                     }

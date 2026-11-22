@@ -9,6 +9,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import androidx.compose.foundation.clickable
@@ -43,7 +44,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -130,13 +130,14 @@ fun TaskDetailScreen(taskId: String, onBack: () -> Unit, bottomPadding: Dp = 0.d
         actions = {
             if (ready != null) {
                 val completed = ready.detail.task.isCompleted
-                IconButton(onClick = vm::toggleComplete, modifier = Modifier.testTag("task-complete")) {
+                RemftIconButton(label = stringResource(if (completed) R.string.task_reopen else R.string.task_complete), onClick = vm::toggleComplete, modifier = Modifier.testTag("task-complete")) {
                     Icon(
                         if (completed) Icons.Outlined.Replay else Icons.Outlined.CheckCircleOutline,
                         contentDescription = stringResource(if (completed) R.string.task_reopen else R.string.task_complete),
                     )
                 }
-                IconButton(
+                RemftIconButton(
+                    label = stringResource(R.string.task_deleteTooltip),
                     onClick = {
                         val task = ready.detail.task
                         val message = deletedText.fill("title" to task.title)
@@ -407,7 +408,8 @@ private fun Checklist(items: List<ChecklistItem>, vm: TaskDetailViewModel) {
                 unfocusedBorderColor = Color.Transparent,
             ),
             trailingIcon = {
-                IconButton(
+                RemftIconButton(
+                    label = stringResource(R.string.task_addItem),
                     onClick = add,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.testTag("checklist-add-button"),
@@ -446,7 +448,7 @@ private fun ChecklistRow(item: ChecklistItem, index: Int, count: Int, vm: TaskDe
                 shape = MarkedShapes.small,
                 colors = sheetFieldColors(),
                 trailingIcon = {
-                    IconButton(onClick = save, modifier = Modifier.testTag("checklist-save-${item.id}")) {
+                    RemftIconButton(label = stringResource(R.string.common_save), onClick = save, modifier = Modifier.testTag("checklist-save-${item.id}")) {
                         Icon(Icons.Outlined.CheckCircleOutline, contentDescription = stringResource(R.string.common_save))
                     }
                 },
@@ -466,7 +468,8 @@ private fun ChecklistRow(item: ChecklistItem, index: Int, count: Int, vm: TaskDe
             )
         }
         Box {
-            IconButton(
+            RemftIconButton(
+                label = stringResource(R.string.tasks_checklistItemOptions),
                 onClick = { menu = true },
                 colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
                 modifier = Modifier.testTag("checklist-menu-${item.id}"),

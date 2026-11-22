@@ -31,7 +31,6 @@ import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -60,6 +59,7 @@ import com.ftapps.remft.ui.alarm.LocalAlarmEnvironment
 import com.ftapps.remft.ui.alarm.snoozeLabel
 import com.ftapps.remft.ui.components.CenteredList
 import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.components.stringFilled
@@ -336,13 +336,13 @@ private fun ReminderStepRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        IconButton(onClick = { onChange(minutes - 1) }, enabled = canDecrease, modifier = Modifier.testTag("reminder-step-$index-minus")) {
+        RemftIconButton(label = stringResource(R.string.reminderSettings_stepEarlier), onClick = { onChange(minutes - 1) }, enabled = canDecrease, modifier = Modifier.testTag("reminder-step-$index-minus")) {
             Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = stringResource(R.string.reminderSettings_stepEarlier))
         }
-        IconButton(onClick = { onChange(minutes + 1) }, enabled = canIncrease, modifier = Modifier.testTag("reminder-step-$index-plus")) {
+        RemftIconButton(label = stringResource(R.string.reminderSettings_stepLater), onClick = { onChange(minutes + 1) }, enabled = canIncrease, modifier = Modifier.testTag("reminder-step-$index-plus")) {
             Icon(Icons.Outlined.AddCircleOutline, contentDescription = stringResource(R.string.reminderSettings_stepLater))
         }
-        IconButton(onClick = onRemove, enabled = canRemove, modifier = Modifier.testTag("reminder-step-$index-remove")) {
+        RemftIconButton(label = stringResource(R.string.reminderSettings_removeStep), onClick = onRemove, enabled = canRemove, modifier = Modifier.testTag("reminder-step-$index-remove")) {
             Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.reminderSettings_removeStep))
         }
     }
@@ -367,13 +367,13 @@ private fun SnoozeOrderRow(
         StepBadge("${index + 1}")
         Spacer(Modifier.width(Space.x3))
         Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-        IconButton(onClick = onUp, enabled = canMoveUp, modifier = Modifier.testTag("snooze-up-$id")) {
+        RemftIconButton(label = stringResource(R.string.tasks_checklistMoveUp), onClick = onUp, enabled = canMoveUp, modifier = Modifier.testTag("snooze-up-$id")) {
             Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.tasks_checklistMoveUp))
         }
-        IconButton(onClick = onDown, enabled = canMoveDown, modifier = Modifier.testTag("snooze-down-$id")) {
+        RemftIconButton(label = stringResource(R.string.tasks_checklistMoveDown), onClick = onDown, enabled = canMoveDown, modifier = Modifier.testTag("snooze-down-$id")) {
             Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.tasks_checklistMoveDown))
         }
-        IconButton(onClick = onRemove, enabled = canRemove, modifier = Modifier.testTag("snooze-remove-$id")) {
+        RemftIconButton(label = stringFilled(R.string.snz_remove, "label" to label), onClick = onRemove, enabled = canRemove, modifier = Modifier.testTag("snooze-remove-$id")) {
             Icon(Icons.Outlined.Close, contentDescription = stringFilled(R.string.snz_remove, "label" to label))
         }
     }

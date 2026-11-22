@@ -35,7 +35,6 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -81,6 +80,7 @@ import com.ftapps.remft.domain.search.PaletteEntry
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.ChipTone
 import com.ftapps.remft.ui.components.GroupedCardItem
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.StatusChip
 import com.ftapps.remft.ui.empty.EmptyIllustration
 import com.ftapps.remft.ui.empty.IllustratedEmptyState
@@ -230,9 +230,7 @@ fun GlobalSearchPalette(
                         Modifier.fillMaxWidth().padding(start = Space.x1, top = Space.x2, end = Space.x4, bottom = Space.x2),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        IconButton(onClick = onDismiss, modifier = Modifier.testTag("global-search-close")) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
-                        }
+                        RemftIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, label = stringResource(R.string.common_close), onClick = onDismiss, modifier = Modifier.testTag("global-search-close"))
                         Spacer(Modifier.width(Space.x1))
                         field(Modifier.weight(1f))
                     }

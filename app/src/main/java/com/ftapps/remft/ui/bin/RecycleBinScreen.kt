@@ -34,7 +34,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +72,7 @@ import com.ftapps.remft.ui.components.ChipTone
 import com.ftapps.remft.ui.components.GroupedCardItem
 import com.ftapps.remft.ui.components.MarkedCard
 import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftListRow
 import com.ftapps.remft.ui.components.RemftSnackbar
 import com.ftapps.remft.ui.components.RemftTextButton
@@ -132,15 +132,11 @@ fun RecycleBinScreen(onBack: () -> Unit) {
             RemftTopBar(
                 title = stringResource(R.string.bin_title),
                 navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
-                    }
+                    RemftIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, label = stringResource(R.string.common_close), onClick = onBack, modifier = Modifier.testTag("back"))
                 },
                 actions = {
                     if (env != null) {
-                        IconButton(onClick = { state.dialog = BinDialog.Empty }, enabled = !items.isNullOrEmpty(), modifier = Modifier.testTag("bin-empty")) {
-                            Icon(Icons.Outlined.DeleteSweep, contentDescription = stringResource(R.string.bin_empty))
-                        }
+                        RemftIconButton(icon = Icons.Outlined.DeleteSweep, label = stringResource(R.string.bin_empty), onClick = { state.dialog = BinDialog.Empty }, enabled = !items.isNullOrEmpty(), modifier = Modifier.testTag("bin-empty"))
                     }
                 },
             )
@@ -392,9 +388,7 @@ private fun BinRow(
             },
             trailing = {
                 Box {
-                    IconButton(onClick = { menu = true }, modifier = Modifier.testTag("bin-menu-$id")) {
-                        Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.bin_actions))
-                    }
+                    RemftIconButton(icon = Icons.Outlined.MoreVert, label = stringResource(R.string.bin_actions), onClick = { menu = true }, modifier = Modifier.testTag("bin-menu-$id"))
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, shape = MarkedShapes.small) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.bin_restore)) },

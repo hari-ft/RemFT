@@ -9,7 +9,9 @@ import com.ftapps.remft.domain.tasks.TaskDraft
 import com.ftapps.remft.domain.tasks.TaskPatch
 import com.ftapps.remft.domain.time.UtcText
 import com.ftapps.remft.testing.TestAlarms
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -44,6 +46,10 @@ class AlarmActionHandlerTest {
         t.clock.now = notification.fireAt.plusSeconds(5)
         t.env.gateway.show(notification)
         t.env.pending.remove(notification.id)
+    }
+
+    private suspend fun awaitSnoozeOrder(expected: List<String>) {
+        withTimeout(5_000) { while (t.env.snoozeOrder.current() != expected) delay(10) }
     }
 
     private fun reminderStatuses(): List<String?> = t.tasks.query("SELECT status FROM reminders").map { it["status"] }
@@ -106,6 +112,7 @@ class AlarmActionHandlerTest {
     @Test
     fun theNotificationShowsTheFirstOptionsInTheUsersOrder() = runBlocking {
         t.env.settings.set(SettingKeys.SnoozePresets.name, "m:90,tomorrow_morning,5_min")
+        awaitSnoozeOrder(listOf("m:90", "tomorrow_morning", "5_min"))
         val ring = first()
         ringNow(ring)
         val manager = t.context.getSystemService(NotificationManager::class.java)

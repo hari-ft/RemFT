@@ -21,7 +21,6 @@ import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,6 +56,7 @@ import coil3.compose.AsyncImage
 import com.ftapps.remft.R
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.domain.text.fill
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RoundIconButton
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
@@ -148,9 +148,11 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
                     )
                 }
             }
-            IconButton(
+            RemftIconButton(
+                icon = Icons.AutoMirrored.Outlined.OpenInNew,
+                label = stringResource(R.string.file_openDownload),
                 onClick = {
-                    val row = current ?: return@IconButton
+                    val row = current ?: return@RemftIconButton
                     scope.launch {
                         val outcome = FileOpener.open(context, env, row) { onMessage(fetching) }
                         FileOpener.messageOf(outcome)?.let { onMessage(resources.getString(it)) }
@@ -158,12 +160,9 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
                 },
                 enabled = current != null,
                 modifier = Modifier.testTag("viewer-open"),
-            ) {
-                Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = stringResource(R.string.file_openDownload), tint = ink)
-            }
-            IconButton(onClick = { confirm = current }, enabled = current != null, modifier = Modifier.testTag("viewer-delete")) {
-                Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.common_delete), tint = ink)
-            }
+                tint = ink,
+            )
+            RemftIconButton(icon = Icons.Outlined.DeleteOutline, label = stringResource(R.string.common_delete), onClick = { confirm = current }, enabled = current != null, modifier = Modifier.testTag("viewer-delete"), tint = ink)
         }
     }
     confirm?.let { row ->

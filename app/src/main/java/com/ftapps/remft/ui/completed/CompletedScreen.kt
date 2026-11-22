@@ -20,7 +20,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -52,6 +51,7 @@ import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.domain.time.UtcText
 import com.ftapps.remft.ui.components.CircleCheckbox
 import com.ftapps.remft.ui.components.GroupedCardItem
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftListRow
 import com.ftapps.remft.ui.components.RemftSnackbar
 import com.ftapps.remft.ui.components.RemftTopBar
@@ -143,9 +143,7 @@ fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
             RemftTopBar(
                 title = stringResource(R.string.completed_title),
                 navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
-                    }
+                    RemftIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, label = stringResource(R.string.common_close), onClick = onBack, modifier = Modifier.testTag("back"))
                 },
             )
         },

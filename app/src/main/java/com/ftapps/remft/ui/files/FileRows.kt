@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -56,6 +55,7 @@ import com.ftapps.remft.domain.time.UtcText
 import com.ftapps.remft.ui.components.ChipTone
 import com.ftapps.remft.ui.components.GroupedCardItem
 import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.StatusChip
 import com.ftapps.remft.ui.tasks.SwipeToReveal
 import com.ftapps.remft.ui.theme.GroupPosition
@@ -253,9 +253,7 @@ private fun FileRowContent(
             }
         },
         trailing = {
-            IconButton(onClick = onMore, modifier = Modifier.testTag("file-menu-$id")) {
-                Icon(Icons.Outlined.MoreHoriz, contentDescription = stringResource(R.string.file_fileActions), tint = scheme.onSurfaceVariant)
-            }
+            RemftIconButton(icon = Icons.Outlined.MoreHoriz, label = stringResource(R.string.file_fileActions), onClick = onMore, modifier = Modifier.testTag("file-menu-$id"), tint = scheme.onSurfaceVariant)
         },
     )
 }
@@ -317,11 +315,9 @@ private fun UploadRowContent(
         trailing = {
             if (failed) {
                 if (canRetry) {
-                    IconButton(onClick = onRetry) { Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.common_retry)) }
+                    RemftIconButton(icon = Icons.Outlined.Refresh, label = stringResource(R.string.common_retry), onClick = onRetry)
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.testTag("upload-dismiss-$id")) {
-                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.common_close))
-                }
+                RemftIconButton(icon = Icons.Outlined.Close, label = stringResource(R.string.common_close), onClick = onDismiss, modifier = Modifier.testTag("upload-dismiss-$id"))
             }
         },
     )

@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ftapps.remft.R
+import com.ftapps.remft.ui.components.RemftIconButton
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -80,10 +80,10 @@ fun MonthCalendar(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).testTag("calendar-title"),
             )
-            IconButton(onClick = { monthText = month.minusMonths(1).toString() }, modifier = Modifier.testTag("calendar-previous")) {
+            RemftIconButton(label = stringResource(R.string.calendar_previousMonth), onClick = { monthText = month.minusMonths(1).toString() }, modifier = Modifier.testTag("calendar-previous")) {
                 Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = stringResource(R.string.calendar_previousMonth), tint = scheme.onSurfaceVariant)
             }
-            IconButton(onClick = { monthText = month.plusMonths(1).toString() }, modifier = Modifier.testTag("calendar-next")) {
+            RemftIconButton(label = stringResource(R.string.calendar_nextMonth), onClick = { monthText = month.plusMonths(1).toString() }, modifier = Modifier.testTag("calendar-next")) {
                 Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = stringResource(R.string.calendar_nextMonth), tint = scheme.onSurfaceVariant)
             }
         }

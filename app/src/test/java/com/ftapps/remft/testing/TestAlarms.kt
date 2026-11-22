@@ -7,9 +7,10 @@ import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.AlarmGateway
 import com.ftapps.remft.data.alarm.AlarmHealth
 import com.ftapps.remft.data.alarm.AndroidAlarmGateway
-import com.ftapps.remft.data.alarm.snoozeOrderNow
 import com.ftapps.remft.data.alarm.PermissionKind
 import com.ftapps.remft.data.alarm.PermissionStatus
+import com.ftapps.remft.data.alarm.SnoozeOrderSnapshot
+import kotlinx.coroutines.flow.Flow
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -60,9 +61,11 @@ class TestAlarms(
     gateway: AlarmGateway? = null,
     val health: FakeHealth = FakeHealth(),
     seed: (android.database.sqlite.SQLiteDatabase) -> Unit = {},
+    snoozeSource: Flow<String?>? = null,
 ) {
     val context: Context = ApplicationProvider.getApplicationContext()
     val tasks = TestTasks(clock, seed)
+    val snoozeOrder = snoozeSource?.let(::SnoozeOrderSnapshot) ?: SnoozeOrderSnapshot.of(tasks.settings)
     val env = AlarmEnvironment(
         context = context,
         database = { tasks.holder.db },
@@ -70,7 +73,8 @@ class TestAlarms(
         settings = tasks.settings,
         tasks = tasks.repository,
         clock = clock,
-        gateway = gateway ?: AndroidAlarmGateway(context) { tasks.settings.snoozeOrderNow() },
+        snoozeOrder = snoozeOrder,
+        gateway = gateway ?: AndroidAlarmGateway(context) { snoozeOrder.current() },
         filesDir = tasks.dir,
         scope = tasks.scope,
         health = health,

@@ -24,12 +24,17 @@ class AlarmEnvironment(
     val settings: SettingsStore,
     val tasks: TasksRepository,
     val clock: Clock,
-    val gateway: AlarmGateway = AndroidAlarmGateway(context) { settings.snoozeOrderNow() },
+    val snoozeOrder: SnoozeOrderSnapshot = SnoozeOrderSnapshot.of(settings),
+    val gateway: AlarmGateway = AndroidAlarmGateway(context) { snoozeOrder.current() },
     filesDir: File = context.filesDir,
     val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     val health: AlarmHealth = AndroidAlarmHealth(context),
     ready: suspend () -> Unit = {},
 ) {
+    init {
+        snoozeOrder.start(scope)
+    }
+
     val planner = AlarmPlanner(AlarmTextsFactory.from(context))
     val appLog = AppLog(File(filesDir, "logs"), clock)
     val log = AlarmEventLog(database, clock)

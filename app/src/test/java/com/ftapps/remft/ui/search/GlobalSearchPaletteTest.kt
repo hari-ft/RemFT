@@ -7,9 +7,11 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.domain.search.GlobalSearchKind
 import com.ftapps.remft.domain.search.SearchRecent
@@ -65,6 +67,18 @@ class GlobalSearchPaletteTest {
     }
 
     private fun recents(): List<SearchRecent> = runBlocking { search.recents.recents().first() }
+
+    @Test
+    fun longPressOnTheSearchButtonShowsItsNameAndATapStillOpensThePalette() {
+        showShell()
+        waitFor { compose.onAllNodesWithTagCount("global-search-button") == 1 }
+        assertEquals(0, compose.onAllNodesWithTextCount("Search everywhere"))
+        compose.onNodeWithTag("global-search-button").performTouchInput { longClick() }
+        waitFor { compose.onAllNodesWithTextCount("Search everywhere") == 1 }
+        assertEquals(0, compose.onAllNodesWithTagCount("global-search-fullscreen"))
+        compose.onNodeWithTag("global-search-button").performClick()
+        waitFor { compose.onAllNodesWithTagCount("global-search-fullscreen") == 1 }
+    }
 
     @Test
     fun phoneButtonOpensFullScreenPaletteWithGroupedResultsAndOpensATask() {

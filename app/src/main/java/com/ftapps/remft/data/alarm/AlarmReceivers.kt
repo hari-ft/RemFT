@@ -12,11 +12,15 @@ class AlarmFireReceiver : BroadcastReceiver() {
         val notification = AndroidAlarmGateway.decode(intent.getStringExtra(AndroidAlarmGateway.EXTRA_ALARM)) ?: return
         val env = runCatching { AlarmRuntime.get(context) }.getOrNull()
         val gateway = env?.gateway ?: AndroidAlarmGateway(context)
-        val shown = runCatching { gateway.show(notification) }
+        val shownEarly = if (env == null || env.snoozeOrder.ready) runCatching { gateway.show(notification) } else null
         if (env == null) return
         val result: PendingResult? = goAsync()
         env.scope.launch {
             try {
+                val shown = shownEarly ?: run {
+                    env.snoozeOrder.awaitReady()
+                    runCatching { gateway.show(notification) }
+                }
                 withTimeoutOrNull(RECEIVER_BUDGET_MS) {
                     runCatching { env.pending.remove(notification.id) }
                     val failure = shown.exceptionOrNull()

@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.HistoryToggleOff
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,6 +31,7 @@ import com.ftapps.remft.ui.alarm.LocalAlarmEnvironment
 import com.ftapps.remft.ui.components.CenteredList
 import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.GroupPosition
 import com.ftapps.remft.ui.theme.RemftTheme
@@ -67,7 +67,8 @@ fun AlarmLogScreen(onBack: () -> Unit) {
         onBack = onBack,
         snackbar = snackbar,
         actions = {
-            IconButton(
+            RemftIconButton(
+                label = stringResource(R.string.alarmLog_copy),
                 onClick = {
                     val text = rows.orEmpty().joinToString("\n") { AlarmEventLog.formatLine(it) }
                     context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText(label, text))

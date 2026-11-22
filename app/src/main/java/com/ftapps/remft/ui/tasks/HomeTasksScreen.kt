@@ -42,7 +42,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
@@ -93,6 +92,7 @@ import com.ftapps.remft.ui.components.GroupedCardItem
 import com.ftapps.remft.ui.components.MarkedCard
 import com.ftapps.remft.ui.components.NameMarkTopBar
 import com.ftapps.remft.ui.components.PriorityChip
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftListRow
 import com.ftapps.remft.ui.components.RepeatChip
 import com.ftapps.remft.ui.components.RoundIconButton
@@ -168,7 +168,8 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
     Column(Modifier.fillMaxSize()) {
         NameMarkTopBar {
             GlobalSearchButton()
-            IconButton(
+            RemftIconButton(
+                label = stringResource(R.string.settings_title),
                 onClick = onOpenSettings,
                 colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
                 modifier = Modifier.testTag("open-settings"),
@@ -190,7 +191,8 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                             dateLine = homeDateLine(state.today, format),
                             headline = homeHeadline(state),
                         ) {
-                            IconButton(
+                            RemftIconButton(
+                                label = stringResource(if (searchOpen) R.string.common_close else R.string.common_search),
                                 onClick = {
                                     if (searchOpen) searchQuery = ""
                                     searchOpen = !searchOpen
@@ -205,14 +207,14 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                             }
                             if (!searchOpen) SortMenu(state, vm)
                             if (!wide && state.calendarVisible && !searching) {
-                                IconButton(onClick = { monthOpen = !monthOpen }, modifier = Modifier.testTag("calendar-expand")) {
+                                RemftIconButton(label = stringResource(if (monthOpen) R.string.home_showWeek else R.string.home_showMonth), onClick = { monthOpen = !monthOpen }, modifier = Modifier.testTag("calendar-expand")) {
                                     Icon(
                                         if (monthOpen) Icons.Outlined.CalendarViewWeek else Icons.Outlined.CalendarViewMonth,
                                         contentDescription = stringResource(if (monthOpen) R.string.home_showWeek else R.string.home_showMonth),
                                     )
                                 }
                             }
-                            IconButton(onClick = vm::toggleCalendar, modifier = Modifier.testTag("toggle-calendar")) {
+                            RemftIconButton(label = stringResource(if (state.calendarVisible) R.string.home_hideCalendar else R.string.home_showCalendar), onClick = vm::toggleCalendar, modifier = Modifier.testTag("toggle-calendar")) {
                                 Icon(
                                     if (state.calendarVisible) Icons.Filled.CalendarMonth else Icons.Outlined.CalendarMonth,
                                     contentDescription = stringResource(if (state.calendarVisible) R.string.home_hideCalendar else R.string.home_showCalendar),
@@ -456,7 +458,7 @@ fun bucketLabel(bucket: HomeBucket): Int = when (bucket) {
 private fun SortMenu(state: HomeUiState, vm: HomeViewModel) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }, modifier = Modifier.testTag("home-sort")) {
+        RemftIconButton(label = stringResource(R.string.sort_tooltip), onClick = { open = true }, modifier = Modifier.testTag("home-sort")) {
             Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = stringResource(R.string.sort_tooltip))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {

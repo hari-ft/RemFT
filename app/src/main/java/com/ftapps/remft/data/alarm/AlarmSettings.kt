@@ -8,7 +8,12 @@ import com.ftapps.remft.domain.alarm.ReminderProfile
 import com.ftapps.remft.domain.alarm.SnoozePresets
 import com.ftapps.remft.domain.alarm.SoundChoice
 import com.ftapps.remft.domain.settings.SettingKeys
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 data class AlarmSettings(
@@ -41,11 +46,30 @@ data class AlarmSettings(
     }
 }
 
-private const val SNOOZE_ORDER_READ_MS = 300L
+class SnoozeOrderSnapshot(private val source: Flow<String?>) {
+    private val latest = MutableStateFlow<List<String>?>(null)
 
-fun SettingsStore.snoozeOrderNow(): List<String> = SnoozePresets.parseOrder(
-    runCatching { runBlocking { withTimeoutOrNull(SNOOZE_ORDER_READ_MS) { snapshot()[SettingKeys.SnoozePresets.name] } } }.getOrNull(),
-)
+    val ready: Boolean get() = latest.value != null
+
+    fun current(): List<String> = latest.value ?: SnoozePresets.ids
+
+    fun start(scope: CoroutineScope) {
+        scope.launch {
+            source.catch { emit(null) }.collect { latest.value = SnoozePresets.parseOrder(it) }
+        }
+    }
+
+    suspend fun awaitReady(timeoutMs: Long = WAIT_MS): List<String> {
+        withTimeoutOrNull(timeoutMs) { latest.first { it != null } }
+        return current()
+    }
+
+    companion object {
+        const val WAIT_MS = 300L
+
+        fun of(settings: SettingsStore) = SnoozeOrderSnapshot(settings.flow(SettingKeys.SnoozePresets.name))
+    }
+}
 
 object AlarmTextsFactory {
     fun from(context: Context): AlarmTexts = AlarmTexts(

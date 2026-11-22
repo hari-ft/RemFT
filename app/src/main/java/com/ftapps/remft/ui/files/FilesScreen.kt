@@ -39,7 +39,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -82,6 +81,7 @@ import com.ftapps.remft.domain.tasks.SortChoice
 import com.ftapps.remft.domain.tasks.SortState
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftSnackbar
 import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.components.SectionScaffold
@@ -230,24 +230,18 @@ fun FilesScreen(
                 },
                 navigationIcon = {
                     if (searching) {
-                        IconButton(onClick = {
+                        RemftIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, label = stringResource(R.string.files_closeSearch), onClick = {
                             searching = false
                             query = ""
-                        }, modifier = Modifier.testTag("files-search-close")) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.files_closeSearch))
-                        }
+                        }, modifier = Modifier.testTag("files-search-close"))
                     }
                 },
                 actions = {
                     if (!searching) {
-                        IconButton(onClick = { searching = true }, modifier = Modifier.testTag("files-search-open")) {
-                            Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.common_search))
-                        }
+                        RemftIconButton(icon = Icons.Outlined.Search, label = stringResource(R.string.common_search), onClick = { searching = true }, modifier = Modifier.testTag("files-search-open"))
                     }
                     SortMenu(sort) { next -> scope.launch { env.settings.set(SettingKeys.FilesSort.name, next.encode()) } }
-                    IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("open-settings")) {
-                        Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings_title))
-                    }
+                    RemftIconButton(icon = Icons.Outlined.Settings, label = stringResource(R.string.settings_title), onClick = onOpenSettings, modifier = Modifier.testTag("open-settings"))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
             )
@@ -319,9 +313,7 @@ fun FilesScreen(
 private fun SortMenu(sort: SortState, onChange: (SortState) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }, modifier = Modifier.testTag("files-sort")) {
-            Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = stringResource(R.string.sort_tooltip))
-        }
+        RemftIconButton(icon = Icons.AutoMirrored.Outlined.Sort, label = stringResource(R.string.sort_tooltip), onClick = { open = true }, modifier = Modifier.testTag("files-sort"))
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             Text(
                 stringResource(R.string.sort_sectionTitle),
@@ -498,9 +490,7 @@ private fun FolderRowContent(name: String, subtitle: String, id: String, onOpen:
         onClick = onOpen,
         below = { Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
         trailing = {
-            IconButton(onClick = onMore, modifier = Modifier.testTag("folder-menu-$id")) {
-                Icon(Icons.Outlined.MoreHoriz, contentDescription = stringResource(R.string.files_folderActions), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            RemftIconButton(icon = Icons.Outlined.MoreHoriz, label = stringResource(R.string.files_folderActions), onClick = onMore, modifier = Modifier.testTag("folder-menu-$id"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         },
     )
 }

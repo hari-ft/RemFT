@@ -6,12 +6,15 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.domain.alarm.ReminderProfile
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.testing.TestAlarms
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -143,6 +146,18 @@ class ReminderSystemScreenTest {
         alarms.put(SettingKeys.SnoozePresets, "m:15")
         compose.waitFor { compose.tagCount("snooze-order-m:15") == 1 && compose.tagCount("snooze-order-5_min") == 0 }
         compose.onNodeWithTag("snooze-remove-m:15").assertIsNotEnabled()
+    }
+
+    @Test
+    fun longPressOnRemoveShowsItsNameWithoutRemoving() {
+        show()
+        compose.waitFor { compose.tagCount("snooze-remove-30_min") == 1 }
+        assertEquals(0, compose.textCount("Remove 30 min"))
+        compose.onNodeWithTag("snooze-remove-30_min").performTouchInput { longClick() }
+        compose.waitFor { compose.textCount("Remove 30 min") == 1 }
+        compose.onNodeWithContentDescription("Remove 30 min").assertIsEnabled()
+        assertEquals(1, compose.tagCount("snooze-order-30_min"))
+        assertEquals(null, alarms.setting(SettingKeys.SnoozePresets))
     }
 
     @Test

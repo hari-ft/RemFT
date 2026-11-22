@@ -12,8 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.ftapps.remft.R
 import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
 
@@ -78,12 +77,8 @@ fun NoteMediaButtons(ensureNote: suspend () -> String?, onInsert: (String) -> Un
         },
         onFailed = { onMessage(pickFailed) },
     )
-    IconButton(onClick = { launcher.launch(AttachSource.Images) }, modifier = Modifier.testTag("note-insert-image")) {
-        Icon(Icons.Outlined.Image, contentDescription = stringResource(R.string.file_insertImage))
-    }
-    IconButton(onClick = { launcher.launch(AttachSource.Videos) }, modifier = Modifier.testTag("note-insert-video")) {
-        Icon(Icons.Outlined.Movie, contentDescription = stringResource(R.string.file_insertVideo))
-    }
+    RemftIconButton(icon = Icons.Outlined.Image, label = stringResource(R.string.file_insertImage), onClick = { launcher.launch(AttachSource.Images) }, modifier = Modifier.testTag("note-insert-image"))
+    RemftIconButton(icon = Icons.Outlined.Movie, label = stringResource(R.string.file_insertVideo), onClick = { launcher.launch(AttachSource.Videos) }, modifier = Modifier.testTag("note-insert-video"))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
