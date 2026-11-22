@@ -9,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -303,5 +304,33 @@ class FilesScreenTest {
         assertFalse(thumb(image))
         runBlocking { downloads.emit(stored) }
         waitFor { thumb(image) }
+    }
+
+    @Test
+    fun aFolderSubtitleUsesASingularOrPluralItemCount() {
+        val folder = runBlocking { rig.files.createFolder("Receipts", null) }
+        rig.add("bill.txt", folderId = folder)
+        showFiles()
+        waitFor { exists("folder-row-$folder") }
+        assertEquals(1, compose.onAllNodesWithText("1 item", useUnmergedTree = true).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun aFolderDeleteThatFailsSaysSoAndDoesNotReportItDeleted() {
+        val folder = runBlocking { rig.files.createFolder("Receipts", null) }
+        val entity = runBlocking { rig.holder.db.filesDao().folder(folder)!! }
+        val ui = FileUiState()
+        val messages = ArrayList<String>()
+        var deleted = false
+        ui.dialog = FileDialog.DeleteFolder(entity, com.ftapps.remft.data.files.SubtreeCounts(1, 0), toBin = true) { deleted = true }
+        show { FileDialogsHost(ui, rig.environment, emptyList()) { messages.add(it) } }
+        waitFor { exists("folder-delete-confirm") }
+        rig.failDatabase = true
+        compose.onNodeWithTag("folder-delete-confirm").performClick()
+        waitFor { messages.isNotEmpty() }
+        rig.failDatabase = false
+        assertEquals(listOf("Could not delete the folder"), messages)
+        assertFalse(deleted)
+        assertEquals(1, rig.query("SELECT id FROM folders").size)
     }
 }

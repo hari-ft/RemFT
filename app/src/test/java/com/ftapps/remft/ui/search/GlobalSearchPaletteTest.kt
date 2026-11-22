@@ -164,4 +164,23 @@ class GlobalSearchPaletteTest {
         assertFalse(GlobalSearchShortcut.handle(KeyEvent.KEYCODE_J, KeyEvent.ACTION_DOWN, true, 0, requests))
         assertFalse(requests.isOpen.value)
     }
+
+    @Test
+    fun aTaskOrNoteWaitingForUndoIsLeftOutOfTheResultsUntilUndone() {
+        val id = create(TaskDraft(title = "Renew passport"))
+        search.note("n1", "Passport photos")
+        tasks.pendingDeletes.schedule(id) {}
+        tasks.pendingDeletes.schedule("n1") {}
+        showShell()
+        compose.onNodeWithTag("global-search-button").performClick()
+        waitFor { compose.onAllNodesWithTagCount("global-search-fullscreen") == 1 }
+        compose.onNodeWithTag("global-search-field").performTextInput("passport")
+        waitFor { compose.onAllNodesWithTagCount("global-search-create") == 1 }
+        assertEquals(0, compose.onAllNodesWithTagCount("global-search-task-$id"))
+        assertEquals(0, compose.onAllNodesWithTagCount("global-search-note-n1"))
+        tasks.pendingDeletes.undo(id)
+        tasks.pendingDeletes.undo("n1")
+        waitFor { compose.onAllNodesWithTagCount("global-search-task-$id") == 1 }
+        assertEquals(1, compose.onAllNodesWithTagCount("global-search-note-n1"))
+    }
 }

@@ -1,6 +1,7 @@
 package com.ftapps.remft.domain.notes.export
 
 import java.io.ByteArrayOutputStream
+import java.io.OutputStream
 import java.net.URI
 import java.time.LocalDateTime
 import java.util.zip.ZipEntry
@@ -22,7 +23,16 @@ object NoteDocx {
         blocks: List<NoteBlock>,
         labels: NoteExportLabels,
         image: (fileId: String) -> ByteArray?,
-    ): ByteArray = Writer(title, subtitle, labels, image).build(blocks)
+    ): ByteArray = ByteArrayOutputStream().also { write(it, title, subtitle, blocks, labels, image) }.toByteArray()
+
+    fun write(
+        output: OutputStream,
+        title: String,
+        subtitle: String?,
+        blocks: List<NoteBlock>,
+        labels: NoteExportLabels,
+        image: (fileId: String) -> ByteArray?,
+    ) = Writer(title, subtitle, labels, image).write(blocks, output)
 
     fun linkTarget(link: String?): String? {
         val trimmed = link?.trim().orEmpty()
@@ -313,7 +323,7 @@ object NoteDocx {
         val image: (String) -> ByteArray?,
     ) {
         private val rels = ArrayList<Rel>()
-        private val media = LinkedHashMap<String, ByteArray>()
+        private val media = LinkedHashMap<String, () -> ByteArray?>()
         private val mediaByKey = HashMap<String, Embedded?>()
         private val hyperlinkRels = HashMap<String, String>()
         private var drawingId = 0
@@ -326,7 +336,7 @@ object NoteDocx {
             return id
         }
 
-        fun build(blocks: List<NoteBlock>): ByteArray {
+        fun write(blocks: List<NoteBlock>, output: OutputStream) {
             addRel("styles", "styles.xml")
             addRel("numbering", "numbering.xml")
             addRel("settings", "settings.xml")
@@ -371,19 +381,27 @@ object NoteDocx {
             parts["word/footer1.xml"] = utf8(footer())
             parts["word/footer2.xml"] = utf8(footer())
             parts["word/_rels/document.xml.rels"] = utf8(documentRels())
-            media.forEach { (name, bytes) -> parts["word/$name"] = bytes }
 
-            val buffer = ByteArrayOutputStream()
-            ZipOutputStream(buffer).use { zip ->
-                for ((name, bytes) in parts) {
-                    val entry = ZipEntry(name)
-                    entry.setTimeLocal(zipTime)
-                    zip.putNextEntry(entry)
-                    zip.write(bytes)
-                    zip.closeEntry()
-                }
+            val zip = ZipOutputStream(output)
+            fun put(name: String, bytes: ByteArray) {
+                val entry = ZipEntry(name)
+                entry.setTimeLocal(zipTime)
+                zip.putNextEntry(entry)
+                zip.write(bytes)
+                zip.closeEntry()
             }
-            return buffer.toByteArray()
+            for ((name, bytes) in parts) put(name, bytes)
+            parts.clear()
+            for ((name, bytes) in media) {
+                val data = try {
+                    bytes()
+                } catch (_: Exception) {
+                    null
+                }
+                put("word/$name", data ?: ByteArray(0))
+            }
+            zip.finish()
+            zip.flush()
         }
 
         private fun utf8(text: String): ByteArray = text.toByteArray(Charsets.UTF_8)
@@ -631,7 +649,7 @@ object NoteDocx {
                 null
             } else {
                 val name = "media/image${media.size + 1}.${size.extension}"
-                media[name] = data
+                media[name] = bytes
                 Embedded(addRel("image", name), size)
             }
             mediaByKey[key] = embedded

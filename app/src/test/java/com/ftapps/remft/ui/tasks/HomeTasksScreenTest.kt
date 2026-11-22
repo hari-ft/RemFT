@@ -349,4 +349,56 @@ class HomeTasksScreenTest {
         compose.onNodeWithTag("sort-title").assertIsSelected()
         compose.onNodeWithTag("sort-date").assertIsNotSelected()
     }
+
+    @Test
+    fun aPendingDeleteHidesItsUrgentAndMissedAlarmCardsUntilUndo() = runBlocking {
+        val alarms = TestAlarms()
+        try {
+            val now = alarms.clock.instant()
+            val missed = alarms.tasks.repository.create(TaskDraft(title = "Call the plumber", remindAt = now.minus(Duration.ofHours(2)), isUrgent = true))
+            val gym = alarms.tasks.repository.create(TaskDraft(title = "Gym", remindAt = now.plus(Duration.ofHours(18)), isUrgent = true))
+            alarms.env.ring.reload()
+            compose.setContent {
+                RemftTheme {
+                    CompositionLocalProvider(
+                        LocalTasksEnvironment provides alarms.tasks.environment,
+                        LocalAlarmEnvironment provides alarms.env,
+                    ) {
+                        HomeTasksScreen(bottomPadding = androidx.compose.ui.unit.Dp(0f), onOpenSettings = {}, onOpenTask = {})
+                    }
+                }
+            }
+            waitFor { listOf("missed-alarm-card", "urgent-alarm-card").all { compose.onAllNodesWithTagCount(it) == 1 } }
+            alarms.tasks.environment.undo.post(gym, "“Gym” deleted") {}
+            alarms.tasks.pendingDeletes.schedule(missed) {}
+            waitFor { listOf("missed-alarm-card", "urgent-alarm-card").all { compose.onAllNodesWithTagCount(it) == 0 } }
+            alarms.tasks.environment.undo.resolve(alarms.tasks.environment.undo.current.value!!, undo = true)
+            alarms.tasks.pendingDeletes.undo(missed)
+            waitFor { listOf("missed-alarm-card", "urgent-alarm-card").all { compose.onAllNodesWithTagCount(it) == 1 } }
+        } finally {
+            alarms.close()
+        }
+    }
+
+    @Test
+    fun aSelectedDayOutsideTheWeekShowsAChipThatClearsIt() {
+        create(TaskDraft(title = "Far errand", dueAt = Instant.parse("2026-12-15T04:30:00Z")))
+        create(TaskDraft(title = "Near errand", dueAt = Instant.parse("2026-11-21T04:30:00Z")))
+        tasks.environment.homeRequests.post(HomeRequest.SelectDay(java.time.LocalDate.of(2026, 12, 15)))
+        show()
+        waitFor { compose.onAllNodesWithTagCount("week-strip-selected") == 1 }
+        compose.onNodeWithTag("week-strip-selected").assertTextContains("Showing", substring = true)
+        compose.onNodeWithTag("week-strip-selected").performClick()
+        waitFor { compose.onAllNodesWithTagCount("week-strip-selected") == 0 }
+        waitFor { compose.onAllNodesWithTextCount("Near errand") == 1 }
+    }
+
+    @Test
+    fun aSelectedDayInsideTheWeekNeedsNoChip() {
+        tasks.environment.homeRequests.post(HomeRequest.SelectDay(java.time.LocalDate.of(2026, 11, 22)))
+        show()
+        waitFor { compose.onAllNodesWithTagCount("week-strip") == 1 }
+        compose.waitForIdle()
+        assertEquals(0, compose.onAllNodesWithTagCount("week-strip-selected"))
+    }
 }

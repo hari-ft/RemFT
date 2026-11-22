@@ -73,7 +73,7 @@ object TaskSearchRanking {
             .distinctBy { it.id }
             .mapNotNull { task ->
                 SearchMatch.tier(words, task.title, task.description)?.let { tier ->
-                    TaskSearchRow(task, tier, GlobalSearch.context(tier, task.description, words))
+                    TaskSearchRow(task, tier, GlobalSearch.context(tier, task.description, words, task.title))
                 }
             }
             .sortedWith(dueOrder)

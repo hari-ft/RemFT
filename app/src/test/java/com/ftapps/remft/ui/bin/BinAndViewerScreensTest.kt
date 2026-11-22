@@ -153,4 +153,21 @@ class BinAndViewerScreensTest {
         waitFor { rig.query("SELECT status FROM tasks WHERE id = '$id'").single()["status"] == "open" }
         waitFor { exists("completed-empty") }
     }
+
+    @Test
+    fun aReopenThatFailsSaysSoInsteadOfCrashing() {
+        val id = runBlocking {
+            rig.tasks.repository.create(TaskDraft(title = "Filed taxes", dueAt = Instant.parse("2026-11-19T10:00:00Z"))).also {
+                rig.tasks.repository.setCompleted(it, true)
+            }
+        }
+        rig.tasks.holder.db.openHelper.writableDatabase.execSQL(
+            "CREATE TRIGGER refuse_reopen BEFORE UPDATE ON tasks BEGIN SELECT RAISE(ABORT, 'refused'); END",
+        )
+        show { CompletedScreen(onBack = {}, onOpenTask = {}) }
+        waitFor { exists("completed-$id") }
+        compose.onNodeWithTag("reopen-$id").performClick()
+        waitFor { compose.onAllNodesWithText("Couldn't update “Filed taxes”").fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(exists("completed-$id"))
+    }
 }

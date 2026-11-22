@@ -24,13 +24,24 @@ class PendingDeletes(
     @Synchronized
     fun schedule(id: String, hide: Set<String> = emptySet(), commit: suspend () -> Unit) {
         entries.remove(id)?.timer?.cancel()
-        val timer = scope.launch {
-            delay(window)
-            commitNow(id)
-        }
-        entries[id] = Entry(commit, timer)
+        entries[id] = Entry(commit, startTimer(id))
         hiddenBy[id] = hide + id
         publish()
+    }
+
+    @Synchronized
+    fun restartWindow(id: String): Boolean {
+        val entry = entries[id] ?: return false
+        entry.timer.cancel()
+        entries[id] = Entry(entry.commit, startTimer(id))
+        return true
+    }
+
+    private fun startTimer(id: String): Job = scope.launch {
+        delay(window)
+        val timer = coroutineContext[Job]
+        val current = synchronized(this@PendingDeletes) { entries[id]?.timer === timer }
+        if (current) commitNow(id)
     }
 
     @Synchronized

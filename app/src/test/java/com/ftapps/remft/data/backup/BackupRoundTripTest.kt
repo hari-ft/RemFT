@@ -2,6 +2,7 @@ package com.ftapps.remft.data.backup
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.data.db.DatabaseSchema
+import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.backup.BackupFormat
 import com.ftapps.remft.domain.backup.BackupKind
 import com.ftapps.remft.domain.backup.BackupManifest
@@ -13,6 +14,7 @@ import com.ftapps.remft.domain.backup.lock.WorkLockNames
 import com.ftapps.remft.domain.backup.lock.WorkLocks
 import com.ftapps.remft.domain.backup.restore.RESTORE_JOURNAL_NAME
 import com.ftapps.remft.domain.settings.SettingKeys
+import com.ftapps.remft.testing.BrokenDataStore
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -261,5 +263,29 @@ class BackupRoundTripTest {
             BackupManifest.parse(z.getInputStream(z.getEntry(BackupFormat.MANIFEST_NAME)).readBytes().toString(Charsets.UTF_8))
         }
         assertEquals(3, manifest.fileCount)
+    }
+
+    @Test
+    fun aRestoreWhoseDataIsInPlaceIsNotReportedAsFailedWhenSettingsCannotBeWritten() = runBlocking {
+        rig.seed()
+        rig.store.setAll(mapOf(SettingKeys.DateFormat.name to "iso"))
+        val before = rig.dump()
+        val built = rig.service().build()
+        rig.holder.db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO tasks (id, workspace_id, title) VALUES ('01JC00000000000000000000T9', '${BackupRig.WORKSPACE}', 'Made after the backup')",
+        )
+        val broken = BackupService(
+            paths = rig.paths,
+            holder = rig.holder,
+            store = SettingsStore(BrokenDataStore()),
+            locks = { WorkLocks(rig.paths.locksDir, 4242L) },
+            appVersion = "1.1.1",
+            clock = { rig.now },
+        )
+        val backup = broken.validate(built.zip.inputStream())
+        broken.restore(backup)
+        rig.holder.reopenAfterRestore()
+        assertEquals(before, rig.dump())
+        assertFalse(File(rig.paths.locksDir, "restore.lock").exists())
     }
 }

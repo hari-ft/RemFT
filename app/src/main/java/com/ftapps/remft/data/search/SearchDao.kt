@@ -41,10 +41,9 @@ class SearchDao(private val database: () -> RemftDatabase) {
         if (hits.isEmpty()) return emptyList()
         val ids = hits.map { it.id }
         val tiers = hits.associate { it.id to it.tier }
-        val firstWord = words.firstOrNull().orEmpty()
         val placeholders = ids.joinToString(", ") { "?" }
-        fun snippet(id: String, body: String?): String? =
-            if (tiers[id] == SearchTier.Body && body != null) SearchSnippet.build(body, firstWord) else null
+        fun snippet(id: String, title: String?, body: String?): String? =
+            if (tiers[id] == SearchTier.Body && body != null) SearchSnippet.build(body, SearchSnippet.contextWord(words, title)) else null
         val byId = mutableMapOf<String, GlobalSearchItem>()
         when (kind) {
             GlobalSearchKind.Task -> select("SELECT id, title, status, description FROM tasks WHERE id IN ($placeholders)", ids) { c ->
@@ -53,7 +52,7 @@ class SearchDao(private val database: () -> RemftDatabase) {
                     kind = kind,
                     id = id,
                     title = c.getString(1),
-                    context = snippet(id, c.stringOrNull(3)),
+                    context = snippet(id, c.getString(1), c.stringOrNull(3)),
                     done = c.getString(2) == "completed",
                 )
             }
@@ -63,7 +62,7 @@ class SearchDao(private val database: () -> RemftDatabase) {
                     kind = kind,
                     id = id,
                     title = c.getString(1),
-                    context = snippet(id, c.stringOrNull(2)),
+                    context = snippet(id, c.getString(1), c.stringOrNull(2)),
                     archived = c.getInt(3) != 0,
                 )
             }

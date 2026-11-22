@@ -42,4 +42,11 @@ class ExternalDocumentsTest {
     fun sha256IsLowercaseHex() {
         assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", ExternalDocuments.sha256("abc".toByteArray()))
     }
+
+    @Test
+    fun theStreamedHashMatchesTheByteHashSoASaveCanCheckForChangesWithoutLoadingTheFile() {
+        val bytes = ByteArray(100_000) { (it % 253).toByte() }
+        assertEquals(ExternalDocuments.sha256(bytes), ExternalDocuments.sha256(bytes.inputStream()))
+        assertEquals(ExternalDocuments.sha256(ByteArray(0)), ExternalDocuments.sha256(ByteArray(0).inputStream()))
+    }
 }

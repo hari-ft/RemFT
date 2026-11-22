@@ -11,7 +11,7 @@ class TestSearch(val tasks: TestTasks) {
     val dao = SearchDao { tasks.holder.db }
     val repository = SearchRepository(dao, tasks.repository::workspaceId)
     val recents = SearchRecentsStore(tasks.settings)
-    val environment = SearchEnvironment(repository, recents)
+    val environment = SearchEnvironment(repository, recents, hidden = tasks.pendingDeletes.ids)
 
     val workspace: String get() = runBlocking { tasks.repository.workspaceId() }
 

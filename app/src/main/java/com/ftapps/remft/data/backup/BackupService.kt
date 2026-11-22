@@ -166,7 +166,9 @@ class BackupService(
             )
             log.info("backup.restored", mapOf("schema" to backup.manifest.schemaVersion, "files" to backup.manifest.fileCount))
             runCatching { recordRestoredBackupDate(backup.manifest.createdAt) }.onFailure { log.warn("backup.restored_date_failed", it) }
-            backup.settings?.let { RestoreSettings.hold(store, it) }
+            backup.settings?.let { settings ->
+                runCatching { RestoreSettings.hold(store, settings) }.onFailure { log.warn("backup.restore_settings_hold_failed", it) }
+            }
             if (restoredFiles != null && backup.manifest.listedOnly.isNotEmpty()) {
                 onStage(RestoreStage.Files)
                 try {
@@ -176,10 +178,10 @@ class BackupService(
                 }
             }
             onStage(RestoreStage.Settings)
-            RestoreSettings.applyPending(store)
+            runCatching { RestoreSettings.applyPending(store) }.onFailure { log.warn("backup.restore_settings_apply_failed", it) }
         } finally {
             runCatching { backup.discard() }.onFailure { log.warn("backup.restore_discard_failed", it) }
-            hold?.release()
+            runCatching { hold?.release() }.onFailure { log.warn("backup.restore_lock_release_failed", it) }
         }
     }
 

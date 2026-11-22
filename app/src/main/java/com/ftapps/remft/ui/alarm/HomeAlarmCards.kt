@@ -133,22 +133,24 @@ object UrgentLookAhead {
 }
 
 @Composable
-fun HomeAlarmWarnings(modifier: Modifier = Modifier) {
+fun HomeAlarmWarnings(modifier: Modifier = Modifier, hiddenTasks: Set<String> = emptySet()) {
     val env = LocalAlarmEnvironment.current ?: return
     val ring by env.ring.state.collectAsStateWithLifecycle()
     val status = rememberPermissionStatus(env)
+    val feed = remember(ring.feed, hiddenTasks) { withoutTasks(ring.feed, hiddenTasks) }
+    val missed = remember(ring.missed, hiddenTasks) { withoutTasks(ring.missed, hiddenTasks) }
     Column(modifier) {
         status?.let { current ->
             val volumeOff = current.alarmVolumeOff == true &&
-                AlarmRinging.urgentRingAhead(ring.feed, env.clock.instant(), ring.profile)
+                AlarmRinging.urgentRingAhead(feed, env.clock.instant(), ring.profile)
             current.support.worstProblem(volumeOff)?.let { AlarmProblemBanner(env, it) }
         }
-        if (ring.missed.isNotEmpty()) MissedAlarmCard(env, ring.missed)
+        if (missed.isNotEmpty()) MissedAlarmCard(env, missed)
     }
 }
 
 @Composable
-fun HomeUrgentAlarm(onOpenTask: (String) -> Unit = {}) {
+fun HomeUrgentAlarm(onOpenTask: (String) -> Unit = {}, hiddenTasks: Set<String> = emptySet()) {
     val env = LocalAlarmEnvironment.current ?: return
     val ring by env.ring.state.collectAsStateWithLifecycle()
     val now by produceState(env.clock.instant(), env) {
@@ -157,11 +159,16 @@ fun HomeUrgentAlarm(onOpenTask: (String) -> Unit = {}) {
             delay(UPCOMING_REFRESH_MS)
         }
     }
-    val upcoming = remember(ring.feed, ring.profile, now) { UrgentLookAhead.next(ring.feed, now, ring.profile) }
+    val upcoming = remember(ring.feed, ring.profile, now, hiddenTasks) {
+        UrgentLookAhead.next(withoutTasks(ring.feed, hiddenTasks), now, ring.profile)
+    }
     if (upcoming != null) UpcomingUrgentCard(env, upcoming, now, onOpenTask)
 }
 
 private const val UPCOMING_REFRESH_MS = 30_000L
+
+fun withoutTasks(alarms: List<AlarmInput>, hiddenTasks: Set<String>): List<AlarmInput> =
+    if (hiddenTasks.isEmpty()) alarms else alarms.filterNot { it.taskId in hiddenTasks }
 
 @Composable
 private fun UpcomingUrgentCard(env: AlarmEnvironment, upcoming: UpcomingUrgent, now: Instant, onOpenTask: (String) -> Unit) {

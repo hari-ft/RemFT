@@ -97,6 +97,11 @@ class ExternalDocumentStore(private val context: Context, private val settings: 
         } ?: true
     }.getOrDefault(true)
 
+    private fun onDiskSha256(uri: Uri): String {
+        val stream = resolver.openInputStream(uri) ?: throw FileNotFoundException(uri.toString())
+        return stream.use { ExternalDocuments.sha256(it) }
+    }
+
     private fun readBytes(uri: Uri, limit: Int): ByteArray {
         val declared = declaredSize(uri)
         if (declared != null && declared > limit) throw TooLargeException(declared)
@@ -180,8 +185,7 @@ class ExternalDocumentStore(private val context: Context, private val settings: 
         if (!current.writable) return@withContext ExternalSaveOutcome.Failed
         val uri = current.handle.token.toUri()
         try {
-            val onDisk = readBytes(uri, Int.MAX_VALUE - 8)
-            if (!force && ExternalDocuments.sha256(onDisk) != current.sha256) return@withContext ExternalSaveOutcome.Conflict
+            if (!force && onDiskSha256(uri) != current.sha256) return@withContext ExternalSaveOutcome.Conflict
             val bytes = ExternalDocuments.encode(markdown, current.encoding)
             val stream = resolver.openOutputStream(uri, "wt") ?: return@withContext ExternalSaveOutcome.Failed
             stream.use { it.write(bytes) }

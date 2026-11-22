@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,8 +56,8 @@ import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.pluralStringResource
 
 data class ExtraAction(val icon: ImageVector, val label: String, val tag: String, val onClick: () -> Unit)
 
@@ -117,6 +118,7 @@ fun FileDialogsHost(
     val couldNotRename = stringResource(R.string.file_couldNotRename)
     val couldNotDelete = stringResource(R.string.file_couldNotDelete)
     val couldNotMove = stringResource(R.string.files_couldNotMove)
+    val couldNotDeleteFolder = stringResource(R.string.lowdt_folderCouldNotDelete)
     var ruleError by remember { mutableStateOf<String?>(null) }
     val ruleText = ruleError?.let { folderRuleText(it) }
     LaunchedEffect(ruleText) {
@@ -232,8 +234,11 @@ fun FileDialogsHost(
                 onDismiss = close,
             ) {
                 close()
-                dialog.onDeleted()
-                scope.launch { runCatching { env.files.deleteFolder(dialog.folder.id) } }
+                scope.launch {
+                    runCatching { env.files.deleteFolder(dialog.folder.id) }
+                        .onSuccess { dialog.onDeleted() }
+                        .onFailure { if (it is CancellationException) throw it else onMessage(couldNotDeleteFolder) }
+                }
             }
         }
     }

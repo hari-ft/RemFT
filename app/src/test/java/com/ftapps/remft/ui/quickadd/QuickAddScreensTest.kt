@@ -174,4 +174,29 @@ class QuickAddScreensTest {
         assertEquals("0", row["is_urgent"])
         assertNull(row["due_at"])
     }
+
+    @Test
+    fun aDismissedChipStaysDismissedAfterRecreation() {
+        val tester = androidx.compose.ui.test.junit4.StateRestorationTester(compose)
+        tester.setContent {
+            RemftTheme {
+                CompositionLocalProvider(LocalTasksEnvironment provides tasks.environment) {
+                    HomeTasksScreen(bottomPadding = 0.dp, onOpenSettings = {}, onOpenTask = {})
+                }
+            }
+        }
+        compose.onNodeWithTag("home-quick-add").performTextInput("read the paper tomorrow")
+        waitFor { compose.onAllNodesWithTagCount("home-quick-add-token-due") == 1 }
+        compose.onNodeWithTag("home-quick-add-token-due").performClick()
+        waitFor { compose.onAllNodesWithTagCount("home-quick-add-token-due") == 0 }
+        tester.emulateSavedInstanceStateRestore()
+        waitFor { compose.onAllNodesWithTextCount("read the paper tomorrow") >= 1 }
+        assertEquals(0, compose.onAllNodesWithTagCount("home-quick-add-token-due"))
+        compose.onNodeWithTag("home-quick-add").performImeAction()
+        waitFor { compose.onAllNodesWithTagCount("quick-add-deadline-skip") == 1 }
+        compose.onNodeWithTag("quick-add-deadline-skip").performClick()
+        val row = onlyTask()
+        assertEquals("read the paper tomorrow", row["title"])
+        assertNull(row["due_at"])
+    }
 }

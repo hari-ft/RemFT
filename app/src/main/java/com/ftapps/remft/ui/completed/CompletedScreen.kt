@@ -136,6 +136,7 @@ fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
     val tasks by remember(env, pages) { env?.files?.watchCompleted(pages * CompletedArchive.PAGE_SIZE) ?: flowOf(emptyList()) }.collectAsState(null)
     val zone = tasksEnv.repository.zone
     val reopened = stringResource(R.string.completed_reopened)
+    val couldNotUpdate = stringResource(R.string.task_couldNotUpdate)
     Scaffold(
         containerColor = RemftTheme.tonal.level0,
         snackbarHost = { SnackbarHost(snackbar) { RemftSnackbar(it) } },
@@ -187,8 +188,8 @@ fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
                                     onOpen = { onOpenTask(row.task.id) },
                                     onReopen = {
                                         scope.launch {
-                                            tasksEnv.repository.setCompleted(row.task.id, false)
-                                            snackbar.showSnackbar(reopened.fill("title" to row.task.title))
+                                            val done = runCatching { tasksEnv.repository.setCompleted(row.task.id, false) }.isSuccess
+                                            snackbar.showSnackbar((if (done) reopened else couldNotUpdate).fill("title" to row.task.title))
                                         }
                                     },
                                 )

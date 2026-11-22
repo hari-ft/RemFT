@@ -25,7 +25,7 @@ object FileOpener {
     suspend fun prepare(context: Context, env: FilesEnvironment, row: FileRowEntity): File? = withContext(Dispatchers.IO) {
         val source = env.attachments.ensureLocal(row) ?: return@withContext null
         val root = File(context.cacheDir, SHARED_FOLDER)
-        root.listFiles()?.forEach { it.deleteRecursively() }
+        TempCopies.pruneStale(root)
         val copy = File(File(root, row.id).apply { mkdirs() }, displayName(row.name, source.name))
         source.copyTo(copy, overwrite = true)
         copy

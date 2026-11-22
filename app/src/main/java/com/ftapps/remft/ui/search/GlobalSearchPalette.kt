@@ -126,8 +126,10 @@ fun GlobalSearchPalette(
     }
     val searching = query.isNotEmpty()
     val loading = searching && results.query != query
-    val groups = if (searching && !loading) results.groups else emptyList()
-    val entries = GlobalSearch.entries(text, if (searching) emptyList() else recentItems, groups)
+    val hidden by search.hidden.collectAsStateWithLifecycle()
+    val groups = if (searching && !loading) GlobalSearch.withoutHidden(results.groups, hidden) else emptyList()
+    val shownRecents = recentItems.filterNot { it.id in hidden }
+    val entries = GlobalSearch.entries(text, if (searching) emptyList() else shownRecents, groups)
     if (active >= entries.size) active = 0
     val choose: (PaletteEntry) -> Unit = { entry ->
         if (!chosen) {
@@ -181,7 +183,7 @@ fun GlobalSearchPalette(
                 query = query,
                 searching = searching,
                 loading = loading,
-                recents = if (searching) emptyList() else recentItems,
+                recents = if (searching) emptyList() else shownRecents,
                 groups = groups,
                 entries = entries,
                 active = active,

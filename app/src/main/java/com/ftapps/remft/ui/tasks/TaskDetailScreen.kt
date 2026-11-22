@@ -76,6 +76,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Dp
@@ -166,6 +167,10 @@ fun TaskDetailScreen(taskId: String, onBack: () -> Unit, bottomPadding: Dp = 0.d
     }
 }
 
+fun oneLineTitle(text: String): String = text.replace(LineBreaks, " ")
+
+private val LineBreaks = Regex("[\r\n]+")
+
 @Composable
 private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: SeriesScopeAsker) {
     val task = detail.task
@@ -179,6 +184,7 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
     var title by rememberSaveable(task.id) { mutableStateOf(task.title) }
     var lastSeenTitle by remember(task.id) { mutableStateOf(task.title) }
     var titleFocused by remember(task.id) { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
     if (task.title != lastSeenTitle) {
         if (title == lastSeenTitle) title = task.title
         lastSeenTitle = task.title
@@ -193,10 +199,13 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
         TextField(
             value = title,
             onValueChange = {
-                title = it
-                vm.onTitleChanged(it)
+                val oneLine = oneLineTitle(it)
+                title = oneLine
+                vm.onTitleChanged(oneLine)
             },
             placeholder = { Text(stringResource(R.string.task_titleHint)) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             textStyle = MaterialTheme.typography.headlineSmall.copy(color = MaterialTheme.colorScheme.onBackground),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,

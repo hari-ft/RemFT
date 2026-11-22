@@ -96,4 +96,32 @@ class PendingDeletesTest {
     fun withoutDropsPendingRows() {
         assertEquals(listOf("b"), PendingDeletes.without(listOf("a", "b"), setOf("a")) { it })
     }
+
+    @Test
+    fun restartingTheWindowGivesTheFullWindowFromThenAndTheOldTimerNeverCommits() {
+        var commits = 0
+        pending.schedule("a") { commits++ }
+        scope.advanceTimeBy(3_000)
+        scope.runCurrent()
+        assertTrue(pending.restartWindow("a"))
+        scope.advanceTimeBy(4_900)
+        scope.runCurrent()
+        assertEquals(0, commits)
+        assertTrue(pending.undo("a"))
+        assertFalse(pending.restartWindow("a"))
+        scope.advanceTimeBy(20_000)
+        scope.runCurrent()
+        assertEquals(0, commits)
+    }
+
+    @Test
+    fun aRestartedWindowCommitsOnceWhenItEnds() {
+        var commits = 0
+        pending.schedule("a") { commits++ }
+        scope.advanceTimeBy(2_000)
+        pending.restartWindow("a")
+        scope.advanceTimeBy(5_100)
+        scope.runCurrent()
+        assertEquals(1, commits)
+    }
 }

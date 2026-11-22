@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,6 +90,8 @@ class QuickAddHighlight(private val ranges: List<IntRange>, private val style: S
     override fun hashCode(): Int = 31 * ranges.hashCode() + style.hashCode()
 }
 
+private val IgnoredChipsSaver = Saver<Set<String>, ArrayList<String>>(save = { ArrayList(it) }, restore = { it.toSet() })
+
 @Composable
 fun QuickAddBar(
     hint: String,
@@ -101,7 +104,7 @@ fun QuickAddBar(
     val creator = remember(env) { QuickAddCreator(env.repository, env.series) }
     val format = rememberDateFormat()
     var text by rememberSaveable { mutableStateOf("") }
-    var ignored by remember { mutableStateOf(emptySet<String>()) }
+    var ignored by rememberSaveable(stateSaver = IgnoredChipsSaver) { mutableStateOf(emptySet<String>()) }
     var helpOpen by remember { mutableStateOf(false) }
     val parsed = remember(text, ignored, format, capture) { creator.parse(text, format, ignored, capture) }
     val markStyle = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)

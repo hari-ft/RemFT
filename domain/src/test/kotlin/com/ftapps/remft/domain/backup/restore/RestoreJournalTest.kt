@@ -20,6 +20,9 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.io.IOException
+import java.time.Duration
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 class RestoreJournalTest {
     @get:Rule
@@ -235,6 +238,39 @@ class RestoreJournalTest {
         assertEquals(2, kept.size)
         val keptFiles = File(tmp, kept.first { it.startsWith("files") })
         assertArrayEquals(byteArrayOf(5), File(keptFiles, "only-here.bin").readBytes())
+    }
+
+    @Test
+    fun keptLeftoversDoNotPileUpButTheNewestAndRecentOnesStay() {
+        val now = Instant.parse("2026-11-22T10:00:00Z")
+        fun stamp(at: Instant) = ChronoUnit.MICROS.between(Instant.EPOCH, at)
+        val ancient = stamp(now.minus(Duration.ofDays(90)))
+        val recent = stamp(now.minus(Duration.ofDays(3)))
+        val ancientDb = File(dbFile.path + ".bak.kept-$ancient").apply { writeText("ancient") }
+        val ancientFiles = File(filesDir.path + ".bak.kept-$ancient").apply { mkdirs() }
+        writeFile(ancientFiles, "old.bin", byteArrayOf(1))
+        val recentDb = File(dbFile.path + ".bak.kept-$recent").apply { writeText("recent") }
+        val unrelated = File(tmp, "notes.kept-$ancient").apply { writeText("not ours") }
+        dbFile.copyTo(File(dbFile.path + ".bak"))
+
+        BackupRestore.restore(validated(), dbFile, filesDir, clock = { now })
+        expectNewData()
+
+        assertFalse(ancientDb.exists())
+        assertFalse(ancientFiles.exists())
+        assertTrue(recentDb.exists())
+        assertTrue(File(dbFile.path + ".bak.kept-${stamp(now)}").exists())
+        assertTrue(unrelated.exists())
+    }
+
+    @Test
+    fun anOldKeptLeftoverStaysWhenItIsTheNewestOne() {
+        val now = Instant.parse("2026-11-22T10:00:00Z")
+        val ancient = ChronoUnit.MICROS.between(Instant.EPOCH, now.minus(Duration.ofDays(90)))
+        val only = File(dbFile.path + ".bak.kept-$ancient").apply { writeText("only copy") }
+        BackupRestore.restore(validated(), dbFile, filesDir, clock = { now })
+        expectNewData()
+        assertTrue(only.exists())
     }
 
     @Test

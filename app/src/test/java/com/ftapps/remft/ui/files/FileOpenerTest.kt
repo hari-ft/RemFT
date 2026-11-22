@@ -118,4 +118,18 @@ class FileOpenerTest {
     fun everyFailureHasAMessage() {
         assertTrue(OpenOutcome.entries.filter { it != OpenOutcome.Opened }.all { FileOpener.messageOf(it) != null })
     }
+
+    @Test
+    fun openingAnotherFileKeepsTheRecentCopyAndDropsOnlyStaleOnes() {
+        val r = open({ _, _ -> null })
+        val first = runBlocking { FileOpener.prepare(context, r.environment, r.files.file(r.add("first.txt"))!!) }!!
+        val stale = runBlocking { FileOpener.prepare(context, r.environment, r.files.file(r.add("stale.txt"))!!) }!!
+        val old = System.currentTimeMillis() - TempCopies.MAX_AGE_MS - 60_000
+        stale.setLastModified(old)
+        stale.parentFile!!.setLastModified(old)
+        val second = runBlocking { FileOpener.prepare(context, r.environment, r.files.file(r.add("second.txt"))!!) }!!
+        assertTrue(first.isFile)
+        assertTrue(second.isFile)
+        assertFalse(stale.exists())
+    }
 }

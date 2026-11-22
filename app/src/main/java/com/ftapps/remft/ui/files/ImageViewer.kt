@@ -65,6 +65,8 @@ import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.layout.onSizeChanged
 import java.io.File
 
 object ViewerZoom {
@@ -74,6 +76,13 @@ object ViewerZoom {
     fun clamp(scale: Float): Float = scale.coerceIn(1f, MAX_SCALE)
 
     fun toggle(scale: Float): Float = if (scale > 1.01f) 1f else DOUBLE_TAP_SCALE
+
+    fun clampOffset(offset: Offset, scale: Float, width: Float, height: Float): Offset {
+        if (scale <= 1f) return Offset.Zero
+        val maxX = width * (scale - 1f) / 2f
+        val maxY = height * (scale - 1f) / 2f
+        return Offset(offset.x.coerceIn(-maxX, maxX), offset.y.coerceIn(-maxY, maxY))
+    }
 }
 
 @Composable
@@ -236,6 +245,7 @@ private fun ViewerPage(id: String, env: FilesEnvironment, active: Boolean, onZoo
     }
     var scale by remember(id) { mutableFloatStateOf(1f) }
     var offset by remember(id) { mutableStateOf(Offset.Zero) }
+    var pageSize by remember(id) { mutableStateOf(IntSize.Zero) }
     LaunchedEffect(active) {
         if (!active) {
             scale = 1f
@@ -244,7 +254,7 @@ private fun ViewerPage(id: String, env: FilesEnvironment, active: Boolean, onZoo
     }
     val transform = rememberTransformableState { _, zoomChange, panChange, _ ->
         scale = ViewerZoom.clamp(scale * zoomChange)
-        offset = if (scale > 1f) offset + panChange else Offset.Zero
+        offset = ViewerZoom.clampOffset(offset + panChange, scale, pageSize.width.toFloat(), pageSize.height.toFloat())
         onZoomChanged(scale > 1.01f)
     }
     Box(
@@ -253,11 +263,12 @@ private fun ViewerPage(id: String, env: FilesEnvironment, active: Boolean, onZoo
             .pointerInput(id) {
                 detectTapGestures(onDoubleTap = {
                     scale = ViewerZoom.toggle(scale)
-                    if (scale == 1f) offset = Offset.Zero
+                    offset = ViewerZoom.clampOffset(offset, scale, pageSize.width.toFloat(), pageSize.height.toFloat())
                     onZoomChanged(scale > 1.01f)
                 })
             }
             .transformable(transform, canPan = { scale > 1.01f })
+            .onSizeChanged { pageSize = it }
             .testTag("viewer-page-$id"),
         contentAlignment = Alignment.Center,
     ) {

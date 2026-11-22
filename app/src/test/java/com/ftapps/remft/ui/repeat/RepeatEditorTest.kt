@@ -4,6 +4,7 @@ import android.os.Looper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -248,5 +249,22 @@ class RepeatEditorTest {
         compose.onNodeWithTag("scope-all").performClick()
         compose.onNodeWithTag("scope-apply").performClick()
         waitFor { tasks.query("SELECT id FROM tasks WHERE title = 'Water the ferns'").size == occurrenceIds(seriesId).size }
+    }
+
+    @Test
+    fun anInvalidIntervalOrCountDisablesSaveInsteadOfSavingTheOldNumber() {
+        editor(RepeatRule(RepeatFreq.Weekly, byWeekday = listOf(WeekdayPick("SA"))))
+        compose.onNodeWithTag("repeat-advanced").performScrollTo().performClick()
+        compose.onNodeWithTag("repeat-interval").performScrollTo().performTextReplacement("0")
+        compose.onNodeWithTag("repeat-save").assertIsNotEnabled()
+        compose.onNodeWithTag("repeat-interval").performScrollTo().performTextReplacement("")
+        compose.onNodeWithTag("repeat-save").assertIsNotEnabled()
+        compose.onNodeWithTag("repeat-interval").performScrollTo().performTextReplacement("2")
+        compose.onNodeWithTag("repeat-save").assertIsEnabled()
+        compose.onNodeWithTag("repeat-end-count").performScrollTo().performClick()
+        compose.onNodeWithTag("repeat-count").performScrollTo().performTextReplacement("0")
+        compose.onNodeWithTag("repeat-save").assertIsNotEnabled()
+        compose.onNodeWithTag("repeat-end-never").performScrollTo().performClick()
+        compose.onNodeWithTag("repeat-save").assertIsEnabled()
     }
 }

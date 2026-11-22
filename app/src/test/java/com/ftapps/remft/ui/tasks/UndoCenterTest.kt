@@ -52,4 +52,29 @@ class UndoCenterTest {
         assertEquals(listOf("a"), done)
         assertEquals("b", undo.current.value?.id)
     }
+
+    @Test
+    fun theWindowCountsFromWhenTheSnackbarIsShown() {
+        var commits = 0
+        undo.post("a", "deleted") { commits++ }
+        scope.advanceTimeBy(1_500)
+        scope.runCurrent()
+        assertTrue(undo.shown(undo.current.value!!))
+        scope.advanceTimeBy(4_900)
+        scope.runCurrent()
+        assertEquals(0, commits)
+        assertNotNull(undo.current.value)
+        scope.advanceTimeBy(200)
+        scope.runCurrent()
+        assertEquals(1, commits)
+        assertNull(undo.current.value)
+    }
+
+    @Test
+    fun anOldRequestShownLateDoesNotExtendTheNewOne() {
+        undo.post("a", "a deleted") {}
+        val first = undo.current.value!!
+        undo.post("b", "b deleted") {}
+        assertEquals(false, undo.shown(first))
+    }
 }

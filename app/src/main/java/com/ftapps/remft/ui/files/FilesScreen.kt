@@ -25,7 +25,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Attachment
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.MoreHoriz
@@ -371,6 +371,8 @@ private fun SortMenu(sort: SortState, onChange: (SortState) -> Unit) {
     }
 }
 
+val CrumbArrow = Icons.AutoMirrored.Outlined.KeyboardArrowRight
+
 @Composable
 private fun FoldersLayer(
     env: FilesEnvironment,
@@ -409,7 +411,7 @@ private fun FoldersLayer(
             Crumb(stringResource(R.string.nav_files), current = trail.isEmpty(), tag = "crumb-root") { onPath(emptyList()) }
             trail.forEachIndexed { index, folder ->
                 Icon(
-                    Icons.Outlined.ChevronRight,
+                    CrumbArrow,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp).padding(horizontal = 2.dp),
@@ -617,7 +619,7 @@ private fun FilesPreviewContent() {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Crumb("Files", current = false, tag = "p-root") {}
-                Icon(Icons.Outlined.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(CrumbArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                 Crumb("Home documents", current = true, tag = "p-home") {}
             }
             Spacer(Modifier.size(Space.x3))

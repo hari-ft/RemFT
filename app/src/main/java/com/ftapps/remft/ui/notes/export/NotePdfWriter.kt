@@ -48,26 +48,26 @@ object NotePdfWriter {
         labels: NoteExportLabels,
         image: (String) -> Bitmap?,
     ) {
-        val images = HashMap<String, Bitmap?>()
-        val resolveImage: (String) -> Bitmap? = { id ->
-            if (images.containsKey(id)) {
-                images[id]
-            } else {
-                runCatching { image(id) }.getOrNull().also { images[id] = it }
-            }
-        }
-
-        val total = measure(title, subtitle, blocks, labels, resolveImage).pages
+        val images = PassImages(image)
+        val total = measure(title, subtitle, blocks, labels, images::forMeasure).pages
 
         val document = PdfDocument()
         try {
             val pager = Pager(document, title, total)
-            Renderer(pager, title, subtitle, labels, resolveImage).render(blocks)
+            Renderer(pager, title, subtitle, labels, images::forDraw).render(blocks)
             pager.finish()
             document.writeTo(out)
         } finally {
             document.close()
         }
+    }
+
+    internal class PassImages(private val image: (String) -> Bitmap?) {
+        private val present = HashMap<String, Boolean>()
+
+        fun forMeasure(id: String): Bitmap? = runCatching { image(id) }.getOrNull().also { present[id] = it != null }
+
+        fun forDraw(id: String): Bitmap? = if (present[id] == false) null else runCatching { image(id) }.getOrNull()
     }
 
     internal data class Measured(val pages: Int, val overflow: Float, val repeatedHeaders: Int)

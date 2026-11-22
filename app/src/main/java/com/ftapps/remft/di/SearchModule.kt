@@ -6,6 +6,7 @@ import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.data.search.SearchDao
 import com.ftapps.remft.data.search.SearchRecentsStore
 import com.ftapps.remft.data.search.SearchRepository
+import com.ftapps.remft.data.tasks.PendingDeletes
 import com.ftapps.remft.ui.search.SearchEnvironment
 import dagger.Module
 import dagger.Provides
@@ -27,6 +28,6 @@ object SearchModule {
 
     @Provides
     @Singleton
-    fun searchEnvironment(repository: SearchRepository, settings: SettingsStore): SearchEnvironment =
-        SearchEnvironment(repository, SearchRecentsStore(settings))
+    fun searchEnvironment(repository: SearchRepository, settings: SettingsStore, pendingDeletes: PendingDeletes): SearchEnvironment =
+        SearchEnvironment(repository, SearchRecentsStore(settings), hidden = pendingDeletes.ids)
 }

@@ -135,6 +135,7 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
     val env = LocalTasksEnvironment.current
     val vm: HomeViewModel = viewModel { HomeViewModel(env) }
     val state by vm.state.collectAsStateWithLifecycle()
+    val pendingDeletes by env.pendingDeletes.ids.collectAsStateWithLifecycle()
     val format = rememberDateFormat()
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
     var sheetDue by rememberSaveable { mutableStateOf<java.time.LocalDateTime?>(null) }
@@ -246,10 +247,10 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                         }
                     }
                     if (!searching) {
-                        item(key = "home-alarm-warnings") { HomeAlarmWarnings() }
+                        item(key = "home-alarm-warnings") { HomeAlarmWarnings(hiddenTasks = pendingDeletes) }
                         item(key = "home-onedrive") { HomeOneDriveCards(onOpenAutoBackup) }
                         item(key = "home-backup") { HomeBackupReminder() }
-                        item(key = "home-urgent-alarm") { HomeUrgentAlarm(onOpenTask = onOpenTask) }
+                        item(key = "home-urgent-alarm") { HomeUrgentAlarm(onOpenTask = onOpenTask, hiddenTasks = pendingDeletes) }
                     }
                 }
                 val searchResults: LazyListScope.(TaskSearchState) -> Unit = { found ->
@@ -297,6 +298,7 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                                             selectedDay = state.selectedDay,
                                             onDaySelected = vm::select,
                                             modifier = Modifier.padding(vertical = Space.x2),
+                                            format = format,
                                         )
                                     }
                                 }

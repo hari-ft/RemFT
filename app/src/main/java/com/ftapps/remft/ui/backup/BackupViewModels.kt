@@ -15,9 +15,14 @@ import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.settings.SettingKeys
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -70,15 +75,8 @@ class BackupReminderViewModel @Inject constructor(
     private val holder: DatabaseHolder,
     private val store: SettingsStore,
 ) : ViewModel() {
-    val due: StateFlow<Boolean> = combine(
-        store.flow(SettingKeys.LastBackupAt.name),
-        store.flow(SettingKeys.BackupReminderDismissed.name),
-    ) { last, dismissed ->
-        val hasData = withContext(Dispatchers.IO) {
-            runCatching { BackupDatabases.hasData(holder.db.openHelper.readableDatabase) }.getOrDefault(false)
-        }
-        BackupReminder.isDue(ZonedDateTime.now(), hasData, UtcText.parse(last), dismissed)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val due: StateFlow<Boolean> = backupReminderDue(holder, store)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun later() {
         viewModelScope.launch {
@@ -87,4 +85,24 @@ class BackupReminderViewModel @Inject constructor(
     }
 
     fun backUpNow() = coordinator.backUpNow()
+}
+
+internal fun backupReminderDue(
+    holder: DatabaseHolder,
+    store: SettingsStore,
+    now: () -> ZonedDateTime = ZonedDateTime::now,
+): Flow<Boolean> {
+    val dataChanges = flow { emitAll(holder.db.invalidationTracker.createFlow("tasks", "notes")) }
+        .map { }
+        .catch { emit(Unit) }
+    return combine(
+        store.flow(SettingKeys.LastBackupAt.name),
+        store.flow(SettingKeys.BackupReminderDismissed.name),
+        dataChanges,
+    ) { last, dismissed, _ ->
+        val hasData = withContext(Dispatchers.IO) {
+            runCatching { BackupDatabases.hasData(holder.db.openHelper.readableDatabase) }.getOrDefault(false)
+        }
+        BackupReminder.isDue(now(), hasData, UtcText.parse(last), dismissed)
+    }.distinctUntilChanged()
 }

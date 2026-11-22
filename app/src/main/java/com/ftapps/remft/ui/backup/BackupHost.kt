@@ -44,7 +44,7 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-private val zipMimeTypes = arrayOf(BackupFormat.ZIP_MIME, "application/x-zip-compressed")
+internal val restorePickerMimeTypes = arrayOf(BackupFormat.ZIP_MIME, "application/x-zip-compressed", "application/octet-stream")
 
 @Composable
 fun BackupHost(viewModel: BackupHostViewModel = hiltViewModel()) {
@@ -94,7 +94,7 @@ fun BackupHost(viewModel: BackupHostViewModel = hiltViewModel()) {
         onDismissSource = coordinator::dismissSource,
         onFile = {
             coordinator.dismissSource()
-            pickLauncher.launch(zipMimeTypes)
+            pickLauncher.launch(restorePickerMimeTypes)
         },
         onConfirm = coordinator::confirmRestore,
         oneDriveConnected = state.oneDriveConnected,

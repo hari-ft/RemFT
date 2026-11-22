@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.notes.export
 
+import android.graphics.Bitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.domain.notes.export.NoteBlock
 import com.ftapps.remft.domain.notes.export.NoteExportLabels
@@ -39,5 +40,21 @@ class NotePdfWriterTest {
         val table = NoteBlock.Table((0..30).map { listOf("row $it", "value $it") })
         val measured = NotePdfWriter.measure("Report", null, listOf(filler, table), labels) { null }
         assertTrue("overflow ${measured.overflow}", measured.overflow <= 0.5f)
+    }
+
+    @Test
+    fun imagesAreDecodedPerUseAndNotHeldForTheWholeExport() {
+        val handed = ArrayList<Bitmap>()
+        val images = NotePdfWriter.PassImages { id ->
+            if (id == "missing") null else Bitmap.createBitmap(40, 20, Bitmap.Config.ARGB_8888).also { handed.add(it) }
+        }
+        val blocks = listOf(NoteBlock.Image("a", "first"), NoteBlock.Image("b", "second"), NoteBlock.Image("missing", "gone"))
+        NotePdfWriter.measure("Photos", null, blocks, labels, images::forMeasure)
+        handed.forEach { it.recycle() }
+        val drawnA = images.forDraw("a")!!
+        val drawnB = images.forDraw("b")!!
+        assertTrue(!drawnA.isRecycled && !drawnB.isRecycled)
+        assertEquals(null, images.forDraw("missing"))
+        assertEquals(4, handed.size)
     }
 }
