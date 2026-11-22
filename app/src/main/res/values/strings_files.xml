@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_closeSearch">Close search</string>
+    <string name="files_sizeBytes">{n} B</string>
+    <string name="files_sizeKb">{n} KB</string>
+    <string name="files_sizeMb">{n} MB</string>
+    <string name="files_sizeGb">{n} GB</string>
+    <string name="files_sizeTb">{n} TB</string>
+    <string name="files_viewerClose">Close viewer</string>
+</resources>

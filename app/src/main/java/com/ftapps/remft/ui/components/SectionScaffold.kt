@@ -1,0 +1,86 @@
+package com.ftapps.remft.ui.components
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
+import com.ftapps.remft.R
+import com.ftapps.remft.ui.theme.Space
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SectionScaffold(
+    title: String,
+    onOpenSettings: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
+    floatingActionButton: @Composable () -> Unit = {},
+    content: @Composable (PaddingValues) -> Unit,
+) {
+    Scaffold(
+        containerColor = Color.Transparent,
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
+                        }
+                    }
+                },
+                actions = {
+                    if (onOpenSettings != null) {
+                        IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("open-settings")) {
+                            Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings_title))
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
+            )
+        },
+        floatingActionButton = floatingActionButton,
+        content = content,
+    )
+}
+
+@Composable
+fun CenteredList(
+    padding: PaddingValues,
+    maxWidth: Dp,
+    bottomPadding: Dp = Space.x4,
+    content: LazyListScope.() -> Unit,
+) {
+    Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()), contentAlignment = Alignment.TopCenter) {
+        LazyColumn(
+            modifier = Modifier.widthIn(max = maxWidth).fillMaxWidth(),
+            contentPadding = PaddingValues(start = Space.x4, end = Space.x4, top = Space.x2, bottom = bottomPadding + padding.calculateBottomPadding()),
+            content = content,
+        )
+    }
+}
+
+@Composable
+fun CenteredBox(padding: PaddingValues, content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) { content() }
+}

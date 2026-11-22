@@ -1,0 +1,2819 @@
+{
+ "_comment": "Quick-add grammar contract (English vocabulary). now defaults to 2026-10-16T10:00 (a Friday). due is local YYYY-MM-DDTHH:mm; a date with no time lands an hour after now, rounded up to the minute, on that day; today is clamped to 23:59 when now + 1 h is already tomorrow (options.defaultTime pins another). Slash dates are day-first (5/11 = 5 November) unless monthFirstSlash. \"start\" is a plain word (the When field was removed). The app has no tags or projects: #word and +word stay in the title.",
+ "defaults": {
+  "now": "2026-10-16T10:00"
+ },
+ "cases": [
+  {
+   "group": "relative",
+   "text": "Tomorrow 9am pay rent #home",
+   "expect": {
+    "title": "pay rent #home",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null,
+    "kinds": [
+     "due",
+     "time"
+    ],
+    "dueHasTime": true
+   }
+  },
+  {
+   "group": "relative",
+   "text": "tmrw 9am rent",
+   "expect": {
+    "title": "rent",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "today 14:30 meeting",
+   "expect": {
+    "title": "meeting",
+    "due": "2026-10-16T14:30",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "today review",
+   "expect": {
+    "title": "review",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null,
+    "dueHasTime": false
+   }
+  },
+  {
+   "group": "relative",
+   "text": "tomorrow call the bank",
+   "expect": {
+    "title": "call the bank",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "day after tomorrow dentist",
+   "expect": {
+    "title": "dentist",
+    "due": "2026-10-18T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "the day after tomorrow dentist",
+   "expect": {
+    "title": "dentist",
+    "due": "2026-10-18T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "3 days from now call",
+   "expect": {
+    "title": "call",
+    "due": "2026-10-19T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "two weeks from now check",
+   "expect": {
+    "title": "check",
+    "due": "2026-10-30T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "1 month from now renew",
+   "expect": {
+    "title": "renew",
+    "due": "2026-11-16T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "in a month renew",
+   "now": "2026-01-31T10:00",
+   "expect": {
+    "title": "renew",
+    "due": "2026-02-28T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "in 3 days call",
+   "expect": {
+    "title": "call",
+    "due": "2026-10-19T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "in a week follow up",
+   "expect": {
+    "title": "follow up",
+    "due": "2026-10-23T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "in two weeks report",
+   "expect": {
+    "title": "report",
+    "due": "2026-10-30T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "next week review",
+   "expect": {
+    "title": "review",
+    "due": "2026-10-19T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "next week review",
+   "options": {
+    "weekStart": 7
+   },
+   "expect": {
+    "title": "review",
+    "due": "2026-10-18T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "this weekend clean",
+   "expect": {
+    "title": "clean",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "weekend cleaning",
+   "expect": {
+    "title": "cleaning",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "weekend cleaning",
+   "now": "2026-10-17T08:00",
+   "expect": {
+    "title": "cleaning",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "end of month rent",
+   "expect": {
+    "title": "rent",
+    "due": "2026-10-31T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "end of the month invoice",
+   "expect": {
+    "title": "invoice",
+    "due": "2026-10-31T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "until end of month rent",
+   "expect": {
+    "title": "rent",
+    "due": "2026-10-31T11:00",
+    "repeat": null,
+    "priority": null,
+    "kinds": [
+     "due"
+    ]
+   }
+  },
+  {
+   "group": "relative",
+   "text": "tomorrow",
+   "expect": {
+    "title": "tomorrow",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null,
+    "kinds": [
+     "due"
+    ]
+   }
+  },
+  {
+   "group": "relative",
+   "text": "tomorrow",
+   "now": "2026-11-30T22:00",
+   "expect": {
+    "title": "tomorrow",
+    "due": "2026-12-01T23:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "tomorrow",
+   "now": "2026-12-31T22:00",
+   "expect": {
+    "title": "tomorrow",
+    "due": "2027-01-01T23:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "relative",
+   "text": "tomorrow",
+   "now": "2026-03-28T23:30",
+   "expect": {
+    "title": "tomorrow",
+    "due": "2026-03-29T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "friday meeting",
+   "expect": {
+    "title": "meeting",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "fri meeting",
+   "expect": {
+    "title": "meeting",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "monday gym",
+   "expect": {
+    "title": "gym",
+    "due": "2026-10-19T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "Tuesday",
+   "expect": {
+    "title": "Tuesday",
+    "due": "2026-10-20T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "wednesday meeting",
+   "expect": {
+    "title": "meeting",
+    "due": "2026-10-21T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "wed review",
+   "expect": {
+    "title": "review",
+    "due": "2026-10-21T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "thursday homework",
+   "expect": {
+    "title": "homework",
+    "due": "2026-10-22T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "thurs homework",
+   "expect": {
+    "title": "homework",
+    "due": "2026-10-22T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "saturday picnic",
+   "expect": {
+    "title": "picnic",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "sunday breakfast",
+   "expect": {
+    "title": "breakfast",
+    "due": "2026-10-18T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "until friday report",
+   "expect": {
+    "title": "report",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null,
+    "kinds": [
+     "due"
+    ]
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "this friday movie",
+   "expect": {
+    "title": "movie",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "next friday demo",
+   "expect": {
+    "title": "demo",
+    "due": "2026-10-23T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "next monday demo",
+   "expect": {
+    "title": "demo",
+    "due": "2026-10-19T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "next monday demo",
+   "options": {
+    "weekStart": 2
+   },
+   "expect": {
+    "title": "demo",
+    "due": "2026-10-26T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "next week wednesday",
+   "expect": {
+    "title": "next week wednesday",
+    "due": "2026-10-21T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "coming friday match",
+   "expect": {
+    "title": "match",
+    "due": "2026-10-23T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "coming saturday hike",
+   "expect": {
+    "title": "hike",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "friday 3pm call",
+   "expect": {
+    "title": "call",
+    "due": "2026-10-16T15:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "on monday call",
+   "expect": {
+    "title": "call",
+    "due": "2026-10-19T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "next sat party",
+   "expect": {
+    "title": "party",
+    "due": "2026-10-24T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "on sun brunch",
+   "expect": {
+    "title": "brunch",
+    "due": "2026-10-18T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "friday at 11",
+   "expect": {
+    "title": "friday at 11",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "weekday",
+   "text": "friday at 9",
+   "expect": {
+    "title": "friday at 9",
+    "due": "2026-10-23T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "15 November bill",
+   "expect": {
+    "title": "bill",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "15 November 2026 bill",
+   "expect": {
+    "title": "bill",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "November 15 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "Nov 15 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "15 Nov x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "November 15th, 2027 x",
+   "expect": {
+    "title": "x",
+    "due": "2027-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "15th of November x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "15.11 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "15.11.2026 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "15/11 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "15/11/26 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "2026-11-15 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "05/11 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-05T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "5/11 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-05T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "05/11 x",
+   "options": {
+    "monthFirstSlash": true
+   },
+   "expect": {
+    "title": "x",
+    "due": "2027-05-11T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "11/15 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "15 jan x",
+   "now": "2026-12-20T10:00",
+   "expect": {
+    "title": "x",
+    "due": "2027-01-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "1 jan x",
+   "expect": {
+    "title": "x",
+    "due": "2027-01-01T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "10 oct x",
+   "expect": {
+    "title": "x",
+    "due": "2027-10-10T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "16 oct x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "29.02.2028 x",
+   "expect": {
+    "title": "x",
+    "due": "2028-02-29T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "dec 3 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-12-03T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "by 3 dec x",
+   "expect": {
+    "title": "x",
+    "due": "2026-12-03T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "date",
+   "text": "call mom on Nov 15",
+   "expect": {
+    "title": "call mom",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "at 14 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T14:00",
+    "repeat": null,
+    "priority": null,
+    "kinds": [
+     "time"
+    ]
+   }
+  },
+  {
+   "group": "time",
+   "text": "at 14:30 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T14:30",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "at 14.30 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T14:30",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "at 9 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "14:30 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T14:30",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "9:30 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-17T09:30",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "9.30am x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-17T09:30",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "9.30 pm x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T21:30",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "9 o'clock coffee",
+   "expect": {
+    "title": "coffee",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "9 in the morning run",
+   "expect": {
+    "title": "run",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "7 in the evening dinner",
+   "expect": {
+    "title": "dinner",
+    "due": "2026-10-16T19:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "at 7 in the evening dinner",
+   "expect": {
+    "title": "dinner",
+    "due": "2026-10-16T19:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "3 in the afternoon meeting",
+   "expect": {
+    "title": "meeting",
+    "due": "2026-10-16T15:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "11 at night medicine",
+   "expect": {
+    "title": "medicine",
+    "due": "2026-10-16T23:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "12 at night backup",
+   "expect": {
+    "title": "backup",
+    "due": "2026-10-17T00:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "at 15:00 x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T15:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "3 pm x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T15:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "3pm x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T15:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "3:30pm x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T15:30",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "12am x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-17T00:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "12pm x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T12:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "noon lunch",
+   "expect": {
+    "title": "lunch",
+    "due": "2026-10-16T12:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "at noon lunch",
+   "expect": {
+    "title": "lunch",
+    "due": "2026-10-16T12:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "midnight deploy",
+   "expect": {
+    "title": "deploy",
+    "due": "2026-10-17T00:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "9am breakfast",
+   "expect": {
+    "title": "breakfast",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "tomorrow 8 in the morning flight",
+   "expect": {
+    "title": "flight",
+    "due": "2026-10-17T08:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "rent tomorrow 9am",
+   "expect": {
+    "title": "rent",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "9am rent tomorrow",
+   "expect": {
+    "title": "rent",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "tomorrow at 3pm call",
+   "expect": {
+    "title": "call",
+    "due": "2026-10-17T15:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "time",
+   "text": "tomorrow 25:00 x",
+   "expect": {
+    "title": "25:00 x",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "start-plain",
+   "text": "report start monday due friday",
+   "expect": {
+    "title": "report start due friday",
+    "due": "2026-10-19T11:00",
+    "repeat": null,
+    "priority": null,
+    "kinds": [
+     "due"
+    ]
+   }
+  },
+  {
+   "group": "start-plain",
+   "text": "monday start report",
+   "expect": {
+    "title": "start report",
+    "due": "2026-10-19T11:00",
+    "repeat": null,
+    "priority": null,
+    "kinds": [
+     "due"
+    ]
+   }
+  },
+  {
+   "group": "start-plain",
+   "text": "start mon report",
+   "expect": {
+    "title": "start report",
+    "due": "2026-10-19T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "start-plain",
+   "text": "starting tomorrow diet",
+   "expect": {
+    "title": "starting diet",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "start-plain",
+   "text": "start 15.11 project",
+   "expect": {
+    "title": "start project",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "start-plain",
+   "text": "start monday at 9 report",
+   "expect": {
+    "title": "start report",
+    "due": "2026-10-19T09:00",
+    "repeat": null,
+    "priority": null,
+    "kinds": [
+     "due",
+     "time"
+    ]
+   }
+  },
+  {
+   "group": "start-plain",
+   "text": "start tomorrow due friday 17:00 report",
+   "expect": {
+    "title": "start due friday report",
+    "due": "2026-10-17T17:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "due-when",
+   "text": "due friday report",
+   "expect": {
+    "title": "report",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "due-when",
+   "text": "due by friday report",
+   "expect": {
+    "title": "report",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "due-when",
+   "text": "by tomorrow x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "due-when",
+   "text": "deadline nov 20 essay",
+   "expect": {
+    "title": "essay",
+    "due": "2026-11-20T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "due-when",
+   "text": "deadline on 15 november application",
+   "expect": {
+    "title": "application",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "due-when",
+   "text": "until tomorrow x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "due-when",
+   "text": "till 15 nov application",
+   "expect": {
+    "title": "application",
+    "due": "2026-11-15T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "due-when",
+   "text": "tomorrow and friday",
+   "expect": {
+    "title": "and friday",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "due-when",
+   "text": "last 3 days",
+   "expect": {
+    "title": "last 3 days",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every day drink water",
+   "expect": {
+    "title": "drink water",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "daily",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null,
+    "kinds": [
+     "repeat"
+    ]
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "everyday drink water",
+   "expect": {
+    "title": "drink water",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "daily",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every day at 9 medicine",
+   "expect": {
+    "title": "medicine",
+    "due": "2026-10-17T09:00",
+    "repeat": {
+     "freq": "daily",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every monday at 9 gym",
+   "expect": {
+    "title": "gym",
+    "due": "2026-10-19T09:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "MO",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every monday at 9 gym",
+   "now": "2026-10-19T10:00",
+   "expect": {
+    "title": "gym",
+    "due": "2026-10-26T09:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "MO",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every monday and thursday yoga",
+   "expect": {
+    "title": "yoga",
+    "due": "2026-10-19T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "MO",
+       "ordinal": null
+      },
+      {
+       "day": "TH",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every month on the 31st rent",
+   "expect": {
+    "title": "rent",
+    "due": "2026-10-31T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "byMonthDay": [
+      31
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every 15th bill",
+   "expect": {
+    "title": "bill",
+    "due": "2026-11-15T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "byMonthDay": [
+      15
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every month on the 1st salary",
+   "expect": {
+    "title": "salary",
+    "due": "2026-11-01T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "byMonthDay": [
+      1
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every last day of the month report",
+   "expect": {
+    "title": "report",
+    "due": "2026-10-31T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "byMonthDay": [
+      -1
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every monday gym",
+   "expect": {
+    "title": "gym",
+    "due": "2026-10-19T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "MO",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every mon, thu and fri gym",
+   "expect": {
+    "title": "gym",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "MO",
+       "ordinal": null
+      },
+      {
+       "day": "TH",
+       "ordinal": null
+      },
+      {
+       "day": "FR",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every weekday standup",
+   "expect": {
+    "title": "standup",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "MO",
+       "ordinal": null
+      },
+      {
+       "day": "TU",
+       "ordinal": null
+      },
+      {
+       "day": "WE",
+       "ordinal": null
+      },
+      {
+       "day": "TH",
+       "ordinal": null
+      },
+      {
+       "day": "FR",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every weekday standup",
+   "now": "2026-10-17T10:00",
+   "expect": {
+    "title": "standup",
+    "due": "2026-10-19T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "MO",
+       "ordinal": null
+      },
+      {
+       "day": "TU",
+       "ordinal": null
+      },
+      {
+       "day": "WE",
+       "ordinal": null
+      },
+      {
+       "day": "TH",
+       "ordinal": null
+      },
+      {
+       "day": "FR",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "weekdays run",
+   "expect": {
+    "title": "run",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "MO",
+       "ordinal": null
+      },
+      {
+       "day": "TU",
+       "ordinal": null
+      },
+      {
+       "day": "WE",
+       "ordinal": null
+      },
+      {
+       "day": "TH",
+       "ordinal": null
+      },
+      {
+       "day": "FR",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "on weekends hike",
+   "expect": {
+    "title": "hike",
+    "due": "2026-10-17T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "SA",
+       "ordinal": null
+      },
+      {
+       "day": "SU",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every weekend hike",
+   "expect": {
+    "title": "hike",
+    "due": "2026-10-17T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "SA",
+       "ordinal": null
+      },
+      {
+       "day": "SU",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every week meeting",
+   "expect": {
+    "title": "meeting",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every other week x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 2,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every 2 weeks x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 2,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every 3 days water",
+   "expect": {
+    "title": "water",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "daily",
+     "interval": 3,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "once a week call mom",
+   "expect": {
+    "title": "call mom",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "once a month report",
+   "expect": {
+    "title": "report",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "once a day vitamins",
+   "expect": {
+    "title": "once a day vitamins",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every month bill",
+   "expect": {
+    "title": "bill",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every year birthday",
+   "expect": {
+    "title": "birthday",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "yearly",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "yearly x",
+   "expect": {
+    "title": "x",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "yearly",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every 15th rent",
+   "expect": {
+    "title": "rent",
+    "due": "2026-11-15T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "byMonthDay": [
+      15
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every month on the 15th rent",
+   "expect": {
+    "title": "rent",
+    "due": "2026-11-15T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "byMonthDay": [
+      15
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "monthly on the 1st report",
+   "expect": {
+    "title": "report",
+    "due": "2026-11-01T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "byMonthDay": [
+      1
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every last day of the month backup",
+   "expect": {
+    "title": "backup",
+    "due": "2026-10-31T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "byMonthDay": [
+      -1
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "mondays gym",
+   "expect": {
+    "title": "gym",
+    "due": "2026-10-19T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "MO",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "on fridays football",
+   "expect": {
+    "title": "football",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "byWeekday": [
+      {
+       "day": "FR",
+       "ordinal": null
+      }
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "daily standup",
+   "expect": {
+    "title": "standup",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "daily",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "weekly review",
+   "expect": {
+    "title": "review",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "weekly",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "Tomorrow 9am pay rent #home p1 every month on the 31st",
+   "expect": {
+    "title": "pay rent #home",
+    "due": "2026-10-31T09:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 1,
+     "byMonthDay": [
+      31
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": "high",
+    "kinds": [
+     "due",
+     "time",
+     "priority",
+     "repeat"
+    ]
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every 32nd x",
+   "expect": {
+    "title": "every 32nd x",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "#home #Home #work shopping",
+   "expect": {
+    "title": "#home #Home #work shopping",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "buy milk #market,",
+   "expect": {
+    "title": "buy milk #market",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "mail ali@x.com#x",
+   "expect": {
+    "title": "mail ali@x.com#x",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "#1 number",
+   "expect": {
+    "title": "#1 number",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "read https://x.dev/a#b",
+   "expect": {
+    "title": "read https://x.dev/a#b",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "+home chores dishes",
+   "expect": {
+    "title": "+home chores dishes",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "marks",
+   "text": "+Home_Chores x",
+   "expect": {
+    "title": "+Home_Chores x",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "+Work report",
+   "expect": {
+    "title": "+Work report",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "+wo report",
+   "expect": {
+    "title": "+wo report",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "+Unknown thing",
+   "expect": {
+    "title": "+Unknown thing",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "marks",
+   "text": "p1 urgent job",
+   "expect": {
+    "title": "urgent job",
+    "due": null,
+    "repeat": null,
+    "priority": "high"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "P2 x",
+   "expect": {
+    "title": "x",
+    "due": null,
+    "repeat": null,
+    "priority": "medium"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "p3 x",
+   "expect": {
+    "title": "x",
+    "due": null,
+    "repeat": null,
+    "priority": "low"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "p4 x",
+   "expect": {
+    "title": "x",
+    "due": null,
+    "repeat": null,
+    "priority": "none"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "!1 x",
+   "expect": {
+    "title": "x",
+    "due": null,
+    "repeat": null,
+    "priority": "high"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "!2 medium",
+   "expect": {
+    "title": "medium",
+    "due": null,
+    "repeat": null,
+    "priority": "medium"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "!urgent x",
+   "expect": {
+    "title": "x",
+    "due": null,
+    "repeat": null,
+    "priority": "urgent"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "!high x",
+   "expect": {
+    "title": "x",
+    "due": null,
+    "repeat": null,
+    "priority": "high"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "!medium x",
+   "expect": {
+    "title": "x",
+    "due": null,
+    "repeat": null,
+    "priority": "medium"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "!low x",
+   "expect": {
+    "title": "x",
+    "due": null,
+    "repeat": null,
+    "priority": "low"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "p1 p3 x",
+   "expect": {
+    "title": "p3 x",
+    "due": null,
+    "repeat": null,
+    "priority": "high"
+   }
+  },
+  {
+   "group": "marks",
+   "text": "p5 x",
+   "expect": {
+    "title": "p5 x",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "options",
+   "text": "tomorrow x",
+   "options": {
+    "defaultTime": "07:15"
+   },
+   "expect": {
+    "title": "x",
+    "due": "2026-10-17T07:15",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "options",
+   "text": "Tomorrow 9am rent",
+   "options": {
+    "ignored": [
+     "due:tomorrow",
+     "time:9am"
+    ]
+   },
+   "expect": {
+    "title": "Tomorrow 9am rent",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "options",
+   "text": "tomorrow rent friday",
+   "options": {
+    "ignored": [
+     "due:tomorrow"
+    ]
+   },
+   "expect": {
+    "title": "tomorrow rent",
+    "due": "2026-10-16T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "options",
+   "text": "tomorrow rent friday",
+   "expect": {
+    "title": "rent friday",
+    "due": "2026-10-17T11:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "options",
+   "text": "p1 x",
+   "options": {
+    "ignored": [
+     "priority:p1"
+    ]
+   },
+   "expect": {
+    "title": "p1 x",
+    "due": null,
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "negative",
+   "text": "Tomorrowland tickets",
+   "expect": {
+    "title": "Tomorrowland tickets",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "today's plan",
+   "expect": {
+    "title": "today's plan",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "First things first",
+   "expect": {
+    "title": "First things first",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "Second draft",
+   "expect": {
+    "title": "Second draft",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "3 apples",
+   "expect": {
+    "title": "3 apples",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "may I call",
+   "expect": {
+    "title": "may I call",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "march forward",
+   "expect": {
+    "title": "march forward",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "3.5 kg flour",
+   "expect": {
+    "title": "3.5 kg flour",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "1/2 cake",
+   "expect": {
+    "title": "1/2 cake",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "sat on the chair",
+   "expect": {
+    "title": "sat on the chair",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "sun cream",
+   "expect": {
+    "title": "sun cream",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "pay the bill and send the report",
+   "expect": {
+    "title": "pay the bill and send the report",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "just a note",
+   "expect": {
+    "title": "just a note",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "at the office",
+   "expect": {
+    "title": "at the office",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "on time delivery",
+   "expect": {
+    "title": "on time delivery",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "31.02 x",
+   "expect": {
+    "title": "31.02 x",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "29 february x",
+   "expect": {
+    "title": "29 february x",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "last update",
+   "expect": {
+    "title": "last update",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "mañana a las nueve renta",
+   "expect": {
+    "title": "mañana a las nueve renta",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "cada día agua",
+   "expect": {
+    "title": "cada día agua",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "negative",
+   "text": "!dringend x",
+   "expect": {
+    "title": "!dringend x",
+    "due": null,
+    "repeat": null,
+    "priority": null,
+    "kinds": []
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "quarterly report",
+   "expect": {
+    "title": "report",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 3,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every quarter vat return",
+   "expect": {
+    "title": "vat return",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 3,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "quarterly on the 15th backup",
+   "expect": {
+    "title": "backup",
+    "due": "2027-01-15T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 3,
+     "byMonthDay": [
+      15
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every quarter on the 31st invoices",
+   "expect": {
+    "title": "invoices",
+    "due": "2026-10-31T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 3,
+     "byMonthDay": [
+      31
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every 3 months on the 1st meter reading",
+   "expect": {
+    "title": "meter reading",
+    "due": "2027-01-01T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 3,
+     "byMonthDay": [
+      1
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "half-yearly service the car",
+   "expect": {
+    "title": "service the car",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 6,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "half yearly review",
+   "expect": {
+    "title": "review",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 6,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every half year dentist",
+   "expect": {
+    "title": "dentist",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 6,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "twice a year smoke alarms",
+   "expect": {
+    "title": "smoke alarms",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 6,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "semi-annually audit",
+   "expect": {
+    "title": "audit",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 6,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "every 6 months dentist",
+   "expect": {
+    "title": "dentist",
+    "due": "2026-10-16T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 6,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "repeat",
+   "text": "half-yearly on the 20th insurance",
+   "expect": {
+    "title": "insurance",
+    "due": "2026-10-20T11:00",
+    "repeat": {
+     "freq": "monthly",
+     "interval": 6,
+     "byMonthDay": [
+      20
+     ],
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "default-time",
+   "text": "today review",
+   "now": "2026-10-16T22:59",
+   "expect": {
+    "title": "review",
+    "due": "2026-10-16T23:59",
+    "repeat": null,
+    "priority": null,
+    "dueHasTime": false
+   }
+  },
+  {
+   "group": "default-time",
+   "text": "today review",
+   "now": "2026-10-16T23:30",
+   "expect": {
+    "title": "review",
+    "due": "2026-10-16T23:59",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "default-time",
+   "text": "friday review",
+   "now": "2026-10-16T23:30",
+   "expect": {
+    "title": "review",
+    "due": "2026-10-16T23:59",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "default-time",
+   "text": "tomorrow call",
+   "now": "2026-10-16T23:30",
+   "expect": {
+    "title": "call",
+    "due": "2026-10-17T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "default-time",
+   "text": "15 nov bill",
+   "now": "2026-10-16T23:30",
+   "expect": {
+    "title": "bill",
+    "due": "2026-11-15T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  },
+  {
+   "group": "default-time",
+   "text": "every day drink water",
+   "now": "2026-10-16T23:30",
+   "expect": {
+    "title": "drink water",
+    "due": "2026-10-17T09:00",
+    "repeat": {
+     "freq": "daily",
+     "interval": 1,
+     "end": {
+      "type": "never"
+     }
+    },
+    "priority": null
+   }
+  },
+  {
+   "group": "default-time",
+   "text": "tomorrow x",
+   "now": "2026-12-31T23:15",
+   "expect": {
+    "title": "x",
+    "due": "2027-01-01T09:00",
+    "repeat": null,
+    "priority": null
+   }
+  }
+ ]
+}

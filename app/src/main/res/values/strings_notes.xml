@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notes_closeSearch">Close search</string>
+    <string name="notes_findClose">Close find</string>
+</resources>

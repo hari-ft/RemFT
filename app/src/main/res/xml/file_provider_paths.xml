@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="backup_share" path="backup-share/" />
+    <cache-path name="exports" path="exports/" />
+    <cache-path name="shared_files" path="shared/" />
+    <cache-path name="camera" path="camera/" />
+</paths>

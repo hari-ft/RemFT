@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tasks_pickerOk">OK</string>
+    <string name="tasks_checklistMoveUp">Move up</string>
+    <string name="tasks_checklistMoveDown">Move down</string>
+    <string name="tasks_checklistEdit">Edit item</string>
+    <string name="tasks_checklistItemOptions">Item options</string>
+</resources>

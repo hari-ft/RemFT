@@ -1,0 +1,25 @@
+{
+  "_comment": "Search-fold contract: input → folded. Asserted by FoldTest against Fold.searchText.",
+  "pairs": {
+    "Ça va": "ca va",
+    "ca va": "ca va",
+    "INDIA": "india",
+    "kıwı": "kiwi",
+    "İdea": "idea",
+    "ŞTIINŢĂ": "stiinta",
+    "ÜBER": "uber",
+    "ğ ö ü ş": "g o u s",
+    "şcoală": "scoala",
+    "château": "chateau",
+    "FAÇADE Ğ Öko": "facade g oko",
+    "café": "cafe",
+    "Großmann": "grossmann",
+    "naïve": "naive",
+    "Łódź": "lodz",
+    "  garçon   naïve  ": "garcon naive",
+    "Дом 123": "дом 123",
+    "øre œuvre æther": "ore oeuvre aether",
+    "đavo Śląsk": "davo slask",
+    "#Todo-İdea (2026)": "#todo-idea (2026)"
+  }
+}

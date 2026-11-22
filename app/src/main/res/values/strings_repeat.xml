@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="repeat_off">Off</string>
+    <string name="repeat_tooDense">This repeat would create too many tasks. Choose a longer interval.</string>
+    <string name="repeat_couldNotSave">Couldn’t save the repeat. Try again.</string>
+</resources>

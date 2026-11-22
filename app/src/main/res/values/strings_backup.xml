@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_checking">Checking the backup…</string>
+    <string name="backup_lastBackupAt">Last backup {date}</string>
+    <string name="backup_noBackupYet">No backup yet</string>
+</resources>

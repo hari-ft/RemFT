@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+key.properties
+keys/remft-release.jks
+*.iml
+.idea/
+.kotlin/
+captures/
+builds-ft/
+.claude/
