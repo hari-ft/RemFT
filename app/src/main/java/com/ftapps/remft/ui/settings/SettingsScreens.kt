@@ -1,6 +1,6 @@
 package com.ftapps.remft.ui.settings
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -66,6 +66,7 @@ import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
 import com.ftapps.remft.ui.theme.dynamicColorAvailable
+import androidx.compose.ui.semantics.Role
 
 @Composable
 fun SettingsScreen(
@@ -217,7 +218,7 @@ private fun DateFormatSheet(current: DateFormatId, onPick: (DateFormatId) -> Uni
                 DateFormats.specs.forEach { spec ->
                     SettingsItem(
                         title = DateFormats.dateTime(DateFormats.sample, spec.id),
-                        modifier = Modifier.testTag("date-format-${spec.id.id}").clickable { onPick(spec.id) },
+                        modifier = Modifier.testTag("date-format-${spec.id.id}").selectable(selected = spec.id == current, role = Role.RadioButton) { onPick(spec.id) },
                         subtitle = if (spec.id == DateFormatId.System) stringResource(R.string.settings_dateFormat_system) else null,
                         trailing = if (spec.id == current) {
                             { SelectedMark() }
@@ -270,7 +271,7 @@ private fun StylingSheet(current: NoteSourceStyling, onPick: (NoteSourceStyling)
                         sample = sample,
                         label = stringResource(option.label()),
                         selected = option == current,
-                        modifier = Modifier.testTag("note-source-styling-${option.id}").clickable { onPick(option) },
+                        modifier = Modifier.testTag("note-source-styling-${option.id}").selectable(selected = option == current, role = Role.RadioButton) { onPick(option) },
                     )
                 }
             }

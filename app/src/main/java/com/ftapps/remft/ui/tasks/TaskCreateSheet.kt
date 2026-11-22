@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -69,6 +68,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.UUID
 import java.time.LocalDateTime
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
 
 class TaskSheetState(
     title: String,
@@ -276,6 +280,7 @@ fun TaskCreateSheet(
                             repeatDraft.onDueTouched()
                         },
                         modifier = Modifier.padding(start = Space.x4, end = Space.x3, top = Space.x1, bottom = Space.x3),
+                        leadingInset = 0.dp,
                     )
                 }
                 Spacer(Modifier.height(Space.x2))
@@ -290,6 +295,7 @@ fun TaskCreateSheet(
                         clearDescription = stringResource(R.string.task_clearReminder),
                         onChanged = { state.changeRemind(it) },
                         modifier = Modifier.padding(start = Space.x4, end = Space.x3, top = Space.x1, bottom = Space.x3),
+                        leadingInset = 0.dp,
                     )
                 }
                 Spacer(Modifier.height(Space.x2))
@@ -322,23 +328,28 @@ fun TaskCreateSheet(
                     )
                 }
             }
-            Button(
-                onClick = save,
-                enabled = !saving,
-                shape = MarkedShapes.pill,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(start = Space.x6, end = Space.x6, top = Space.x2, bottom = Space.x4)
-                    .heightIn(min = 48.dp)
-                    .testTag("task-sheet-create"),
-            ) {
-                if (saving) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = LocalContentColor.current)
-                } else {
-                    Text(stringResource(if (editing != null) R.string.common_save else R.string.task_createTask), style = MaterialTheme.typography.labelLarge)
-                }
-            }
+            SheetSaveButton(stringResource(if (editing != null) R.string.common_save else R.string.task_createTask), saving, save)
+        }
+    }
+}
+
+@Composable
+fun SheetSaveButton(text: String, saving: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = !saving,
+        shape = MarkedShapes.pill,
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+            .padding(start = Space.x6, end = Space.x6, top = Space.x2, bottom = Space.x4)
+            .heightIn(min = 48.dp)
+            .testTag("task-sheet-create"),
+    ) {
+        if (saving) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = LocalContentColor.current)
+        } else {
+            Text(text, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -383,7 +394,8 @@ fun UrgentSwitch(checked: Boolean, onChange: (Boolean) -> Unit, tag: String) {
                 Box(
                     Modifier
                         .size(40.dp)
-                        .background(if (checked) urgent.container else RemftTheme.tonal.level2, MarkedShapes.pill),
+                        .background(if (checked) urgent.container else RemftTheme.tonal.level2, MarkedShapes.pill)
+                        .testTag("$tag-icon"),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(

@@ -25,6 +25,10 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.RuntimeEnvironment
 import android.app.Application
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.state.ToggleableState
 
 @RunWith(AndroidJUnit4::class)
 class MarkdownViewTest {
@@ -46,6 +50,15 @@ class MarkdownViewTest {
         val source = TestDatabases.fixturesDir.resolve("markdown_conformance.md").readText()
         render(source)
         compose.onNodeWithTag("markdown-view").assertExists()
+    }
+
+    @Test
+    fun readingModeChecklistMarksReportTheirStateAndAreNotButtons() {
+        render("- [x] Jacket\n- [ ] Tent")
+        val marks = compose.onAllNodesWithTag("markdown-check", useUnmergedTree = true).fetchSemanticsNodes()
+        assertEquals(2, marks.size)
+        assertEquals(listOf(ToggleableState.On, ToggleableState.Off), marks.map { it.config.getOrNull(SemanticsProperties.ToggleableState) })
+        assertEquals(listOf(null, null), marks.map { it.config.getOrNull(SemanticsActions.OnClick) })
     }
 
     @Test

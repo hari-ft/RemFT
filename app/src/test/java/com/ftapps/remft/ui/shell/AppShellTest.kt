@@ -20,6 +20,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.onAllNodesWithTag
 
 @RunWith(AndroidJUnit4::class)
 class AppShellTest {
@@ -65,6 +69,27 @@ class AppShellTest {
         compose.onNodeWithTag("settings-bin").assertExists()
         compose.onNodeWithTag("back").performClick()
         compose.onNodeWithTag("screen-home").assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsOpenedFromATabIsNotKeptInThatTabAfterLeavingByALink() {
+        var link by mutableStateOf<String?>(null)
+        compose.setContent {
+            RemftTheme {
+                CompositionLocalProvider(LocalTasksEnvironment provides tasks.environment) {
+                    AppShell(deepLink = link, onDeepLinkHandled = { link = null })
+                }
+            }
+        }
+        compose.onNodeWithTag("nav-inbox").performClick()
+        compose.onNodeWithTag("screen-inbox").assertIsDisplayed()
+        compose.onNodeWithTag("open-settings").performClick()
+        compose.onNodeWithTag("settings-general").assertIsDisplayed()
+        link = "remft://open"
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("screen-home").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("nav-inbox").performClick()
+        compose.onNodeWithTag("screen-inbox").assertIsDisplayed()
+        compose.onNodeWithTag("settings-general").assertDoesNotExist()
     }
 
     @Test

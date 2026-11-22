@@ -87,6 +87,7 @@ import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import com.ftapps.remft.ui.components.menuChoice
 
 @StringRes
 fun statusLabel(status: String): Int = when (TaskStatus.parse(status)) {
@@ -251,7 +252,7 @@ fun <T> ChoiceField(
                         open = false
                         onSelect(option)
                     },
-                    modifier = Modifier.testTag("$tag-$option"),
+                    modifier = Modifier.menuChoice(option == selected).testTag("$tag-$option"),
                 )
             }
         }

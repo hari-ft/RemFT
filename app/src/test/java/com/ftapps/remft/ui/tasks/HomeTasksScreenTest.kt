@@ -37,6 +37,13 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import java.time.Duration
 import java.time.Instant
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.test.assert
 
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w411dp-h1800dp")
@@ -285,5 +292,61 @@ class HomeTasksScreenTest {
         } finally {
             alarms.close()
         }
+    }
+
+    @Test
+    fun whileSearchingTheBannersMakeWayForTheResults() = runBlocking {
+        val alarms = TestAlarms(health = FakeHealth(FakeHealth.AllAllowed.copy(notifications = false)))
+        try {
+            val now = alarms.clock.instant()
+            alarms.tasks.repository.create(TaskDraft(title = "Call the plumber", remindAt = now.minus(Duration.ofHours(2)), isUrgent = true))
+            val rent = alarms.tasks.repository.create(TaskDraft(title = "Pay the rent", remindAt = now.plus(Duration.ofHours(1)), isUrgent = true))
+            alarms.env.ring.reload()
+            compose.setContent {
+                RemftTheme {
+                    CompositionLocalProvider(
+                        LocalTasksEnvironment provides alarms.tasks.environment,
+                        LocalAlarmEnvironment provides alarms.env,
+                    ) {
+                        HomeTasksScreen(bottomPadding = androidx.compose.ui.unit.Dp(0f), onOpenSettings = {}, onOpenTask = {})
+                    }
+                }
+            }
+            waitFor { listOf("alarm-banner", "missed-alarm-card", "urgent-alarm-card").all { compose.onAllNodesWithTagCount(it) == 1 } }
+            compose.onNodeWithTag("home-search-toggle").performClick()
+            compose.onNodeWithTag("home-search").performTextInput("rent")
+            waitFor { compose.onAllNodesWithTagCount("home-search-result-$rent") == 1 }
+            listOf("alarm-banner", "missed-alarm-card", "urgent-alarm-card").forEach { assertEquals(it, 0, compose.onAllNodesWithTagCount(it)) }
+            val field = compose.onNodeWithTag("home-search").getBoundsInRoot()
+            val result = compose.onNodeWithTag("home-search-result-$rent").getBoundsInRoot()
+            assertTrue(result.top - field.bottom < androidx.compose.ui.unit.Dp(200f))
+            compose.onNodeWithTag("home-search-toggle").performClick()
+            waitFor { compose.onAllNodesWithTagCount("urgent-alarm-card") == 1 }
+        } finally {
+            alarms.close()
+        }
+    }
+
+    @Test
+    fun theFunnelIsCalledFilterNotSearch() {
+        show()
+        compose.onNodeWithTag("home-search-toggle").assert(hasContentDescription("Filter tasks"))
+        compose.onAllNodes(hasContentDescription("Search")).assertCountEquals(0)
+    }
+
+    @Test
+    fun theSortMenuReportsWhichOptionIsSelected() {
+        show()
+        compose.onNodeWithTag("home-sort").performClick()
+        waitFor { compose.onAllNodesWithTagCount("sort-date") == 1 }
+        compose.onNodeWithTag("sort-date").assertIsSelected()
+        compose.onNodeWithTag("sort-priority").assertIsNotSelected()
+        compose.onNodeWithTag("sort-title").assertIsNotSelected()
+        compose.onNodeWithTag("sort-reverse").assert(SemanticsMatcher.expectValue(SemanticsProperties.ToggleableState, ToggleableState.Off))
+        compose.onNodeWithTag("sort-title").performClick()
+        compose.onNodeWithTag("home-sort").performClick()
+        waitFor { compose.onAllNodesWithTagCount("sort-title") == 1 }
+        compose.onNodeWithTag("sort-title").assertIsSelected()
+        compose.onNodeWithTag("sort-date").assertIsNotSelected()
     }
 }

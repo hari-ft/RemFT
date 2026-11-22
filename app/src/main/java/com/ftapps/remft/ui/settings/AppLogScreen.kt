@@ -153,10 +153,11 @@ private fun AppLogContent(
         when {
             rows == null -> Unit
             rows.isEmpty() -> item {
+                val filtered = entries.isNotEmpty()
                 EmptyState(
                     Icons.AutoMirrored.Outlined.ReceiptLong,
-                    stringResource(R.string.appLog_emptyTitle),
-                    stringResource(R.string.appLog_emptyBody),
+                    stringResource(if (filtered) R.string.lowui_appLogFilterEmptyTitle else R.string.appLog_emptyTitle),
+                    stringResource(if (filtered) R.string.lowui_appLogFilterEmptyBody else R.string.appLog_emptyBody),
                     Modifier.testTag("app-log-empty"),
                 )
             }

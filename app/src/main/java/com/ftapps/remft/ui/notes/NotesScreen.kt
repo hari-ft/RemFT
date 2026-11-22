@@ -98,6 +98,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import com.ftapps.remft.ui.components.menuChoice
 
 const val UNDO_WINDOW_MS = 3_000L
 
@@ -501,7 +502,7 @@ private fun SortMenu(
                         open = false
                         onSelect(field)
                     },
-                    modifier = Modifier.testTag("sort-${field.id}"),
+                    modifier = Modifier.menuChoice(field == sortField).testTag("sort-${field.id}"),
                 )
             }
             DropdownMenuItem(
@@ -523,7 +524,7 @@ private fun SortMenu(
                         open = false
                         onViewMode(mode)
                     },
-                    modifier = Modifier.testTag("view-$mode"),
+                    modifier = Modifier.menuChoice(mode == viewMode).testTag("view-$mode"),
                 )
             }
         }

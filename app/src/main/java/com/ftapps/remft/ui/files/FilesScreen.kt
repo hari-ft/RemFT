@@ -96,6 +96,8 @@ import com.ftapps.remft.ui.theme.Space
 import com.ftapps.remft.ui.theme.groupPosition
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import com.ftapps.remft.ui.components.menuChoice
+import androidx.compose.ui.res.pluralStringResource
 
 object FileSort {
     val choices: List<SortChoice> = listOf(
@@ -352,7 +354,7 @@ private fun SortMenu(sort: SortState, onChange: (SortState) -> Unit) {
                         open = false
                         onChange(sort.select(choice))
                     },
-                    modifier = Modifier.testTag("files-sort-${choice.id}"),
+                    modifier = Modifier.menuChoice(choice.id == sort.id).testTag("files-sort-${choice.id}"),
                 )
             }
             HorizontalDivider()
@@ -504,7 +506,7 @@ private fun FoldersLayer(
 @Composable
 private fun FolderRowCard(folder: FolderEntity, count: Int, position: GroupPosition, onOpen: () -> Unit, onMore: () -> Unit) {
     FileCardContainer(position, "folder-row-${folder.id}") {
-        FolderRowContent(folder.name, stringResource(R.string.files_folderSubtitle).fill("count" to count), folder.id, onOpen, onMore)
+        FolderRowContent(folder.name, pluralStringResource(R.plurals.lowui_folderItems, count, count), folder.id, onOpen, onMore)
     }
 }
 

@@ -552,11 +552,9 @@
     <string name="files_renameFolder">Rename folder</string>
     <string name="files_moveFolder">Move folder</string>
     <string name="files_folderActions">Folder actions</string>
-    <string name="files_folderSubtitle">{count} item(s)</string>
     <string name="files_moveTo">Move to…</string>
     <string name="files_rootFolder">Files (top level)</string>
     <string name="files_deleteFolderTitle">Delete “{name}”?</string>
-    <string name="files_deleteFolderBody">{folders} folder(s) and {files} file(s) will be deleted. This cannot be undone.</string>
     <string name="files_deleteFolderEmpty">The folder is empty. This cannot be undone.</string>
     <string name="files_emptyTitle">Nothing here yet</string>
     <string name="files_emptyBody">Create a folder or upload a file — this level is empty.</string>
@@ -564,7 +562,6 @@
     <string name="files_noSourcesBody">Files attached to tasks and notes appear here.</string>
     <string name="files_goToSource">Go to source</string>
     <string name="files_couldNotMove">Could not move the file.</string>
-    <string name="files_deleteFolderBodyBin">{folders} folder(s) and {files} file(s) go to the recycle bin.</string>
     <string name="completed_title">Completed</string>
     <string name="completed_sub">Everything you have finished</string>
     <string name="completed_scope">Completed tasks, newest first — by the task’s own date when it has one, otherwise by when you finished it.</string>
@@ -707,10 +704,8 @@
     <string name="bin_days">{n} days</string>
     <string name="bin_empty">Empty bin</string>
     <string name="bin_emptyTitle">Empty the recycle bin?</string>
-    <string name="bin_emptyBody">{count} item(s) and their attachments will be deleted for good. This cannot be undone.</string>
     <string name="bin_turnOff">Turn off</string>
     <string name="bin_turnOffTitle">Turn off the recycle bin?</string>
-    <string name="bin_turnOffBody">The {count} item(s) in it will be deleted for good, and later deletes will be permanent. This cannot be undone.</string>
     <string name="bin_restore">Restore</string>
     <string name="bin_restored">“{title}” restored</string>
     <string name="bin_couldNotRestore">Could not restore this item</string>
@@ -727,7 +722,7 @@
     <string name="bin_deletedOn">Deleted {date}</string>
     <string name="bin_daysLeft">{n} days left</string>
     <string name="bin_goesToday">Deleted for good today</string>
-    <string name="bin_toBin">It goes to the recycle bin — you can restore it from Settings → Data.</string>
+    <string name="bin_toBin">It goes to the recycle bin — you can restore it from Settings → Your data → Recycle bin.</string>
     <string name="autoBackup_title">Automatic backup</string>
     <string name="autoBackup_intro">On the schedule below (every day around 2 AM unless you change it), a copy of everything — tasks, notes and the recycle bin — goes to your OneDrive (Apps › RemFT). Each file is uploaded once, on its own, to Apps › RemFT › Files; the backup lists them instead of copying them again. It runs in the background, or when you open the app if it was missed, over Wi-Fi or mobile data. Backups are not encrypted: anyone who can open the Microsoft account can read them. Restore one with “Restore from backup”.</string>
     <string name="autoBackup_off">Off</string>
@@ -879,4 +874,29 @@
     <string name="noteLeave_discard">Discard</string>
     <string name="dfx_restore_db_in_use">The app was still using its data, so nothing was replaced. Try again in a minute.</string>
     <string name="almed_missed_subtext">Missed while the phone was off</string>
+    <string name="lowui_filter">Filter tasks</string>
+    <plurals name="lowui_folderItems">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <plurals name="lowui_binEmptyBody">
+        <item quantity="one">%d item and its attachments will be deleted for good. This cannot be undone.</item>
+        <item quantity="other">%d items and their attachments will be deleted for good. This cannot be undone.</item>
+    </plurals>
+    <plurals name="lowui_binTurnOffBody">
+        <item quantity="one">The %d item in it will be deleted for good, and later deletes will be permanent. This cannot be undone.</item>
+        <item quantity="other">The %d items in it will be deleted for good, and later deletes will be permanent. This cannot be undone.</item>
+    </plurals>
+    <string name="lowui_appLogFilterEmptyTitle">Nothing at this level</string>
+    <string name="lowui_appLogFilterEmptyBody">No warnings or errors match this filter. Choose All to see every entry.</string>
+    <plurals name="lowui_folderCount">
+        <item quantity="one">%d folder</item>
+        <item quantity="other">%d folders</item>
+    </plurals>
+    <plurals name="lowui_fileCount">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
+    <string name="lowui_deleteFolderBody">{folders} and {files} will be deleted. This cannot be undone.</string>
+    <string name="lowui_deleteFolderBodyBin">{folders} and {files} go to the recycle bin.</string>
 </resources>

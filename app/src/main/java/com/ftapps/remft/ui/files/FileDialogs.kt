@@ -56,6 +56,7 @@ import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.pluralStringResource
 
 data class ExtraAction(val icon: ImageVector, val label: String, val tag: String, val onClick: () -> Unit)
 
@@ -213,12 +214,15 @@ fun FileDialogsHost(
         }
         is FileDialog.DeleteFolder -> {
             val empty = dialog.counts.files == 0 && dialog.counts.folders == 1
-            val counts = arrayOf("folders" to dialog.counts.folders, "files" to dialog.counts.files)
+            val counts = arrayOf(
+                "folders" to pluralStringResource(R.plurals.lowui_folderCount, dialog.counts.folders, dialog.counts.folders),
+                "files" to pluralStringResource(R.plurals.lowui_fileCount, dialog.counts.files, dialog.counts.files),
+            )
             val body = when {
                 dialog.toBin && empty -> stringResource(R.string.bin_toBin)
-                dialog.toBin -> stringResource(R.string.files_deleteFolderBodyBin).fill(*counts)
+                dialog.toBin -> stringResource(R.string.lowui_deleteFolderBodyBin).fill(*counts)
                 empty -> stringResource(R.string.files_deleteFolderEmpty)
-                else -> stringResource(R.string.files_deleteFolderBody).fill(*counts)
+                else -> stringResource(R.string.lowui_deleteFolderBody).fill(*counts)
             }
             ConfirmDeleteDialog(
                 title = stringResource(R.string.files_deleteFolderTitle).fill("name" to dialog.folder.name),
