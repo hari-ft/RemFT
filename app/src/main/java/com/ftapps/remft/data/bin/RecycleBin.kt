@@ -105,6 +105,7 @@ class RecycleBin(
             dao.putFolder(freeName(placed))
         }
         payload.notes.forEach { dao.putNote(it.toEntity()) }
+        putBackSeries(payload)
         payload.tasks.forEach { dao.putTask(restoredTask(it)) }
         payload.checklist.forEach { dao.putChecklistItem(it.toEntity()) }
         payload.reminders.forEach { dao.putReminder(it.toEntity()) }
@@ -114,6 +115,15 @@ class RecycleBin(
             }
         }
         payload.files.forEach { dao.putFile(restoredFile(it, taskIds, noteIds, folderIds)) }
+    }
+
+    private suspend fun putBackSeries(payload: BinPayload) {
+        if (payload.series.isEmpty()) return
+        val series = database().seriesDao()
+        val revived = payload.series.filterNot { dao.seriesExists(it.id) }
+        revived.forEach { series.insertSeries(it.toEntity()) }
+        val ids = revived.map { it.id }.toSet()
+        payload.seriesSkips.filter { it.seriesId in ids }.forEach { series.insertSkip(it.toEntity()) }
     }
 
     private suspend fun restoredTask(task: BinTask): TaskEntity {

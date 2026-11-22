@@ -6,7 +6,9 @@ import com.ftapps.remft.data.db.entity.FolderEntity
 import com.ftapps.remft.data.db.entity.NoteEntity
 import com.ftapps.remft.data.db.entity.NoteLinkEntity
 import com.ftapps.remft.data.db.entity.ReminderEntity
+import com.ftapps.remft.data.db.entity.SeriesSkipEntity
 import com.ftapps.remft.data.db.entity.TaskEntity
+import com.ftapps.remft.data.db.entity.TaskSeriesEntity
 import com.ftapps.remft.data.db.entity.TrashItemEntity
 import com.ftapps.remft.domain.backup.bin.BinChecklistItem
 import com.ftapps.remft.domain.backup.bin.BinFile
@@ -15,6 +17,8 @@ import com.ftapps.remft.domain.backup.bin.BinNote
 import com.ftapps.remft.domain.backup.bin.BinNoteLink
 import com.ftapps.remft.domain.backup.bin.BinPayload
 import com.ftapps.remft.domain.backup.bin.BinReminder
+import com.ftapps.remft.domain.backup.bin.BinSeries
+import com.ftapps.remft.domain.backup.bin.BinSeriesSkip
 import com.ftapps.remft.domain.backup.bin.BinTask
 import com.ftapps.remft.domain.time.UtcText
 import java.time.Instant
@@ -123,4 +127,18 @@ object BinMapping {
         id = id, workspaceId = workspaceId, parentId = parentId, name = name,
         createdAt = text(createdAt), updatedAt = text(updatedAt),
     )
+
+    fun TaskSeriesEntity.toBin(): BinSeries = BinSeries(
+        id = id, workspaceId = workspaceId, ruleJson = ruleJson, templateJson = templateJson, timezone = timezone,
+        anchorAt = anchorAt, createdAt = createdAt, updatedAt = updatedAt,
+    )
+
+    fun BinSeries.toEntity(): TaskSeriesEntity = TaskSeriesEntity(
+        id = id, workspaceId = workspaceId, ruleJson = ruleJson, templateJson = templateJson, timezone = timezone,
+        anchorAt = anchorAt, createdAt = createdAt, updatedAt = updatedAt,
+    )
+
+    fun SeriesSkipEntity.toBin(): BinSeriesSkip = BinSeriesSkip(seriesId, occurrenceDate, createdAt)
+
+    fun BinSeriesSkip.toEntity(): SeriesSkipEntity = SeriesSkipEntity(seriesId, occurrenceDate, createdAt)
 }

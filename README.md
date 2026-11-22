@@ -42,6 +42,8 @@ The app has one identity: application ID `com.ftapps.remft`, label "RemFT". It s
 - **Room owns the schema.** The database (`remft.sqlite`) is Room version 1, created by Room from the entities; the exported schema is `app/schemas/com.ftapps.remft.data.db.RemftDatabase/1.json`. There are no migrations yet; a schema change becomes version 2 with a migration and a test.
 - **Dates are ISO-8601 UTC text** with milliseconds (`2026-11-02T10:00:00.000Z`), written by `UtcText`. JSON (backup manifest, settings, bin payloads, journals) is written with kotlinx.serialization.
 - **Strings** live in `strings.xml` with `area_name` keys; `{name}` placeholders are filled with `fill(...)`. Every string is used: `lint.xml` makes `UnusedResources` an error, so a dead string fails the build.
+- **Task deletes wait 5 seconds for Undo.** One app-level Undo snackbar sits in the shell above the navigation host, so it survives leaving a screen and configuration changes. The commit is timed by `PendingDeletes` on its own scope, never by the snackbar; a closed snackbar never commits. A row stays hidden while its delete is pending and for a moment after the commit, then the id is released so a restore from the bin shows again.
+- **"This and future ones" on a repeating task is undoable and binned.** The deleted occurrence, every later occurrence it removes, the series rule and its skips go into one bin entry (kind `task`, payload keys `series` and `seriesSkips`); restoring it brings the series back as it was.
 - **`ACCESS_NETWORK_STATE` stays in the manifest.** WorkManager needs it for the network-required backup jobs. It is the only permission not tied to a visible feature.
 
 ### Startup

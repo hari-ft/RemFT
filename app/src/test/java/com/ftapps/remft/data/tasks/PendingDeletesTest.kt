@@ -13,7 +13,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PendingDeletesTest {
     private val scope = TestScope(StandardTestDispatcher())
-    private val pending = PendingDeletes(scope, window = 3_000, backstop = 10_000)
+    private val pending = PendingDeletes(scope, window = 5_000, settle = 1_000)
 
     @Test
     fun scheduleHidesAtOnceAndUndoBringsItBackWithoutCommitting() {
@@ -28,7 +28,7 @@ class PendingDeletesTest {
     }
 
     @Test
-    fun commitNowRunsOnceAndKeepsTheRowHidden() {
+    fun commitNowRunsOnceAndHidesTheRowOnlyUntilTheCommitHasSettled() {
         var commits = 0
         pending.schedule("a") { commits++ }
         pending.commitNow("a")
@@ -37,22 +37,37 @@ class PendingDeletesTest {
         assertEquals(1, commits)
         assertTrue(pending.isPending("a"))
         assertFalse(pending.undo("a"))
+        scope.advanceTimeBy(1_001)
+        scope.runCurrent()
+        assertFalse(pending.isPending("a"))
+        assertEquals(emptySet<String>(), pending.ids.value)
     }
 
     @Test
-    fun theBackstopCommitsWhenNothingElseDoes() {
+    fun aCommittedIdIsNotHiddenForeverSoTheSameRowRestoredFromTheBinShows() {
+        pending.schedule("a") {}
+        scope.advanceTimeBy(5_001)
+        scope.runCurrent()
+        scope.advanceTimeBy(1_001)
+        scope.runCurrent()
+        assertFalse(pending.isPending("a"))
+        assertEquals(listOf("a"), PendingDeletes.without(listOf("a"), pending.ids.value) { it })
+    }
+
+    @Test
+    fun theUndoWindowCommitsWhenNothingElseDoes() {
         var commits = 0
         pending.schedule("a") { commits++ }
-        scope.advanceTimeBy(9_000)
+        scope.advanceTimeBy(4_900)
         scope.runCurrent()
         assertEquals(0, commits)
-        scope.advanceTimeBy(2_000)
+        scope.advanceTimeBy(200)
         scope.runCurrent()
         assertEquals(1, commits)
     }
 
     @Test
-    fun aFailedCommitShowsTheRowAgain() {
+    fun aFailedCommitShowsTheRowAgainAtOnce() {
         pending.schedule("a") { error("disk full") }
         pending.commitNow("a")
         scope.runCurrent()
@@ -67,6 +82,14 @@ class PendingDeletesTest {
         scope.advanceTimeBy(11_000)
         scope.runCurrent()
         assertEquals(1, commits)
+    }
+
+    @Test
+    fun extraIdsStayHiddenWithTheEntryAndComeBackOnUndo() {
+        pending.schedule("a", hide = setOf("b", "c")) {}
+        assertEquals(setOf("a", "b", "c"), pending.ids.value)
+        pending.undo("a")
+        assertEquals(emptySet<String>(), pending.ids.value)
     }
 
     @Test

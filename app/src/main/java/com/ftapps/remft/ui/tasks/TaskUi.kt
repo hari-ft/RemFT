@@ -80,8 +80,6 @@ import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -286,23 +284,9 @@ fun UndoSnackbarHost(modifier: Modifier = Modifier) {
     val tooLate = stringResource(R.string.common_undoTooLate)
     LaunchedEffect(request) {
         val current = request ?: return@LaunchedEffect
-        var resolved = false
-        try {
-            val result = coroutineScope {
-                val timer = launch {
-                    delay(env.pendingDeletes.window)
-                    host.currentSnackbarData?.dismiss()
-                }
-                host.showSnackbar(current.message, undoLabel, duration = SnackbarDuration.Indefinite).also { timer.cancel() }
-            }
-            resolved = true
-            if (result == SnackbarResult.ActionPerformed) {
-                if (!env.undo.resolve(current, undo = true)) host.showSnackbar(tooLate)
-            } else {
-                env.undo.resolve(current, undo = false)
-            }
-        } finally {
-            if (!resolved) env.undo.resolve(current, undo = false)
+        when (host.showSnackbar(current.message, undoLabel, duration = SnackbarDuration.Indefinite)) {
+            SnackbarResult.ActionPerformed -> if (!env.undo.resolve(current, undo = true)) host.showSnackbar(tooLate)
+            SnackbarResult.Dismissed -> env.undo.resolve(current, undo = false)
         }
     }
     SnackbarHost(host, modifier.testTag("undo-snackbar")) { data ->

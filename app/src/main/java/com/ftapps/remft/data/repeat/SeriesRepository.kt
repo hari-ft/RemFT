@@ -106,6 +106,40 @@ class SeriesRepository(
     suspend fun stop(seriesId: String, fromDay: String? = null, keepTaskId: String? = null) =
         run(seriesId) { engine().stop(it, seriesId, fromDay, keepTaskId) }
 
+    suspend fun stoppedIds(seriesId: String, fromDay: String?, taskId: String): Set<String> {
+        val db = database()
+        val snapshot = load(db, seriesId)
+        return engine().stop(snapshot.state, seriesId, fromDay).retireTasks.map { it.row.id }.toSet() + taskId
+    }
+
+    suspend fun stopToBin(seriesId: String, fromDay: String?, taskId: String) {
+        val db = database()
+        db.withTransaction {
+            val snapshot = load(db, seriesId)
+            val changes = engine().stop(snapshot.state, seriesId, fromDay)
+            val tasks = db.tasksDao()
+            val target = snapshot.tasks[taskId] ?: tasks.task(taskId)
+            val removed = (listOfNotNull(target) + changes.retireTasks.mapNotNull { snapshot.tasks[it.row.id] }).distinctBy { it.id }
+            val series = snapshot.series[seriesId]
+            val head = target ?: removed.firstOrNull()
+            if (head != null && (removed.isNotEmpty() || series != null)) {
+                val ids = removed.map { it.id }
+                val payload = BinPayload(
+                    tasks = removed.map { it.toBin() },
+                    checklist = ids.flatMap { id -> tasks.checklist(id).map { it.toBin() } },
+                    reminders = ids.flatMap { id -> tasks.reminders(id).map { it.toBin() } },
+                    noteLinks = ids.flatMap { id -> tasks.noteLinks(id).map { it.toBin() } },
+                    files = ids.flatMap { id -> tasks.files(id).map { it.toBin() } },
+                    series = listOfNotNull(series?.toBin()),
+                    seriesSkips = db.seriesDao().skipsOf(seriesId).map { it.toBin() },
+                )
+                tasks.insertTrashItem(BinMapping.entry(Ulid.next(clock.millis()), head.workspaceId, "task", head.id, head.title, payload, changes.now))
+            }
+            apply(db, snapshot, changes.copy(retireTasks = emptyList()))
+            removed.forEach { remove(db, it.id) }
+        }
+    }
+
     fun launch(block: suspend SeriesRepository.() -> Unit) {
         background.launch { runCatching { block() } }
     }
@@ -209,6 +243,11 @@ class SeriesRepository(
             )
             tasks.insertTrashItem(BinMapping.entry(Ulid.next(clock.millis()), entity.workspaceId, "task", entity.id, entity.title, payload, now))
         }
+        remove(db, id)
+    }
+
+    private suspend fun remove(db: RemftDatabase, id: String) {
+        val tasks = db.tasksDao()
         tasks.deleteTask(id)
         tasks.deleteChecklistFor(id)
         tasks.deleteRemindersFor(id)

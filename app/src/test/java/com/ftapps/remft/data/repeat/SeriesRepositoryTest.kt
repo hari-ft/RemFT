@@ -1,6 +1,7 @@
 package com.ftapps.remft.data.repeat
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ftapps.remft.data.bin.RecycleBin
 import com.ftapps.remft.domain.repeat.EditScope
 import com.ftapps.remft.domain.repeat.RepeatBasis
 import com.ftapps.remft.domain.repeat.RepeatFreq
@@ -110,6 +111,50 @@ class SeriesRepositoryTest {
         assertEquals(3, count("SELECT id FROM tasks WHERE occurrence_date < '$day'"))
         assertEquals(0, t.series.rollAll())
         assertTrue(t.query("SELECT id FROM trash_items").isEmpty())
+    }
+
+    private fun bin(): RecycleBin =
+        RecycleBin({ t.holder.db }, t.settings, t.attachments, { t.identity.resolve().workspaceId })
+
+    private fun table(name: String): List<Map<String, String?>> = t.query("SELECT * FROM $name ORDER BY 1, 2")
+
+    @Test
+    fun stoppingFromHereBinsTheOccurrenceWithTheRuleAndARestoreBringsTheSeriesBack() = runBlocking {
+        val (_, seriesId) = startSeries(weekly)
+        val rows = occurrences(seriesId)
+        t.repository.delete(rows[1]["id"]!!)
+        val target = rows[3]
+        val day = target["occurrence_date"]!!
+        t.repository.addChecklistItem(rows[5]["id"]!!, "Buy soil")
+        val before = listOf("tasks", "task_series", "series_skips", "checklist_items").associateWith { table(it) }
+        val stopped = t.series.stoppedIds(seriesId, day, target["id"]!!)
+        assertEquals(rows.filter { it["occurrence_date"]!! >= day }.map { it["id"] }.toSet(), stopped)
+
+        t.series.stopToBin(seriesId, day, target["id"]!!)
+        assertTrue(t.query("SELECT id FROM task_series").isEmpty())
+        assertEquals(0, count("SELECT id FROM tasks WHERE occurrence_date >= '$day'"))
+        val entry = t.query("SELECT * FROM trash_items WHERE entity_id = '${target["id"]}'").single()
+        assertEquals("task", entry["kind"])
+        assertEquals("Water the plants", entry["title"])
+        assertEquals(2, count("SELECT id FROM trash_items"))
+
+        assertTrue(bin().restore(entry["id"]!!))
+        before.forEach { (name, rowsBefore) -> assertEquals(name, rowsBefore, table(name)) }
+        assertEquals(1, count("SELECT id FROM trash_items"))
+        assertEquals(0, t.series.rollAll())
+    }
+
+    @Test
+    fun stoppingAnAfterCompletionSeriesFromItsOpenOccurrenceIsRestorable() = runBlocking {
+        val rule = RepeatRule(freq = RepeatFreq.Daily, interval = 2, basis = RepeatBasis.Completion)
+        val (id, seriesId) = startSeries(rule)
+        val before = listOf("tasks", "task_series").associateWith { table(it) }
+        t.series.stopToBin(seriesId, occurrences(seriesId).single()["occurrence_date"], id)
+        assertTrue(t.query("SELECT id FROM tasks").isEmpty())
+        assertTrue(t.query("SELECT id FROM task_series").isEmpty())
+        assertTrue(bin().restore(t.query("SELECT id FROM trash_items").single()["id"]!!))
+        before.forEach { (name, rowsBefore) -> assertEquals(name, rowsBefore, table(name)) }
+        assertTrue(t.series.isAfterCompletion(seriesId))
     }
 
     @Test

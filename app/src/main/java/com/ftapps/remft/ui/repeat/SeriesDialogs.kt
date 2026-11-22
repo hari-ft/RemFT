@@ -229,7 +229,13 @@ fun SeriesScopeHost(asker: SeriesScopeAsker) {
     )
 }
 
-class OccurrenceDeleteRequest(val task: Task, val onThis: () -> Unit, val afterDone: () -> Unit)
+class OccurrenceDeleteRequest(
+    val task: Task,
+    val message: String,
+    val stopped: Set<String>,
+    val onThis: () -> Unit,
+    val afterDone: () -> Unit,
+)
 
 class OccurrenceDeleter(private val env: TasksEnvironment, private val scope: CoroutineScope) {
     var request by mutableStateOf<OccurrenceDeleteRequest?>(null)
@@ -245,19 +251,21 @@ class OccurrenceDeleter(private val env: TasksEnvironment, private val scope: Co
         }
         scope.launch {
             val afterCompletion = runCatching { series.isAfterCompletion(seriesId) }.getOrDefault(false)
+            val stopped = if (afterCompletion && task.isCompleted) {
+                emptySet()
+            } else {
+                runCatching { series.stoppedIds(seriesId, task.occurrenceDate, task.id) }.getOrDefault(setOf(task.id))
+            }
             when {
                 afterCompletion && !task.isCompleted -> {
-                    env.undo.post(task.id, message) {
-                        env.repository.delete(task.id)
-                        series.stop(seriesId, fromDay = task.occurrenceDate)
-                    }
+                    stopFromHere(seriesId, task, message, stopped)
                     afterDone()
                 }
                 afterCompletion -> {
                     deleteThis()
                     afterDone()
                 }
-                else -> request = OccurrenceDeleteRequest(task, deleteThis, afterDone)
+                else -> request = OccurrenceDeleteRequest(task, message, stopped, deleteThis, afterDone)
             }
         }
     }
@@ -265,15 +273,20 @@ class OccurrenceDeleter(private val env: TasksEnvironment, private val scope: Co
     fun answer(thisOnly: Boolean) {
         val current = request ?: return
         request = null
-        val series = env.series
         val seriesId = current.task.seriesId
-        if (thisOnly || series == null || seriesId == null) {
+        if (thisOnly || env.series == null || seriesId == null) {
             current.onThis()
         } else {
-            val day = current.task.occurrenceDate
-            series.launch { stop(seriesId, fromDay = day) }
+            stopFromHere(seriesId, current.task, current.message, current.stopped)
         }
         current.afterDone()
+    }
+
+    private fun stopFromHere(seriesId: String, task: Task, message: String, stopped: Set<String>) {
+        val series = env.series ?: return
+        env.undo.post(task.id, message, hide = stopped) {
+            series.stopToBin(seriesId, fromDay = task.occurrenceDate, taskId = task.id)
+        }
     }
 
     fun dismiss() {

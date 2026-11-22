@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTopBar
@@ -61,11 +60,6 @@ fun TasksScaffold(
             Box(Modifier.align(Alignment.BottomEnd).padding(end = Space.x4, bottom = bottomPadding + Space.x4)) {
                 floatingActionButton()
             }
-            UndoSnackbarHost(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = bottomPadding + if (bottomPadding > 0.dp) 0.dp else Space.x2),
-            )
         }
     }
 }

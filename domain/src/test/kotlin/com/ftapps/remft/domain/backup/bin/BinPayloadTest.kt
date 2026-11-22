@@ -53,6 +53,23 @@ class BinPayloadTest {
     }
 
     @Test
+    fun aStoppedSeriesTravelsWithItsRuleAndSkipsAndOlderPayloadsStillRead() {
+        val stopped = payload.copy(
+            series = listOf(BinSeries("S1", "W", "{\"freq\":\"weekly\"}", "{}", "Asia/Kolkata", "2026-11-05T05:15:00.000Z", createdAt = "2026-11-05T05:15:00.000Z")),
+            seriesSkips = listOf(BinSeriesSkip("S1", "2026-11-12", "2026-11-06T05:15:00.000Z")),
+        )
+        val json = stopped.encode()
+        assertTrue(json.endsWith(
+            "\"series\":[{\"id\":\"S1\",\"workspaceId\":\"W\",\"ruleJson\":\"{\\\"freq\\\":\\\"weekly\\\"}\",\"templateJson\":\"{}\"," +
+                "\"timezone\":\"Asia/Kolkata\",\"anchorAt\":\"2026-11-05T05:15:00.000Z\",\"createdAt\":\"2026-11-05T05:15:00.000Z\",\"updatedAt\":null}]," +
+                "\"seriesSkips\":[{\"seriesId\":\"S1\",\"occurrenceDate\":\"2026-11-12\",\"createdAt\":\"2026-11-06T05:15:00.000Z\"}]}",
+        ))
+        assertEquals(stopped, BinPayload.parse(json))
+        assertTrue(runCatching { BinPayload.parse(json.replace("\"anchorAt\":\"2026-11-05T05:15:00.000Z\",", "")) }.isFailure)
+        assertEquals(payload, BinPayload.parse(payload.encode()))
+    }
+
+    @Test
     fun epochMillisecondDatesAreRefused() {
         val epoch = payload.encode().replaceFirst("\"dueAt\":\"2026-11-05T05:15:00.000Z\"", "\"dueAt\":${at.toEpochMilli()}")
         assertTrue(runCatching { BinPayload.parse(epoch) }.isFailure)

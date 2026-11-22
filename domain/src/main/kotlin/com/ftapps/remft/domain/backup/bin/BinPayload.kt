@@ -206,6 +206,41 @@ data class BinFolder(
     }
 }
 
+data class BinSeries(
+    val id: String,
+    val workspaceId: String,
+    val ruleJson: String,
+    val templateJson: String,
+    val timezone: String,
+    val anchorAt: String,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+) {
+    fun toJson(): JsonObject = buildJsonObject {
+        str("id", id); str("workspaceId", workspaceId); str("ruleJson", ruleJson); str("templateJson", templateJson)
+        str("timezone", timezone); str("anchorAt", anchorAt); str("createdAt", createdAt); str("updatedAt", updatedAt)
+    }
+
+    companion object {
+        fun fromJson(j: JsonObject): BinSeries = BinSeries(
+            id = j.reqStr("id"), workspaceId = j.reqStr("workspaceId"), ruleJson = j.reqStr("ruleJson"),
+            templateJson = j.reqStr("templateJson"), timezone = j.reqStr("timezone"), anchorAt = j.reqStr("anchorAt"),
+            createdAt = j.optStr("createdAt"), updatedAt = j.optStr("updatedAt"),
+        )
+    }
+}
+
+data class BinSeriesSkip(val seriesId: String, val occurrenceDate: String, val createdAt: String? = null) {
+    fun toJson(): JsonObject = buildJsonObject {
+        str("seriesId", seriesId); str("occurrenceDate", occurrenceDate); str("createdAt", createdAt)
+    }
+
+    companion object {
+        fun fromJson(j: JsonObject): BinSeriesSkip =
+            BinSeriesSkip(j.reqStr("seriesId"), j.reqStr("occurrenceDate"), j.optStr("createdAt"))
+    }
+}
+
 data class BinPayload(
     val tasks: List<BinTask> = emptyList(),
     val checklist: List<BinChecklistItem> = emptyList(),
@@ -214,6 +249,8 @@ data class BinPayload(
     val noteLinks: List<BinNoteLink> = emptyList(),
     val files: List<BinFile> = emptyList(),
     val folders: List<BinFolder> = emptyList(),
+    val series: List<BinSeries> = emptyList(),
+    val seriesSkips: List<BinSeriesSkip> = emptyList(),
 ) {
     val localPaths: List<String> get() = files.mapNotNull { it.localPath }
 
@@ -229,6 +266,8 @@ data class BinPayload(
         put("noteLinks", JsonArray(noteLinks.map { it.toJson() }))
         put("files", JsonArray(files.map { it.toJson() }))
         put("folders", JsonArray(folders.map { it.toJson() }))
+        if (series.isNotEmpty()) put("series", JsonArray(series.map { it.toJson() }))
+        if (seriesSkips.isNotEmpty()) put("seriesSkips", JsonArray(seriesSkips.map { it.toJson() }))
     }
 
     fun encode(): String = JsonText.encode(toJson())
@@ -254,6 +293,8 @@ data class BinPayload(
                 noteLinks = list("noteLinks").map { BinNoteLink.fromJson(it) },
                 files = list("files").map { BinFile.fromJson(it) },
                 folders = list("folders").map { BinFolder.fromJson(it) },
+                series = list("series").map { BinSeries.fromJson(it) },
+                seriesSkips = list("seriesSkips").map { BinSeriesSkip.fromJson(it) },
             )
         }
 

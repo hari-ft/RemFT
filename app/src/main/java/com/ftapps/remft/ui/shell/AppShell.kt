@@ -4,6 +4,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -55,6 +60,9 @@ import com.ftapps.remft.ui.settings.openAlarmSettings
 import com.ftapps.remft.ui.settings.SettingsScreen
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.Motion
+import com.ftapps.remft.ui.theme.Sizes
+import com.ftapps.remft.ui.theme.Space
+import com.ftapps.remft.ui.tasks.UndoSnackbarHost
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
@@ -101,6 +109,7 @@ fun AppShell(
                         RemftNavHost(navController, showBottomBar = !wide, onReplayTour = replayTour)
                     }
                 }
+                AppUndoHost(bottomBar = !wide && current != null, modifier = Modifier.align(Alignment.BottomCenter))
                 GlobalSearchHost(navController, wide = maxWidth >= Breakpoints.searchDialog)
                 if (!wide && current != null) {
                     BottomBar(
@@ -154,6 +163,14 @@ private fun RemftNavHost(navController: NavHostController, showBottomBar: Boolea
         alarmSettingsDestinations(navController)
         filesDestinations(onBack = { navController.popBackStack() }, onOpenTask = { navController.openTask(it) })
     }
+}
+
+@Composable
+private fun AppUndoHost(bottomBar: Boolean, modifier: Modifier = Modifier) {
+    val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val imeInset = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    val barSpace = if (bottomBar) Sizes.navBarHeight + navInset else navInset + Space.x2
+    UndoSnackbarHost(modifier.padding(bottom = maxOf(barSpace, imeInset)))
 }
 
 @Composable
