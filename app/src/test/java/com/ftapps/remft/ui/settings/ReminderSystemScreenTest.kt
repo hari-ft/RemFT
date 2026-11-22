@@ -3,6 +3,7 @@ package com.ftapps.remft.ui.settings
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -127,6 +128,32 @@ class ReminderSystemScreenTest {
         compose.onNodeWithTag("snooze-up-5_min").assertIsNotEnabled()
         compose.onNodeWithTag("snooze-down-5_min").performClick()
         compose.waitFor { alarms.setting(SettingKeys.SnoozePresets) == "30_min,5_min,1_hour,tomorrow_morning" }
+    }
+
+    private fun order(): String? = alarms.setting(SettingKeys.SnoozePresets)
+
+    @Test
+    fun removingAnOptionKeepsItRemovedButNeverTheLastOne() {
+        show()
+        compose.waitFor { compose.tagCount("snooze-remove-30_min") == 1 }
+        compose.onNodeWithContentDescription("Remove 30 min").assertIsEnabled()
+        compose.onNodeWithTag("snooze-remove-30_min").performClick()
+        compose.waitFor { order() == "5_min,1_hour,tomorrow_morning" }
+        compose.waitFor { compose.tagCount("snooze-order-30_min") == 0 }
+        alarms.put(SettingKeys.SnoozePresets, "m:15")
+        compose.waitFor { compose.tagCount("snooze-order-m:15") == 1 && compose.tagCount("snooze-order-5_min") == 0 }
+        compose.onNodeWithTag("snooze-remove-m:15").assertIsNotEnabled()
+    }
+
+    @Test
+    fun resetBringsBackTheDefaultFour() {
+        alarms.put(SettingKeys.SnoozePresets, "m:15,tomorrow_morning")
+        show()
+        compose.waitFor { compose.tagCount("snooze-order-m:15") == 1 }
+        compose.onNodeWithTag("snooze-reset").assertIsEnabled().performClick()
+        compose.waitFor { order() == "5_min,30_min,1_hour,tomorrow_morning" }
+        compose.waitFor { compose.tagCount("snooze-order-m:15") == 0 && compose.tagCount("snooze-order-5_min") == 1 }
+        compose.onNodeWithTag("snooze-reset").assertIsNotEnabled()
     }
 
     @Test

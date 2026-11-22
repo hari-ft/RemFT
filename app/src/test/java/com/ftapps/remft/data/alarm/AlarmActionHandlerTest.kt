@@ -1,7 +1,9 @@
 package com.ftapps.remft.data.alarm
 
+import android.app.NotificationManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.domain.alarm.PlannedNotification
+import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.tasks.Change
 import com.ftapps.remft.domain.tasks.TaskDraft
 import com.ftapps.remft.domain.tasks.TaskPatch
@@ -14,6 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import java.io.File
 import java.time.Duration
 
@@ -84,6 +87,32 @@ class AlarmActionHandlerTest {
         assertEquals(UtcText.format(t.clock.instant().plus(Duration.ofMinutes(5))), row["snoozed_until"])
         val rebooked = t.env.pending.read().values.minByOrNull { it.fireAtMillis }!!
         assertEquals(t.clock.instant().plus(Duration.ofMinutes(5)).toEpochMilli(), rebooked.fireAtMillis)
+    }
+
+    @Test
+    fun aCustomSnoozeOptionSnoozesForItsOwnLength() = runBlocking {
+        t.env.settings.set(SettingKeys.SnoozePresets.name, "m:90,tomorrow_morning")
+        val ring = first()
+        ringNow(ring)
+        val result = t.env.actions.handle(ring.id, "snooze:m:90", ring.payload)
+        assertEquals(ActionResult.APPLIED, result)
+        val row = t.tasks.query("SELECT status, snooze_count, snoozed_until FROM reminders").single()
+        assertEquals("snoozed", row["status"])
+        assertEquals(UtcText.format(t.clock.instant().plus(Duration.ofMinutes(90))), row["snoozed_until"])
+        val rebooked = t.env.pending.read().values.minByOrNull { it.fireAtMillis }!!
+        assertEquals(t.clock.instant().plus(Duration.ofMinutes(90)).toEpochMilli(), rebooked.fireAtMillis)
+    }
+
+    @Test
+    fun theNotificationShowsTheFirstOptionsInTheUsersOrder() = runBlocking {
+        t.env.settings.set(SettingKeys.SnoozePresets.name, "m:90,tomorrow_morning,5_min")
+        val ring = first()
+        ringNow(ring)
+        val manager = t.context.getSystemService(NotificationManager::class.java)
+        val posted = manager.activeNotifications.single { it.id == ring.id }.notification
+        assertEquals(listOf("Acknowledge", "1 h 30 min"), posted.actions.map { it.title.toString() })
+        val actionIds = posted.actions.map { shadowOf(it.actionIntent).savedIntent.getStringExtra(AndroidAlarmGateway.EXTRA_ACTION) }
+        assertEquals(listOf("acknowledge", "snooze:m:90"), actionIds)
     }
 
     @Test

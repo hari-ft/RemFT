@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -115,6 +116,19 @@ class AlarmRingScreenTest {
         val hour = compose.onNodeWithTag("alarm-snooze-1_hour").fetchSemanticsNode().boundsInRoot
         val five = compose.onNodeWithTag("alarm-snooze-5_min").fetchSemanticsNode().boundsInRoot
         assert(hour.left < five.left || hour.top < five.top)
+    }
+
+    @Test
+    fun aCustomSnoozeOptionShowsItsLengthAndSnoozesForThatLong() {
+        val actions = Recorder()
+        show(actions, order = listOf("m:90", SnoozePresets.TOMORROW_MORNING))
+        compose.onNodeWithTag("alarm-snooze-m:90").performScrollTo().assertIsDisplayed()
+            .assertTextContains("1 h 30 min", substring = true)
+            .assertTextContains("rings at 11:31 am", substring = true, ignoreCase = true)
+        assertEquals(0, compose.onAllNodesWithTag("alarm-snooze-5_min").fetchSemanticsNodes().size)
+        compose.onNodeWithTag("alarm-snooze-m:90").performClick()
+        compose.waitForIdle()
+        assertEquals("snooze:2026-11-20T06:01:00Z", actions.calls.single())
     }
 
     @Test

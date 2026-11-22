@@ -57,8 +57,11 @@ import com.ftapps.remft.domain.alarm.SoundChoice
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.ui.alarm.LocalAlarmEnvironment
+import com.ftapps.remft.ui.alarm.snoozeLabel
 import com.ftapps.remft.ui.components.CenteredList
 import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.components.stringFilled
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.MarkedShapes
@@ -80,14 +83,6 @@ private fun presetLabel(id: String): Int = when (id) {
     else -> R.string.reminderSettings_preset_custom
 }
 
-@StringRes
-fun snoozePresetLabel(id: String): Int = when (id) {
-    SnoozePresets.THIRTY_MIN -> R.string.notif_action_snooze30m
-    SnoozePresets.ONE_HOUR -> R.string.notif_action_snooze1h
-    SnoozePresets.TOMORROW_MORNING -> R.string.notif_action_snoozeTomorrow
-    else -> R.string.notif_action_snooze5m
-}
-
 @Composable
 fun ReminderSystemScreen(onBack: () -> Unit) {
     val env = LocalAlarmEnvironment.current
@@ -107,6 +102,7 @@ private fun ReminderSystemContent(env: AlarmEnvironment, padding: PaddingValues,
     val alarmSound = SoundChoice.parse(rememberAlarmSetting(env, SettingKeys.AlarmSound))
     val reminderSound = SoundChoice.parse(rememberAlarmSetting(env, SettingKeys.ReminderSound))
     var sheet by remember { mutableStateOf<SoundLane?>(null) }
+    var addingSnooze by remember { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
     val muted = scheme.onSurfaceVariant
     val base = LocalDate.now(env.clock).atTime(SAMPLE_HOUR, 0)
@@ -268,15 +264,34 @@ private fun ReminderSystemContent(env: AlarmEnvironment, padding: PaddingValues,
                     SnoozeOrderRow(
                         index = index,
                         id = id,
-                        label = stringResource(snoozePresetLabel(id)),
+                        label = snoozeLabel(id),
                         canMoveUp = index > 0,
                         canMoveDown = index < order.lastIndex,
+                        canRemove = SnoozePresets.canRemove(order),
                         onUp = { saveOrder(order.toMutableList().apply { add(index - 1, removeAt(index)) }) },
                         onDown = { saveOrder(order.toMutableList().apply { add(index + 1, removeAt(index)) }) },
+                        onRemove = { saveOrder(SnoozePresets.remove(order, id)) },
                     )
                 }
+                SnoozeOrderFooter(
+                    canAdd = SnoozePresets.canAdd(order),
+                    canReset = order != SnoozePresets.ids,
+                    onAdd = { addingSnooze = true },
+                    onReset = { saveOrder(SnoozePresets.ids) },
+                )
             }
         }
+    }
+
+    if (addingSnooze) {
+        SnoozeOptionDialog(
+            order = order,
+            onAdd = { next ->
+                saveOrder(next)
+                addingSnooze = false
+            },
+            onDismiss = { addingSnooze = false },
+        )
     }
 
     sheet?.let { lane ->
@@ -340,8 +355,10 @@ private fun SnoozeOrderRow(
     label: String,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    canRemove: Boolean,
     onUp: () -> Unit,
     onDown: () -> Unit,
+    onRemove: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("snooze-order-$id").padding(start = Space.x4, end = Space.x1, top = Space.x1, bottom = Space.x1),
@@ -356,6 +373,37 @@ private fun SnoozeOrderRow(
         IconButton(onClick = onDown, enabled = canMoveDown, modifier = Modifier.testTag("snooze-down-$id")) {
             Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.tasks_checklistMoveDown))
         }
+        IconButton(onClick = onRemove, enabled = canRemove, modifier = Modifier.testTag("snooze-remove-$id")) {
+            Icon(Icons.Outlined.Close, contentDescription = stringFilled(R.string.snz_remove, "label" to label))
+        }
+    }
+}
+
+@Composable
+private fun SnoozeOrderFooter(canAdd: Boolean, canReset: Boolean, onAdd: () -> Unit, onReset: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(start = Space.x4, end = Space.x4, top = Space.x3, bottom = Space.x3)) {
+        if (canAdd) {
+            RemftTonalButton(
+                text = stringResource(R.string.snz_add),
+                onClick = onAdd,
+                icon = Icons.Outlined.Add,
+                modifier = Modifier.testTag("snooze-add"),
+            )
+        } else {
+            Text(
+                stringFilled(R.string.snz_full, "count" to SnoozePresets.MAX_OPTIONS),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("snooze-full"),
+            )
+        }
+        Spacer(Modifier.height(Space.x1))
+        RemftTextButton(
+            text = stringResource(R.string.snz_reset),
+            onClick = onReset,
+            enabled = canReset,
+            modifier = Modifier.testTag("snooze-reset"),
+        )
     }
 }
 
@@ -381,8 +429,9 @@ private fun ReminderSystemPreviewBody() {
         }
         SettingsSectionHeader("Snooze buttons")
         SettingsCard {
-            SnoozeOrderRow(0, "5_min", "5 min", canMoveUp = false, canMoveDown = true, onUp = {}, onDown = {})
-            SnoozeOrderRow(1, "1_hour", "1 hour", canMoveUp = true, canMoveDown = false, onUp = {}, onDown = {})
+            SnoozeOrderRow(0, "5_min", "5 min", canMoveUp = false, canMoveDown = true, canRemove = true, onUp = {}, onDown = {}, onRemove = {})
+            SnoozeOrderRow(1, "m:90", "1 h 30 min", canMoveUp = true, canMoveDown = false, canRemove = true, onUp = {}, onDown = {}, onRemove = {})
+            SnoozeOrderFooter(canAdd = true, canReset = true, onAdd = {}, onReset = {})
         }
     }
 }

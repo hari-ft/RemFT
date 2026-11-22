@@ -2,11 +2,14 @@ package com.ftapps.remft.data.alarm
 
 import android.content.Context
 import com.ftapps.remft.R
+import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.alarm.AlarmTexts
 import com.ftapps.remft.domain.alarm.ReminderProfile
 import com.ftapps.remft.domain.alarm.SnoozePresets
 import com.ftapps.remft.domain.alarm.SoundChoice
 import com.ftapps.remft.domain.settings.SettingKeys
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class AlarmSettings(
     val privacyMode: Boolean,
@@ -37,6 +40,12 @@ data class AlarmSettings(
         )
     }
 }
+
+private const val SNOOZE_ORDER_READ_MS = 300L
+
+fun SettingsStore.snoozeOrderNow(): List<String> = SnoozePresets.parseOrder(
+    runCatching { runBlocking { withTimeoutOrNull(SNOOZE_ORDER_READ_MS) { snapshot()[SettingKeys.SnoozePresets.name] } } }.getOrNull(),
+)
 
 object AlarmTextsFactory {
     fun from(context: Context): AlarmTexts = AlarmTexts(

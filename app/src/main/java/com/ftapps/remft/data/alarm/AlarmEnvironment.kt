@@ -24,7 +24,7 @@ class AlarmEnvironment(
     val settings: SettingsStore,
     val tasks: TasksRepository,
     val clock: Clock,
-    val gateway: AlarmGateway = AndroidAlarmGateway(context),
+    val gateway: AlarmGateway = AndroidAlarmGateway(context) { settings.snoozeOrderNow() },
     filesDir: File = context.filesDir,
     val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     val health: AlarmHealth = AndroidAlarmHealth(context),

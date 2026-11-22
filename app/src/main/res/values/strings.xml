@@ -848,4 +848,31 @@
     <string name="setx_fontBricolage">Bricolage Grotesque</string>
     <string name="setx_fontInstrument">Instrument Sans</string>
     <string name="setx_fontJetBrains">JetBrains Mono</string>
+    <string name="snz_add">Add snooze option</string>
+    <string name="snz_addTitle">New snooze option</string>
+    <string name="snz_amount">How long</string>
+    <string name="snz_unitMinutes">Minutes</string>
+    <string name="snz_unitHours">Hours</string>
+    <string name="snz_unitDays">Days</string>
+    <string name="snz_addConfirm">Add</string>
+    <string name="snz_errorNumber">Enter a whole number</string>
+    <string name="snz_errorTooShort">Snooze for at least 1 minute</string>
+    <string name="snz_errorTooLong">Snooze for at most 365 days</string>
+    <string name="snz_errorDuplicate">“{label}” is already in your list</string>
+    <string name="snz_full">You have the most snooze options allowed ({count}). Remove one to add another.</string>
+    <string name="snz_remove">Remove {label}</string>
+    <string name="snz_reset">Reset to defaults</string>
+    <string name="snz_hoursShort">%d h</string>
+    <plurals name="snz_minutes">
+        <item quantity="one">%d min</item>
+        <item quantity="other">%d min</item>
+    </plurals>
+    <plurals name="snz_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <plurals name="snz_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
 </resources>

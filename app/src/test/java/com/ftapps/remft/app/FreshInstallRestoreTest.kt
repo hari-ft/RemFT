@@ -28,6 +28,7 @@ import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.data.repeat.SeriesRepository
 import com.ftapps.remft.data.tasks.TasksRepository
 import com.ftapps.remft.di.BackupModule
+import com.ftapps.remft.domain.alarm.SnoozePresets
 import com.ftapps.remft.domain.alarm.SoundChoice
 import com.ftapps.remft.domain.backup.BackupLog
 import com.ftapps.remft.domain.backup.BackupReminder
@@ -266,6 +267,7 @@ class FreshInstallRestoreTest {
 
         val settings = store.snapshot()
         RESTORED_SETTINGS.forEach { (key, value) -> assertEquals(key, value, settings[key]) }
+        assertEquals(listOf("30_min", "m:90", "tomorrow_morning", "m:2880"), SnoozePresets.parseOrder(settings[SettingKeys.SnoozePresets.name]))
         assertNull(settings[SettingKeys.HomeCalendarVisible.name])
         assertNull(settings[SettingKeys.NotesViewMode.name])
         assertNull(settings[SettingKeys.OnboardingSeen.name])
@@ -347,7 +349,7 @@ class FreshInstallRestoreTest {
             SettingKeys.AlarmSound.name to "file:$SOUND_ID",
             SettingKeys.ReminderSound.name to "bundled:chime",
             SettingKeys.ReminderProfile.name to "{\"slots\":[0,30,60],\"repeatAfterSnooze\":true}",
-            SettingKeys.SnoozePresets.name to "30_min,5_min,tomorrow_morning,1_hour",
+            SettingKeys.SnoozePresets.name to "30_min,m:90,tomorrow_morning,m:2880",
             SettingKeys.NotificationPrivacy.name to "false",
             SettingKeys.DateFormat.name to "dmy_dot",
             SettingKeys.NoteSourceStyling.name to "live",
