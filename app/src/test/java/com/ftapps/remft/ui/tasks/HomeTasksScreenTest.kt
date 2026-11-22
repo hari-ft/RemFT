@@ -38,6 +38,8 @@ import org.robolectric.annotation.Config
 import java.time.Duration
 import java.time.Instant
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.isSelected
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.SemanticsMatcher
@@ -345,7 +347,7 @@ class HomeTasksScreenTest {
         compose.onNodeWithTag("sort-reverse").assert(SemanticsMatcher.expectValue(SemanticsProperties.ToggleableState, ToggleableState.Off))
         compose.onNodeWithTag("sort-title").performClick()
         compose.onNodeWithTag("home-sort").performClick()
-        waitFor { compose.onAllNodesWithTagCount("sort-title") == 1 }
+        waitFor { compose.onAllNodes(hasTestTag("sort-title") and isSelected()).fetchSemanticsNodes().size == 1 }
         compose.onNodeWithTag("sort-title").assertIsSelected()
         compose.onNodeWithTag("sort-date").assertIsNotSelected()
     }
