@@ -1,21 +1,10 @@
 package com.ftapps.remft.ui.tasks
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
-import com.ftapps.remft.ui.components.MarkedCard
-import com.ftapps.remft.ui.components.RemftDialog
-import com.ftapps.remft.ui.components.RemftFilledButton
-import com.ftapps.remft.ui.components.RemftTextButton
-import com.ftapps.remft.ui.theme.MarkedShapes
-import com.ftapps.remft.ui.theme.RemftTheme
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,10 +23,10 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,10 +37,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -62,10 +55,17 @@ import com.ftapps.remft.data.tasks.PendingDeletes
 import com.ftapps.remft.domain.search.SearchMatch
 import com.ftapps.remft.domain.tasks.Task
 import com.ftapps.remft.domain.text.fill
-import com.ftapps.remft.ui.components.EmptyState
-import com.ftapps.remft.ui.components.ErrorState
+import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftFilledButton
+import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
+import com.ftapps.remft.ui.empty.IllustratedErrorState
 import com.ftapps.remft.ui.quickadd.InboxQuickCapture
 import com.ftapps.remft.ui.search.SearchField
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -170,16 +170,16 @@ fun InboxTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit) {
                     ListLoad.Loading -> item {
                         Box(Modifier.fillMaxWidth().padding(Space.x8), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                     }
-                    ListLoad.Failed -> item { ErrorState(onRetry = vm::retry) }
+                    ListLoad.Failed -> item { IllustratedErrorState(onRetry = vm::retry) }
                     is ListLoad.Ready -> {
                         if (state.total == 0) {
                             item {
-                                EmptyState(Icons.Outlined.Inbox, stringResource(R.string.inbox_captureTitle), stringResource(R.string.inbox_captureBody))
+                                IllustratedEmptyState(EmptyIllustration.Inbox, stringResource(R.string.inbox_captureTitle), stringResource(R.string.inbox_captureBody))
                             }
                         } else if (load.items.isEmpty()) {
                             item {
-                                EmptyState(
-                                    Icons.Outlined.SearchOff,
+                                IllustratedEmptyState(EmptyIllustration.Inbox,
+                                    
                                     stringResource(R.string.home_searchEmptyTitle),
                                     stringResource(R.string.home_searchEmptyBody).fill("query" to state.query.trim()),
                                 )

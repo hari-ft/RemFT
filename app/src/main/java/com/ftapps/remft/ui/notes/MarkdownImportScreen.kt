@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.automirrored.outlined.NoteAdd
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -29,16 +28,17 @@ import com.ftapps.remft.data.notes.ExternalDocumentStore
 import com.ftapps.remft.data.notes.ImportedMarkdown
 import com.ftapps.remft.data.notes.NotesRepository
 import com.ftapps.remft.domain.notes.NoteText
-import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.SectionScaffold
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
 import com.ftapps.remft.ui.notes.markdown.MarkdownView
 import com.ftapps.remft.ui.notes.markdown.rememberMarkdownDocument
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.Space
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @HiltViewModel
 class MarkdownImportViewModel @Inject constructor(
@@ -88,7 +88,7 @@ fun MarkdownImportScreen(viewModel: MarkdownImportViewModel, onBack: () -> Unit,
             val current = pending
             if (current == null) {
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    EmptyState(Icons.Outlined.Description, stringResource(R.string.note_mdViewerTitle), stringResource(R.string.note_mdNothingOpen))
+                    IllustratedEmptyState(EmptyIllustration.Notes, stringResource(R.string.note_mdViewerTitle), stringResource(R.string.note_mdNothingOpen))
                 }
             } else {
                 val document = rememberMarkdownDocument(current.markdown)

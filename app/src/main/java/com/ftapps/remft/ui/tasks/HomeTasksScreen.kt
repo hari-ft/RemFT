@@ -28,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.outlined.BeachAccess
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CalendarViewMonth
 import androidx.compose.material.icons.outlined.CalendarViewWeek
@@ -43,10 +42,10 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -91,8 +90,6 @@ import com.ftapps.remft.ui.backup.HomeBackupReminder
 import com.ftapps.remft.ui.components.ChipRow
 import com.ftapps.remft.ui.components.CircleCheckbox
 import com.ftapps.remft.ui.components.DueChip
-import com.ftapps.remft.ui.components.EmptyState
-import com.ftapps.remft.ui.components.ErrorState
 import com.ftapps.remft.ui.components.GroupedCardItem
 import com.ftapps.remft.ui.components.MarkedCard
 import com.ftapps.remft.ui.components.NameMarkTopBar
@@ -101,6 +98,9 @@ import com.ftapps.remft.ui.components.RemftListRow
 import com.ftapps.remft.ui.components.RepeatChip
 import com.ftapps.remft.ui.components.RoundIconButton
 import com.ftapps.remft.ui.components.SquareFab
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
+import com.ftapps.remft.ui.empty.IllustratedErrorState
 import com.ftapps.remft.ui.onedrive.HomeOneDriveCards
 import com.ftapps.remft.ui.quickadd.HomeQuickAdd
 import com.ftapps.remft.ui.repeat.OccurrenceDeleteHost
@@ -409,12 +409,12 @@ private fun LazyListScope.homeBody(
         ListLoad.Loading -> item {
             Box(Modifier.fillMaxWidth().padding(Space.x8), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         }
-        ListLoad.Failed -> item { ErrorState(onRetry = onRetry) }
+        ListLoad.Failed -> item { IllustratedErrorState(onRetry = onRetry) }
         is ListLoad.Ready -> {
             if (load.items.isEmpty()) {
                 item {
-                    EmptyState(
-                        Icons.Outlined.BeachAccess,
+                    IllustratedEmptyState(EmptyIllustration.Home,
+                        
                         stringResource(R.string.home_allCaughtUp),
                         stringResource(R.string.home_allCaughtUpBody),
                         Modifier.testTag("home-empty"),

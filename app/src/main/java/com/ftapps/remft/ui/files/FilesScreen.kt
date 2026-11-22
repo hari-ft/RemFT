@@ -26,11 +26,9 @@ import androidx.compose.material.icons.outlined.Attachment
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CreateNewFolder
-import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material.icons.outlined.UploadFile
@@ -83,11 +81,12 @@ import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.tasks.SortChoice
 import com.ftapps.remft.domain.tasks.SortState
 import com.ftapps.remft.domain.text.fill
-import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RemftSnackbar
 import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.components.SectionScaffold
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.GroupPosition
 import com.ftapps.remft.ui.theme.MarkedShapes
@@ -139,7 +138,7 @@ fun FilesSection(
     if (env == null) {
         SectionScaffold(title = stringResource(R.string.nav_files), onOpenSettings = onOpenSettings) { padding ->
             Box(Modifier.fillMaxSize().padding(padding).padding(bottom = bottomPadding).testTag("screen-files"), contentAlignment = Alignment.Center) {
-                EmptyState(Icons.Outlined.FolderCopy, stringResource(R.string.files_emptyTitle), stringResource(R.string.files_emptyBody))
+                IllustratedEmptyState(EmptyIllustration.Files, stringResource(R.string.files_emptyTitle), stringResource(R.string.files_emptyBody))
             }
         }
         return
@@ -423,14 +422,14 @@ private fun FoldersLayer(
         }
         if (level.isEmpty() && files.isEmpty() && uploads.isEmpty()) {
             if (query.isNotBlank()) {
-                EmptyState(
-                    Icons.Outlined.SearchOff,
+                IllustratedEmptyState(EmptyIllustration.Files,
+                    
                     stringResource(R.string.home_searchEmptyTitle),
                     stringResource(R.string.home_searchEmptyBody).fill("query" to query.trim()),
                     Modifier.testTag("files-empty"),
                 )
             } else {
-                EmptyState(Icons.Outlined.FolderOpen, stringResource(R.string.files_emptyTitle), stringResource(R.string.files_emptyBody), Modifier.testTag("files-empty"))
+                IllustratedEmptyState(EmptyIllustration.Files, stringResource(R.string.files_emptyTitle), stringResource(R.string.files_emptyBody), Modifier.testTag("files-empty"))
             }
             return@Column
         }
@@ -549,10 +548,10 @@ private fun SourcesLayer(
     }
     if (visible.isEmpty()) {
         if (query.isBlank()) {
-            EmptyState(Icons.Outlined.Attachment, stringResource(R.string.files_noSourcesTitle), stringResource(R.string.files_noSourcesBody), Modifier.testTag("sources-empty"))
+            IllustratedEmptyState(EmptyIllustration.Files, stringResource(R.string.files_noSourcesTitle), stringResource(R.string.files_noSourcesBody), Modifier.testTag("sources-empty"))
         } else {
-            EmptyState(
-                Icons.Outlined.SearchOff,
+            IllustratedEmptyState(EmptyIllustration.Files,
+                
                 stringResource(R.string.home_searchEmptyTitle),
                 stringResource(R.string.home_searchEmptyBody).fill("query" to query.trim()),
                 Modifier.testTag("sources-empty"),

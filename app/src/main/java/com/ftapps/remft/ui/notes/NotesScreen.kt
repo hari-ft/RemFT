@@ -22,20 +22,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -81,22 +80,23 @@ import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.domain.time.UtcText
 import com.ftapps.remft.ui.components.ChipTone
-import com.ftapps.remft.ui.components.EmptyState
-import com.ftapps.remft.ui.components.ErrorState
 import com.ftapps.remft.ui.components.MarkedCard
 import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RoundIconButton
 import com.ftapps.remft.ui.components.SquareFab
 import com.ftapps.remft.ui.components.StatusChip
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
+import com.ftapps.remft.ui.empty.IllustratedErrorState
 import com.ftapps.remft.ui.notes.export.NoteExportFormat
 import com.ftapps.remft.ui.tasks.SwipeToReveal
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import java.time.ZoneId
 
 const val UNDO_WINDOW_MS = 3_000L
 
@@ -284,12 +284,12 @@ fun NotesScreen(
             val listPadding = PaddingValues(start = Space.x4, end = Space.x4, top = Space.x2, bottom = bottomPadding + 88.dp)
             when (val current = state) {
                 NotesListState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                NotesListState.Failed -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { ErrorState(onRetry = viewModel::retry) }
+                NotesListState.Failed -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { IllustratedErrorState(onRetry = viewModel::retry) }
                 is NotesListState.Ready -> if (current.notes.isEmpty()) {
                     val archived = query.filter == NotesFilter.Archived
                     Box(Modifier.fillMaxSize().padding(bottom = bottomPadding), contentAlignment = Alignment.Center) {
-                        EmptyState(
-                            if (archived) Icons.Outlined.Archive else Icons.Outlined.Description,
+                        IllustratedEmptyState(
+                            EmptyIllustration.Notes,
                             stringResource(if (archived) R.string.note_archiveEmpty else R.string.note_empty),
                             stringResource(if (archived) R.string.note_archivedHere else R.string.note_captureFirst),
                             Modifier.testTag("notes-empty"),

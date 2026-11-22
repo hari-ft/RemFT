@@ -70,7 +70,6 @@ import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.CenteredList
 import com.ftapps.remft.ui.components.ChipRow
 import com.ftapps.remft.ui.components.ChipTone
-import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.GroupedCardItem
 import com.ftapps.remft.ui.components.MarkedCard
 import com.ftapps.remft.ui.components.RemftDialog
@@ -79,6 +78,8 @@ import com.ftapps.remft.ui.components.RemftSnackbar
 import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.components.RemftTopBar
 import com.ftapps.remft.ui.components.StatusChip
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
 import com.ftapps.remft.ui.files.ConfirmDeleteDialog
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import com.ftapps.remft.ui.files.fileDate
@@ -91,12 +92,12 @@ import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import com.ftapps.remft.ui.theme.groupPosition
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
 import kotlin.math.ceil
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 
 object BinCountdown {
     fun daysLeft(deletedAt: Instant, days: Int, now: Instant): Int {
@@ -148,7 +149,7 @@ fun RecycleBinScreen(onBack: () -> Unit) {
     ) { padding ->
         if (env == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                EmptyState(Icons.Outlined.DeleteOutline, stringResource(R.string.bin_emptyStateTitle), stringResource(R.string.bin_emptyStateBody))
+                IllustratedEmptyState(EmptyIllustration.Bin, stringResource(R.string.bin_emptyStateTitle), stringResource(R.string.bin_emptyStateBody))
             }
         } else {
             BinBody(padding, snackbar, items, state)
@@ -242,8 +243,8 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
         }
         if (items != null && list.isEmpty()) {
             item {
-                EmptyState(
-                    Icons.Outlined.DeleteOutline,
+                IllustratedEmptyState(EmptyIllustration.Bin,
+                    
                     stringResource(R.string.bin_emptyStateTitle),
                     stringResource(R.string.bin_emptyStateBody),
                     Modifier.testTag("bin-empty-state"),

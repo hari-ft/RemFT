@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -35,8 +34,9 @@ import com.ftapps.remft.data.notes.ImportResult
 import com.ftapps.remft.data.notes.NotesRepository
 import com.ftapps.remft.domain.notes.ExternalDocHandle
 import com.ftapps.remft.domain.text.fill
-import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.SectionScaffold
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
 import com.ftapps.remft.ui.notes.editor.NoteEditorScreen
 import com.ftapps.remft.ui.notes.editor.NoteEditorViewModel
 import com.ftapps.remft.ui.notes.export.NoteExportHost
@@ -45,11 +45,11 @@ import com.ftapps.remft.ui.notes.markdown.LocalMarkdownImages
 import com.ftapps.remft.ui.notes.markdown.MarkdownImageResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.internal.GeneratedComponentManagerHolder
+import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 val MarkdownMimeTypes = arrayOf("text/markdown", "text/x-markdown", "text/plain", "application/octet-stream")
 
@@ -112,7 +112,7 @@ fun NotesHost(
     if (!rememberHiltAvailable()) {
         SectionScaffold(title = stringResource(R.string.nav_notes), onOpenSettings = onOpenSettings) { padding ->
             Box(Modifier.fillMaxSize().padding(padding).padding(bottom = bottomPadding).testTag("screen-notes"), contentAlignment = Alignment.Center) {
-                EmptyState(Icons.Outlined.Description, stringResource(R.string.note_empty), stringResource(R.string.note_captureFirst))
+                IllustratedEmptyState(EmptyIllustration.Notes, stringResource(R.string.note_empty), stringResource(R.string.note_captureFirst))
             }
         }
         return

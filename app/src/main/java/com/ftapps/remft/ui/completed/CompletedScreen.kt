@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -52,11 +51,12 @@ import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.domain.time.UtcText
 import com.ftapps.remft.ui.components.CircleCheckbox
-import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.GroupedCardItem
 import com.ftapps.remft.ui.components.RemftListRow
 import com.ftapps.remft.ui.components.RemftSnackbar
 import com.ftapps.remft.ui.components.RemftTopBar
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import com.ftapps.remft.ui.files.rememberDateFormat
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
@@ -66,10 +66,10 @@ import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import com.ftapps.remft.ui.theme.groupPosition
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 
 sealed interface CompletedRow {
     data class Header(val day: LocalDate?) : CompletedRow
@@ -155,8 +155,8 @@ fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
             val loaded = tasks
             when {
                 loaded == null -> CircularProgressIndicator(Modifier.padding(Space.x8))
-                loaded.isEmpty() -> EmptyState(
-                    Icons.Outlined.CheckCircleOutline,
+                loaded.isEmpty() -> IllustratedEmptyState(EmptyIllustration.Completed,
+                    
                     stringResource(R.string.completed_emptyTitle),
                     stringResource(R.string.completed_emptyBody),
                     Modifier.testTag("completed-empty"),

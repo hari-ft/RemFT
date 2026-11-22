@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FormatQuote
-import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -34,21 +33,22 @@ import com.ftapps.remft.domain.search.SearchTier
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.tasks.Task
 import com.ftapps.remft.domain.text.fill
-import com.ftapps.remft.ui.components.EmptyState
-import com.ftapps.remft.ui.components.ErrorState
 import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
+import com.ftapps.remft.ui.empty.IllustratedErrorState
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.tasks.RowActions
 import com.ftapps.remft.ui.tasks.TaskRow
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
-import java.time.Instant
-import java.time.ZoneId
 
 data class TaskSearchRow(val task: Task, val tier: SearchTier, val context: String?)
 
@@ -124,12 +124,12 @@ fun LazyListScope.homeSearchResults(
                 trackColor = RemftTheme.tonal.level2,
             )
         }
-        TaskSearchState.Failed -> item(key = "home-search-failed") { ErrorState(onRetry = onRetry) }
+        TaskSearchState.Failed -> item(key = "home-search-failed") { IllustratedErrorState(onRetry = onRetry) }
         is TaskSearchState.Ready -> {
             if (state.rows.isEmpty()) {
                 item(key = "home-search-empty") {
-                    EmptyState(
-                        Icons.Outlined.SearchOff,
+                    IllustratedEmptyState(EmptyIllustration.Search,
+                        
                         stringResource(R.string.home_searchEmptyTitle),
                         stringResource(R.string.home_searchEmptyBody).fill("query" to query.trim()),
                         Modifier.testTag("home-search-empty"),

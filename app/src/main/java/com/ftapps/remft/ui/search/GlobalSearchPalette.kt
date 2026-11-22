@@ -34,7 +34,6 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -81,9 +80,10 @@ import com.ftapps.remft.domain.search.GlobalSearchKind
 import com.ftapps.remft.domain.search.PaletteEntry
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.ChipTone
-import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.GroupedCardItem
 import com.ftapps.remft.ui.components.StatusChip
+import com.ftapps.remft.ui.empty.EmptyIllustration
+import com.ftapps.remft.ui.empty.IllustratedEmptyState
 import com.ftapps.remft.ui.theme.GroupPosition
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
@@ -294,8 +294,8 @@ private fun PaletteBody(
     val showRecents = !searching && text.trim().isEmpty() && recents.isNotEmpty()
     when {
         searching && !loading && groups.isEmpty() -> Column(Modifier.fillMaxWidth()) {
-            EmptyState(
-                Icons.Outlined.SearchOff,
+            IllustratedEmptyState(EmptyIllustration.Search,
+                
                 stringResource(R.string.search_global_noResultsTitle),
                 stringResource(R.string.search_global_noResultsBody).fill("query" to query),
                 Modifier.testTag("global-search-empty"),
