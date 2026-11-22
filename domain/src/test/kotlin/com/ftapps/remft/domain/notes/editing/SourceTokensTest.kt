@@ -52,4 +52,37 @@ class SourceTokensTest {
     fun lineOfCountsNewlines() {
         assertEquals(2, SourceTokens.lineOf("a\nb\nc", 4))
     }
+
+    @Test
+    fun smallNotesAreStyledWhole() {
+        assertEquals(null, SourceTokens.window(SourceTokens.LARGE_TEXT, 10))
+    }
+
+    @Test
+    fun largeNotesAreStyledOnlyAroundTheCaretWithTheSameTokens() {
+        val block = "# Heading\n\nSome **bold** and `code` text.\n\n```\nfenced line\n```\n\n- item [link](https://e.com)\n\n"
+        val text = block.repeat(SourceTokens.LARGE_TEXT / block.length + 400)
+        val caret = text.length / 2
+        val window = SourceTokens.window(text.length, caret)!!
+        assertTrue(caret in window)
+        assertTrue(window.last - window.first <= 2 * SourceTokens.WINDOW_RADIUS)
+        val full = SourceTokens.scan(text)
+        val partial = SourceTokens.scan(text, window)
+        assertTrue(partial.isNotEmpty())
+        assertTrue(partial.size < full.size / 2)
+        val firstLine = partial.first().line
+        val lastLine = partial.last().line
+        assertEquals(full.filter { it.line in firstLine..lastLine }, partial)
+        assertTrue(partial.all { it.end >= window.first && it.start <= window.last + block.length })
+    }
+
+    @Test
+    fun aFenceOpenedBeforeTheWindowStillMarksCodeInsideIt() {
+        val filler = "plain words here\n".repeat(SourceTokens.LARGE_TEXT / 17 + 10)
+        val text = "~~~\n" + filler + "still code\n~~~\n" + filler
+        val caret = text.indexOf("still code")
+        val tokens = SourceTokens.scan(text, SourceTokens.window(text.length, caret))
+        val inside = tokens.first { it.start == caret }
+        assertEquals(MdTokenKind.CodeBlock, inside.kind)
+    }
 }

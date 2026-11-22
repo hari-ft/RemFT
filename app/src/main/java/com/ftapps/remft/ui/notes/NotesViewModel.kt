@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ftapps.remft.data.db.entity.NoteEntity
 import com.ftapps.remft.data.notes.NotesRepository
 import com.ftapps.remft.data.prefs.SettingsStore
+import com.ftapps.remft.data.tasks.PendingDeletes
 import com.ftapps.remft.domain.notes.NoteListing
 import com.ftapps.remft.domain.notes.NoteSearchRow
 import com.ftapps.remft.domain.notes.NoteSortField
@@ -14,19 +15,18 @@ import com.ftapps.remft.domain.notes.NoteText
 import com.ftapps.remft.domain.notes.NotesFilter
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.settings.SettingKeys
+import com.ftapps.remft.ui.tasks.TasksEnvironment
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 data class NoteRow(
@@ -51,12 +51,11 @@ data class NotesQuery(val filter: NotesFilter = NotesFilter.All, val search: Str
 class NotesViewModel @Inject constructor(
     private val repository: NotesRepository,
     private val settings: SettingsStore,
+    private val tasks: TasksEnvironment,
 ) : ViewModel() {
     private val mutableQuery = MutableStateFlow(NotesQuery())
     val query: StateFlow<NotesQuery> = mutableQuery
 
-    private val pendingDeletes = MutableStateFlow<Set<String>>(emptySet())
-    private val awaitingUndo = mutableSetOf<String>()
     private val reload = MutableStateFlow(0)
 
     val sort: StateFlow<NoteSortState> = settings.flow(SettingKeys.NotesSort)
@@ -71,24 +70,19 @@ class NotesViewModel @Inject constructor(
         .map { DateFormatId.parse(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, DateFormatId.System)
 
-    private val notes = repository.observeList()
-        .map { Result.success(it) }
-        .catch { emit(Result.failure(it)) }
-        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val notes = reload.flatMapLatest {
+        repository.observeList()
+            .map { Result.success(it) }
+            .catch { emit(Result.failure(it)) }
+    }
 
-    val state: StateFlow<NotesListState> = reload
-        .let { trigger ->
-            combine(trigger, mutableQuery, sort, pendingDeletes) { _, q, s, p -> Triple(q, s, p) }
-        }
-        .let { inputs ->
-            combine(notes, inputs) { loaded, (q, s, pending) ->
-                val visible = loaded.getOrThrow().filter { it.id !in pending }
-                val arranged = NoteListing.arrange(visible, q.filter, q.search, s, ::searchRow)
-                NotesListState.Ready(arranged.map(::row)) as NotesListState
-            }
-        }
-        .catch { emit(NotesListState.Failed) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotesListState.Loading)
+    val state: StateFlow<NotesListState> = combine(notes, mutableQuery, sort, tasks.pendingDeletes.ids) { loaded, q, s, pending ->
+        loaded.mapCatching { all ->
+            val visible = PendingDeletes.without(all, pending) { it.id }
+            NotesListState.Ready(NoteListing.arrange(visible, q.filter, q.search, s, ::searchRow).map(::row)) as NotesListState
+        }.getOrElse { NotesListState.Failed }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotesListState.Loading)
 
     private fun searchRow(note: NoteEntity) = NoteSearchRow(
         NoteSortKey(note.id, note.title, note.isPinned, note.createdAt, note.updatedAt),
@@ -134,31 +128,7 @@ class NotesViewModel @Inject constructor(
         viewModelScope.launch { repository.setArchived(note.id, archived) }
     }
 
-    fun hide(id: String) {
-        awaitingUndo += id
-        pendingDeletes.update { it + id }
-    }
-
-    fun undoDelete(id: String) {
-        awaitingUndo -= id
-        pendingDeletes.update { it - id }
-    }
-
-    fun commitDelete(id: String) {
-        if (!awaitingUndo.remove(id)) return
-        repository.deleteInBackground(id) {
-            withTimeoutOrNull(SETTLE_MS) { notes.first { loaded -> loaded.getOrNull()?.none { it.id == id } ?: true } }
-            pendingDeletes.update { it - id }
-        }
-    }
-
-    override fun onCleared() {
-        val ids = awaitingUndo.toList()
-        awaitingUndo.clear()
-        ids.forEach { id -> repository.deleteInBackground(id) }
-    }
-
-    private companion object {
-        const val SETTLE_MS = 2_000L
+    fun delete(note: NoteRow, message: String) {
+        tasks.undo.post(note.id, message) { repository.delete(note.id) }
     }
 }

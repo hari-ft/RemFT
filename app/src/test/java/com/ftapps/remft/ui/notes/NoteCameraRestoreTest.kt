@@ -92,6 +92,7 @@ class NoteCameraRestoreTest {
             rig.notes,
             ExternalDocumentStore(context, rig.settings),
             rig.settings,
+            rig.tasks.environment,
         )
         val export = NoteExportViewModel(NoteExporter(context, rig.notes), rig.notes, rig.settings)
         val registry = RecordingRegistry()

@@ -37,7 +37,7 @@ class ExternalEditorLeaveTest {
     private fun show(): NoteEditorViewModel {
         val opened = runBlocking { env.external.open(Uri.fromFile(file), fresh = true) }
         assertTrue(opened is ExternalOpenResult.Opened)
-        val viewModel = NoteEditorViewModel(SavedStateHandle(mapOf("id" to null, "external" to true)), env.repository, env.external, env.settings)
+        val viewModel = NoteEditorViewModel(SavedStateHandle(mapOf("id" to null, "external" to true)), env.repository, env.external, env.settings, env.tasks.environment)
         compose.setContent { RemftTheme { NoteEditorScreen(viewModel, env.exportViewModel(), onBack = { backs++ }) } }
         return viewModel
     }

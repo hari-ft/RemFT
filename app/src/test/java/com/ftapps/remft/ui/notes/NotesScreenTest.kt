@@ -3,6 +3,8 @@ package com.ftapps.remft.ui.notes
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -19,13 +21,18 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ftapps.remft.data.notes.NotesRepository
+import com.ftapps.remft.data.tasks.PendingDeletes
 import com.ftapps.remft.domain.notes.ExternalDocHandle
+import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
+import com.ftapps.remft.ui.tasks.UndoSnackbarHost
 import com.ftapps.remft.ui.theme.RemftTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,21 +48,25 @@ class NotesScreenTest {
     @After
     fun tearDown() = env.close()
 
-    private fun show(dark: Boolean = false): NotesViewModel {
-        val viewModel = NotesViewModel(env.repository, env.settings)
+    private fun show(dark: Boolean = false, viewModel: NotesViewModel = NotesViewModel(env.repository, env.settings, env.tasks.environment)): NotesViewModel {
         compose.setContent {
             RemftTheme(darkTheme = dark) {
-                NotesScreen(
-                    viewModel = viewModel,
-                    bottomPadding = 0.dp,
-                    onOpenSettings = {},
-                    onOpenNote = { opened = it },
-                    onExport = { _, _ -> },
-                    onEditExternal = {},
-                    onImport = {},
-                    onOpenRecent = {},
-                    recents = emptyList<ExternalDocHandle>(),
-                )
+                CompositionLocalProvider(LocalTasksEnvironment provides env.tasks.environment) {
+                    Box {
+                        NotesScreen(
+                            viewModel = viewModel,
+                            bottomPadding = 0.dp,
+                            onOpenSettings = {},
+                            onOpenNote = { opened = it },
+                            onExport = { _, _ -> },
+                            onEditExternal = {},
+                            onImport = {},
+                            onOpenRecent = {},
+                            recents = emptyList<ExternalDocHandle>(),
+                        )
+                        UndoSnackbarHost()
+                    }
+                }
             }
         }
         return viewModel
@@ -108,16 +119,20 @@ class NotesScreenTest {
     }
 
     @Test
-    fun deleteFromMenuHidesTheRowAndUndoBringsItBack() {
+    fun deleteFromMenuShowsTheAppUndoAndUndoBringsItBack() {
         val id = runBlocking { env.repository.create("Doomed", "x") }
         show()
         waitForText("Doomed")
         compose.onNodeWithTag("note-menu-$id").performClick()
         compose.onNodeWithTag("note-delete-$id").performClick()
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("Undo")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("“Doomed” deleted").assertExists()
+        assertEquals(PendingDeletes.UNDO_WINDOW_MS, env.tasks.pendingDeletes.window)
+        assertTrue(id in env.tasks.pendingDeletes.ids.value)
         compose.onAllNodes(hasTestTag("note-$id")).assertCountEquals(0)
         compose.onNodeWithText("Undo").performClick()
         waitForText("Doomed")
+        assertTrue(env.tasks.pendingDeletes.ids.value.isEmpty())
         runBlocking { assert(env.repository.get(id) != null) }
     }
 
@@ -128,8 +143,9 @@ class NotesScreenTest {
         waitForText("Gone soon")
         compose.onNodeWithTag("note-menu-$id").performClick()
         compose.onNodeWithTag("note-delete-$id").performClick()
-        compose.mainClock.advanceTimeBy(4_000)
-        compose.waitUntil(10_000) { runBlocking { env.repository.get(id) == null } }
+        assertNotNull(runBlocking { env.repository.get(id) })
+        waitUntil { runBlocking { env.repository.get(id) == null } }
+        assertEquals(1, env.holder.db.openHelper.readableDatabase.query("SELECT id FROM trash_items").use { it.count })
     }
 
     @Test
@@ -140,35 +156,42 @@ class NotesScreenTest {
         waitForText("Comes back")
         compose.onNodeWithTag("note-menu-$id").performClick()
         compose.onNodeWithTag("note-delete-$id").performClick()
-        compose.mainClock.advanceTimeBy(4_000)
-        compose.waitUntil(10_000) { runBlocking { env.repository.get(id) == null } }
+        waitUntil { runBlocking { env.repository.get(id) == null } }
+        waitUntil { env.tasks.pendingDeletes.ids.value.isEmpty() }
         runBlocking { env.holder.db.notesDao().insert(stored) }
         waitForText("Comes back")
     }
 
     @Test
-    fun clearingTheListDoesNotDeleteARestoredNoteAgain() {
-        val id = runBlocking { env.repository.create("Kept", "x") }
-        val stored = runBlocking { env.repository.get(id)!! }
+    fun clearingTheListDuringTheUndoWindowKeepsTheUndo() {
+        val id = runBlocking { env.repository.create("Pending", "x") }
         val store = ViewModelStore()
-        val viewModel = ViewModelProvider.create(store, viewModelFactory { initializer { NotesViewModel(env.repository, env.settings) } })[NotesViewModel::class]
-        viewModel.hide(id)
-        viewModel.commitDelete(id)
-        waitUntil { runBlocking { env.repository.get(id) == null } }
-        runBlocking { env.holder.db.notesDao().insert(stored) }
+        val viewModel = ViewModelProvider.create(store, viewModelFactory { initializer { NotesViewModel(env.repository, env.settings, env.tasks.environment) } })[NotesViewModel::class]
+        viewModel.delete(NoteRow(id, "Pending", "", false, false, null, null), "“Pending” deleted")
         store.clear()
-        Thread.sleep(1_000)
+        val request = env.tasks.environment.undo.current.value!!
+        assertEquals(id, request.id)
+        assertTrue(env.tasks.environment.undo.resolve(request, undo = true))
+        Thread.sleep(PendingDeletes.UNDO_WINDOW_MS + 500)
         assertNotNull(runBlocking { env.repository.get(id) })
     }
 
     @Test
-    fun clearingTheListCommitsADeleteStillAwaitingUndo() {
-        val id = runBlocking { env.repository.create("Pending", "x") }
-        val store = ViewModelStore()
-        val viewModel = ViewModelProvider.create(store, viewModelFactory { initializer { NotesViewModel(env.repository, env.settings) } })[NotesViewModel::class]
-        viewModel.hide(id)
-        store.clear()
-        waitUntil { runBlocking { env.repository.get(id) == null } }
+    fun retryReloadsTheListAfterALoadFailure() {
+        var failing = true
+        val flaky = NotesRepository(
+            holder = env.holder,
+            workspaceId = { if (failing) throw IllegalStateException("not ready") else NotesTestEnvironment.WORKSPACE },
+            settings = env.settings,
+            attachmentsDir = env.attachments,
+            untitled = { "Untitled" },
+        )
+        runBlocking { env.repository.create("Back again", "x") }
+        show(viewModel = NotesViewModel(flaky, env.settings, env.tasks.environment))
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Retry").fetchSemanticsNodes().isNotEmpty() }
+        failing = false
+        compose.onNodeWithText("Retry").performClick()
+        waitForText("Back again")
     }
 
     private fun waitUntil(condition: () -> Boolean) {
@@ -192,7 +215,7 @@ class NotesScreenTest {
 
     @Test
     fun systemBackClosesTheOpenSearchBeforeLeavingTheTab() {
-        val viewModel = NotesViewModel(env.repository, env.settings)
+        val viewModel = NotesViewModel(env.repository, env.settings, env.tasks.environment)
         var leftTab = 0
         lateinit var dispatcher: OnBackPressedDispatcher
         compose.setContent {

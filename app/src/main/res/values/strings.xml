@@ -879,4 +879,6 @@
     <string name="noteLeave_discard">Discard</string>
     <string name="dfx_restore_db_in_use">The app was still using its data, so nothing was replaced. Try again in a minute.</string>
     <string name="almed_missed_subtext">Missed while the phone was off</string>
+    <string name="lownt_sectionCollapse">Collapse section</string>
+    <string name="lownt_sectionExpand">Expand section</string>
 </resources>
