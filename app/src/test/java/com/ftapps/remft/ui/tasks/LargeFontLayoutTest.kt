@@ -33,6 +33,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Instant
 import java.time.LocalDate
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.hasTestTag
 
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w411dp-h2400dp")
@@ -150,5 +152,48 @@ class LargeFontLayoutTest {
         val visual = calendarDayNumberSize(2f).value * 2f
         assertTrue(visual <= 13f * CalendarMaxFontScale + 0.01f)
         assertEquals(13f, calendarDayNumberSize(1f).value)
+    }
+
+    @Test
+    fun theTaskPageRowIconsShareOneColumn() {
+        detail(1f)
+        val tags = listOf("urgent-switch-icon", "mute-alarms-icon", "due-row-icon", "remind-row-icon", "repeat-switch-icon")
+        waitFor { tags.all { compose.onAllNodes(hasTestTag(it), useUnmergedTree = true).fetchSemanticsNodes().size == 1 } }
+        val centres = tags.map { tag ->
+            val bounds = compose.onNodeWithTag(tag, useUnmergedTree = true).getBoundsInRoot()
+            tag to (bounds.left + bounds.right) / 2
+        }
+        val first = centres.first().second
+        centres.forEach { (tag, centre) -> assertEquals(tag, first.value, centre.value, 0.5f) }
+    }
+
+    private fun homeDate(fontScale: Float): SemanticsNode {
+        show(fontScale) { HomeTasksScreen(bottomPadding = 0.dp, onOpenSettings = {}, onOpenTask = {}) }
+        waitFor {
+            val nodes = compose.onAllNodes(hasTestTag("home-date")).fetchSemanticsNodes()
+            nodes.size == 1 && nodes.single().config.getOrNull(SemanticsProperties.Text).orEmpty().joinToString().isNotEmpty()
+        }
+        return compose.onNodeWithTag("home-date").fetchSemanticsNode()
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h2400dp")
+    fun atDoubleFontTheHomeDateFitsOnOneLineAndTalkBackStillHearsTheFullDate() {
+        val node = homeDate(2f)
+        val layout = layoutOf(node)!!
+        assertEquals(1, layout.lineCount)
+        assertFalse(layout.isLineEllipsized(0))
+        assertTrue(layout.multiParagraph.maxIntrinsicWidth <= layout.layoutInput.constraints.maxWidth)
+        val shown = layout.layoutInput.text.text
+        assertTrue(shown, shown.endsWith("20 Nov"))
+        assertEquals(listOf("Friday, 20 Nov"), node.config.getOrNull(SemanticsProperties.ContentDescription))
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h2400dp")
+    fun atNormalSizeTheHomeDateShowsTheFullWeekday() {
+        val node = homeDate(1f)
+        assertEquals("Friday, 20 Nov", layoutOf(node)!!.layoutInput.text.text)
+        assertEquals(null, node.config.getOrNull(SemanticsProperties.ContentDescription))
     }
 }

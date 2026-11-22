@@ -98,6 +98,7 @@ import kotlin.math.ceil
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.pluralStringResource
 
 object BinCountdown {
     fun daysLeft(deletedAt: Instant, days: Int, now: Instant): Int {
@@ -281,7 +282,7 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
         null -> Unit
         BinDialog.Empty -> ConfirmDeleteDialog(
             title = stringResource(R.string.bin_emptyTitle),
-            body = stringResource(R.string.bin_emptyBody).fill("count" to list.size),
+            body = pluralStringResource(R.plurals.lowui_binEmptyBody, list.size, list.size),
             confirm = stringResource(R.string.bin_empty),
             confirmTag = "bin-empty-confirm",
             onDismiss = { dialog = null },
@@ -291,7 +292,7 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
         }
         BinDialog.TurnOff -> ConfirmDeleteDialog(
             title = stringResource(R.string.bin_turnOffTitle),
-            body = stringResource(R.string.bin_turnOffBody).fill("count" to list.size),
+            body = pluralStringResource(R.plurals.lowui_binTurnOffBody, list.size, list.size),
             confirm = stringResource(R.string.bin_turnOff),
             confirmTag = "bin-turn-off-confirm",
             onDismiss = { dialog = null },

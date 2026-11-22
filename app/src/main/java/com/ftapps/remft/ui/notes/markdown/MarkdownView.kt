@@ -151,6 +151,9 @@ import org.commonmark.node.StrongEmphasis
 import org.commonmark.node.Text as TextNode
 import org.commonmark.node.ThematicBreak
 import java.io.File
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 
 fun interface MarkdownImageResolver {
     suspend fun file(fileId: String): File?
@@ -442,12 +445,15 @@ private fun ListBlock(list: Node) {
 private fun TaskMark(checked: Boolean) {
     val done = RemftTheme.colors.done
     val ring = if (checked) done.color else MaterialTheme.colorScheme.outline
+    val box = RoundedCornerShape(4.dp)
     Box(
         Modifier
             .padding(top = 2.dp)
-            .size(20.dp)
-            .background(if (checked) done.color else Color.Transparent, CircleShape)
-            .border(2.dp, ring, CircleShape),
+            .size(18.dp)
+            .background(if (checked) done.color else Color.Transparent, box)
+            .border(2.dp, ring, box)
+            .semantics { toggleableState = ToggleableState(checked) }
+            .testTag("markdown-check"),
         contentAlignment = Alignment.Center,
     ) {
         if (checked) Icon(Icons.Filled.Check, contentDescription = null, tint = done.onColor, modifier = Modifier.size(14.dp))

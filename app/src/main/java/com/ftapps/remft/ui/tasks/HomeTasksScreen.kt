@@ -121,6 +121,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
+import com.ftapps.remft.ui.components.menuChoice
+import com.ftapps.remft.ui.components.menuToggle
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.rememberTextMeasurer
 
 private val SideCalendarWidth = 356.dp
 
@@ -188,11 +194,11 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                 val header: LazyListScope.() -> Unit = {
                     item(key = "home-header") {
                         HomeHeader(
-                            dateLine = homeDateLine(state.today, format),
+                            dateLines = homeDateLines(state.today, format),
                             headline = homeHeadline(state),
                         ) {
                             RemftIconButton(
-                                label = stringResource(if (searchOpen) R.string.common_close else R.string.common_search),
+                                label = stringResource(if (searchOpen) R.string.common_close else R.string.lowui_filter),
                                 onClick = {
                                     if (searchOpen) searchQuery = ""
                                     searchOpen = !searchOpen
@@ -202,7 +208,7 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                             ) {
                                 Icon(
                                     if (searchOpen) Icons.Outlined.Close else Icons.Outlined.FilterList,
-                                    contentDescription = stringResource(if (searchOpen) R.string.common_close else R.string.common_search),
+                                    contentDescription = stringResource(if (searchOpen) R.string.common_close else R.string.lowui_filter),
                                 )
                             }
                             if (!searchOpen) SortMenu(state, vm)
@@ -239,10 +245,12 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                             )
                         }
                     }
-                    item(key = "home-alarm-warnings") { HomeAlarmWarnings() }
-                    item(key = "home-onedrive") { HomeOneDriveCards(onOpenAutoBackup) }
-                    item(key = "home-backup") { HomeBackupReminder() }
-                    item(key = "home-urgent-alarm") { HomeUrgentAlarm(onOpenTask = onOpenTask) }
+                    if (!searching) {
+                        item(key = "home-alarm-warnings") { HomeAlarmWarnings() }
+                        item(key = "home-onedrive") { HomeOneDriveCards(onOpenAutoBackup) }
+                        item(key = "home-backup") { HomeBackupReminder() }
+                        item(key = "home-urgent-alarm") { HomeUrgentAlarm(onOpenTask = onOpenTask) }
+                    }
                 }
                 val searchResults: LazyListScope.(TaskSearchState) -> Unit = { found ->
                     homeSearchResults(found, searchQuery, format, env.repository.zone, state.now, rowActions)
@@ -311,10 +319,12 @@ class RowActions(
     val onDelete: (Task) -> Unit,
 )
 
-private fun homeDateLine(today: LocalDate, format: DateFormatId): String {
-    if (today == LocalDate.MIN) return ""
-    val weekday = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
-    return "$weekday, ${DateFormats.short(today.atStartOfDay(), format, withTime = false)}"
+private fun homeDateLines(today: LocalDate, format: DateFormatId): List<String> {
+    if (today == LocalDate.MIN) return listOf("")
+    val date = DateFormats.short(today.atStartOfDay(), format, withTime = false)
+    val full = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
+    val short = today.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+    return listOf("$full, $date", "$short, $date", date)
 }
 
 @Composable
@@ -325,16 +335,11 @@ private fun homeHeadline(state: HomeUiState): String? {
 }
 
 @Composable
-fun HomeHeader(dateLine: String, headline: String?, modifier: Modifier = Modifier, tools: @Composable () -> Unit = {}) {
+fun HomeHeader(dateLines: List<String>, headline: String?, modifier: Modifier = Modifier, tools: @Composable () -> Unit = {}) {
     val scheme = MaterialTheme.colorScheme
     Column(modifier.fillMaxWidth().padding(top = Space.x2, bottom = Space.x3).testTag("home-header")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                dateLine,
-                style = MaterialTheme.typography.bodyLarge,
-                color = scheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f).testTag("home-date"),
-            )
+            FittingDateLine(dateLines, scheme.onSurfaceVariant, Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 CompositionLocalProvider(LocalContentColor provides scheme.onSurfaceVariant) { tools() }
             }
@@ -347,6 +352,29 @@ fun HomeHeader(dateLine: String, headline: String?, modifier: Modifier = Modifie
                 modifier = Modifier.semantics { heading() }.testTag("home-headline"),
             )
         }
+    }
+}
+
+@Composable
+private fun FittingDateLine(lines: List<String>, color: Color, modifier: Modifier = Modifier) {
+    val style = MaterialTheme.typography.bodyLarge
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier) {
+        val width = constraints.maxWidth
+        val shown = remember(lines, width, style, measurer) {
+            lines.firstOrNull { measurer.measure(it, style, softWrap = false, maxLines = 1).size.width <= width } ?: lines.last()
+        }
+        val full = lines.first()
+        Text(
+            shown,
+            style = style,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .semantics { if (shown != full) contentDescription = full }
+                .testTag("home-date"),
+        )
     }
 }
 
@@ -476,7 +504,7 @@ private fun SortMenu(state: HomeUiState, vm: HomeViewModel) {
                         open = false
                         vm.chooseSort(choice)
                     },
-                    modifier = Modifier.testTag("sort-${choice.id}"),
+                    modifier = Modifier.menuChoice(state.sort.id == choice.id).testTag("sort-${choice.id}"),
                 )
             }
             HorizontalDivider()
@@ -489,7 +517,7 @@ private fun SortMenu(state: HomeUiState, vm: HomeViewModel) {
                     open = false
                     vm.reverseSort()
                 },
-                modifier = Modifier.testTag("sort-reverse"),
+                modifier = Modifier.menuToggle(reversed).testTag("sort-reverse"),
             )
         }
     }
@@ -516,7 +544,7 @@ private fun HomePreviewContent() {
                 RoundIconButton(Icons.Outlined.Search, "Search", onClick = {})
             }
             Column(Modifier.padding(horizontal = Space.x4)) {
-                HomeHeader("Sunday, 22 Nov", "4 things today")
+                HomeHeader(listOf("Sunday, 22 Nov", "Sun, 22 Nov", "22 Nov"), "4 things today")
                 HomeQuickAddRow {
                     Box(
                         Modifier

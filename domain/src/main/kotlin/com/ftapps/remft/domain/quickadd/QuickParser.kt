@@ -227,6 +227,9 @@ internal class QuickParser(private val text: String, private val o: QuickParseOp
             val skip = if (n(i + 1) == "by" || n(i + 1) == "on") 2 else 1
             for (hit in dates(i + skip, keyworded = true)) out.add(Cand(QuickTokenKind.Due, skip + hit.len, date = hit))
         }
+        if (w == "for") {
+            for (hit in dates(i + 1, keyworded = true)) out.add(Cand(QuickTokenKind.Due, 1 + hit.len, date = hit))
+        }
         if (w == "on") {
             val hits = listOfNotNull(numericDate(i + 1)) + namedDates(i + 1)
             for (hit in hits) out.add(Cand(QuickTokenKind.Due, 1 + hit.len, date = hit))

@@ -69,6 +69,8 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Locale
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.unit.Dp
 
 fun Instant.toLocal(zone: ZoneId): LocalDateTime = LocalDateTime.ofInstant(this, zone)
 
@@ -87,6 +89,7 @@ fun DateTimeField(
     deadline: LocalDateTime? = null,
     anchor: LocalDateTime? = null,
     clearDescription: String? = null,
+    leadingInset: Dp? = null,
 ) {
     val format = rememberDateFormat()
     var pickingDate by remember { mutableStateOf(false) }
@@ -108,6 +111,7 @@ fun DateTimeField(
         onPickDate = { pickingDate = true },
         onPickTime = { pickingTime = true },
         modifier = modifier,
+        leadingInset = leadingInset,
     )
     if (pickingDate) {
         val at = now()
@@ -152,11 +156,20 @@ fun DateTimeFieldContent(
     onPickDate: () -> Unit,
     onPickTime: () -> Unit,
     modifier: Modifier = Modifier,
+    leadingInset: Dp? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(modifier.testTag(tag)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = if (isSet) scheme.primary else scheme.onSurfaceVariant)
+            val tint = if (isSet) scheme.primary else scheme.onSurfaceVariant
+            if (leadingInset == null) {
+                Icon(icon, contentDescription = null, tint = tint)
+            } else {
+                Spacer(Modifier.width(leadingInset))
+                Box(Modifier.size(40.dp).testTag("$tag-icon"), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = tint)
+                }
+            }
             Spacer(Modifier.width(Space.x4))
             Text(label, style = MaterialTheme.typography.titleMedium, color = scheme.onSurface, modifier = Modifier.weight(1f))
             if (isSet) {

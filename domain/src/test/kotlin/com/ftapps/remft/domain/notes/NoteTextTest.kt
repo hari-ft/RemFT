@@ -11,6 +11,17 @@ class NoteTextTest {
     }
 
     @Test
+    fun tableDividerRowsLeaveNoDashesInThePreview() {
+        val markdown = "| Item | Qty |\n| --- | :---: |\n| Tent | 1 |\n\nA | B\n---|---\nC | D"
+        assertEquals("Item Qty Tent 1 A B C D", NoteText.plainTextFromMarkdown(markdown))
+    }
+
+    @Test
+    fun aDashInATableCellIsKept() {
+        assertEquals("Item Qty - Tent 1", NoteText.plainTextFromMarkdown("| Item | Qty |\n|---|---|\n| - | |\n| Tent | 1 |"))
+    }
+
+    @Test
     fun plainTextOfNothingIsEmpty() {
         assertEquals("", NoteText.plainTextFromMarkdown(null))
         assertEquals("", NoteText.plainTextFromMarkdown(""))

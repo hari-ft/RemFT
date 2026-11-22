@@ -94,6 +94,18 @@ class LogScreensTest {
     }
 
     @Test
+    fun aFilterWithNoMatchesSaysSoInsteadOfNothingLogged() {
+        alarms.env.appLog.info("app.launch", mapOf("cold" to true))
+        alarms.env.appLog.flush()
+        showAppLog()
+        compose.waitFor { compose.tagCount("app-log-row-info") == 1 }
+        compose.onNodeWithTag("app-log-filter-error").performClick()
+        compose.waitFor { compose.tagCount("app-log-empty") == 1 }
+        assertEquals(1, compose.textCount("Nothing at this level"))
+        assertEquals(0, compose.textCount("Nothing logged yet"))
+    }
+
+    @Test
     fun appLogClearAsksFirst() {
         alarms.env.appLog.info("app.launch")
         alarms.env.appLog.flush()

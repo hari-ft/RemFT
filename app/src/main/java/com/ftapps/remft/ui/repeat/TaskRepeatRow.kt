@@ -55,6 +55,9 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.dp
 
 object TaskRepeatActions {
     fun anchorFor(task: Task, now: LocalDateTime, zone: ZoneId): LocalDateTime {
@@ -183,7 +186,9 @@ fun RepeatSwitchRow(
             headlineContent = { Text(stringResource(R.string.repeat_switchTitle), style = MaterialTheme.typography.titleMedium) },
             supportingContent = { Text(stringResource(R.string.repeat_switchSubtitle), color = scheme.onSurfaceVariant) },
             leadingContent = {
-                Icon(Icons.Outlined.Repeat, contentDescription = null, tint = if (on) repeat.color else scheme.onSurfaceVariant)
+                Box(Modifier.size(40.dp).testTag("$switchTag-icon"), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.Repeat, contentDescription = null, tint = if (on) repeat.color else scheme.onSurfaceVariant)
+                }
             },
             trailingContent = {
                 Switch(
