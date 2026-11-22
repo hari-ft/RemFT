@@ -103,6 +103,7 @@ fun InboxQuickCapture(hint: String, modifier: Modifier = Modifier) {
         tag = "inbox-capture",
         onSubmit = { raw, parsed -> vm.capture(raw, parsed, onFailed) },
         modifier = modifier,
+        capture = true,
     )
 }
 

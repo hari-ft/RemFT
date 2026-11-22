@@ -31,7 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -130,8 +130,11 @@ fun InboxTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var searching by rememberSaveable { mutableStateOf(false) }
-    var planning by remember { mutableStateOf<Task?>(null) }
-    var converting by remember { mutableStateOf<Task?>(null) }
+    var planningId by rememberSaveable { mutableStateOf<String?>(null) }
+    var convertingId by rememberSaveable { mutableStateOf<String?>(null) }
+    val shown = (state.load as? ListLoad.Ready)?.items.orEmpty()
+    val planning = rememberTask(planningId, shown)
+    val converting = rememberTask(convertingId, shown)
     val deletedText = stringResource(R.string.task_deleted)
     val movedText = stringResource(R.string.inbox_movedToNotes)
     TasksScaffold(
@@ -189,8 +192,8 @@ fun InboxTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit) {
                         items(load.items, key = { it.id }) { task ->
                             CaptureRow(
                                 task = task,
-                                onPlan = { planning = task },
-                                onConvert = { converting = task },
+                                onPlan = { planningId = task.id },
+                                onConvert = { convertingId = task.id },
                                 onDelete = { vm.delete(task, deletedText.fill("title" to task.title)) },
                             )
                         }
@@ -200,11 +203,11 @@ fun InboxTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit) {
         }
     }
     planning?.let { task ->
-        TaskCreateSheet(onDismiss = { planning = null }, editing = task)
+        TaskCreateSheet(onDismiss = { planningId = null }, editing = task)
     }
     converting?.let { task ->
         RemftDialog(
-            onDismissRequest = { converting = null },
+            onDismissRequest = { convertingId = null },
             title = stringResource(R.string.inbox_convertTitle),
             text = {
                 Text(
@@ -214,13 +217,13 @@ fun InboxTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit) {
                 )
             },
             dismissButton = {
-                RemftTextButton(stringResource(R.string.common_cancel), onClick = { converting = null })
+                RemftTextButton(stringResource(R.string.common_cancel), onClick = { convertingId = null })
             },
             confirmButton = {
                 RemftFilledButton(
                     stringResource(R.string.inbox_convert),
                     onClick = {
-                        converting = null
+                        convertingId = null
                         vm.convertToNote(task) {
                             android.widget.Toast.makeText(context, movedText, android.widget.Toast.LENGTH_SHORT).show()
                         }
@@ -231,6 +234,16 @@ fun InboxTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit) {
             },
         )
     }
+}
+
+@Composable
+private fun rememberTask(id: String?, shown: List<Task>): Task? {
+    val env = LocalTasksEnvironment.current
+    val loaded by produceState<Task?>(null, id) {
+        value = id?.let { runCatching { env.repository.detail(it)?.task }.getOrNull() }
+    }
+    if (id == null) return null
+    return shown.firstOrNull { it.id == id } ?: loaded?.takeIf { it.id == id }
 }
 
 @Composable

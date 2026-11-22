@@ -240,4 +240,20 @@ class HomeGroupingTest {
         assertEquals(LocalDate.of(2030, 6, 11), HomeGrouping.localDay(instant, zone))
         assertEquals(LocalDate.of(2030, 6, 10), HomeGrouping.localDay(instant, ZoneId.of("UTC")))
     }
+
+    @Test
+    fun theDueCountSkipsFinishedTasksAndIgnoresTheSelectedDay() {
+        val tasks = listOf(
+            task("overdue", dueAt = at(2026, 7, 12, 9)),
+            task("today", dueAt = at(2026, 7, 14, 18)),
+            task("done-today", status = "completed", dueAt = at(2026, 7, 14, 8)),
+            task("tomorrow", dueAt = at(2026, 7, 15, 9)),
+            task("no-date"),
+        )
+        val today = now.toLocalDate()
+        assertEquals(2, HomeGrouping.dueByTodayCount(tasks, today, zone))
+        val selected = HomeGrouping.group(tasks, now, zone, selectedDay = today)
+        assertEquals(0, selected.filter { it.bucket == HomeBucket.Today }.sumOf { it.tasks.size })
+        assertEquals(2, HomeGrouping.dueByTodayCount(tasks, today, zone))
+    }
 }

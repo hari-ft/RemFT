@@ -220,4 +220,33 @@ class RepeatEditorTest {
         assertTrue(rows.size in 12..13)
         assertTrue(rows.all { it["title"] == "Pay rent" && it["occurrence_date"]!!.endsWith("-21") })
     }
+
+    @Test
+    fun typingARepeatingTitleWaitsForFocusLossAndCancelKeepsTheEdit() {
+        val (_, seriesId) = startSeries()
+        val target = occurrenceIds(seriesId)[1]
+        show { TaskDetailScreen(taskId = target, onBack = {}) }
+        waitFor { compose.onAllNodesWithTagCount("task-title") == 1 }
+        compose.onNodeWithTag("task-title").performClick()
+        compose.onNodeWithTag("task-title").performTextReplacement("Water the ferns")
+        compose.mainClock.advanceTimeBy(3_000)
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(3))
+        compose.waitForIdle()
+        assertEquals(0, compose.onAllNodesWithTagCount("series-scope-dialog"))
+        assertEquals(0, tasks.query("SELECT id FROM tasks WHERE title = 'Water the ferns'").size)
+
+        compose.onNodeWithTag("task-add-description").performScrollTo().performClick()
+        waitFor { compose.onAllNodesWithTagCount("series-scope-dialog") == 1 }
+        compose.onNodeWithTag("scope-cancel").performClick()
+        waitFor { compose.onAllNodesWithTagCount("series-scope-dialog") == 0 }
+        compose.onNodeWithTag("task-title").assertTextEquals("Water the ferns")
+        assertEquals(0, tasks.query("SELECT id FROM tasks WHERE title = 'Water the ferns'").size)
+
+        compose.onNodeWithTag("task-title").performClick()
+        compose.onNodeWithTag("task-description").performClick()
+        waitFor { compose.onAllNodesWithTagCount("series-scope-dialog") == 1 }
+        compose.onNodeWithTag("scope-all").performClick()
+        compose.onNodeWithTag("scope-apply").performClick()
+        waitFor { tasks.query("SELECT id FROM tasks WHERE title = 'Water the ferns'").size == occurrenceIds(seriesId).size }
+    }
 }

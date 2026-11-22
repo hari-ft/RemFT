@@ -15,18 +15,23 @@ data class QuickParseOptions(
     val monthFirstSlash: Boolean = false,
     val ignored: Set<String> = emptySet(),
     val zone: ZoneId? = null,
+    val kinds: Set<QuickTokenKind> = QuickTokenKind.entries.toSet(),
 ) {
     companion object {
+        val CaptureKinds: Set<QuickTokenKind> = setOf(QuickTokenKind.Priority)
+
         fun of(
             now: Instant,
             zone: ZoneId,
             dateFormat: DateFormatId,
             ignored: Set<String> = emptySet(),
+            kinds: Set<QuickTokenKind> = QuickTokenKind.entries.toSet(),
         ): QuickParseOptions = QuickParseOptions(
             now = LocalDateTime.ofInstant(now, zone),
             monthFirstSlash = DateFormats.spec(dateFormat).monthFirst,
             ignored = ignored,
             zone = zone,
+            kinds = kinds,
         )
     }
 }

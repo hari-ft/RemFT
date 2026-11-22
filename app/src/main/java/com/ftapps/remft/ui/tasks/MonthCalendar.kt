@@ -1,6 +1,12 @@
 package com.ftapps.remft.ui.tasks
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,6 +76,7 @@ fun MonthCalendar(
     val firstCell = first.minusDays(leading.toLong())
     val todayLabel = stringResource(R.string.calendar_a11yToday)
     val hasTasksLabel = stringResource(R.string.calendar_a11yHasTasks)
+    val dayNumberSize = calendarDayNumberSize(LocalDensity.current.fontScale)
     Column(modifier.testTag("month-calendar")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.width(8.dp))
@@ -88,14 +95,25 @@ fun MonthCalendar(
             }
         }
         Spacer(Modifier.height(4.dp))
-        Row {
-            DayOfWeek.entries.forEach { dow ->
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text(
-                        dow.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = scheme.onSurfaceVariant,
-                    )
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val headerStyle = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+            val measurer = rememberTextMeasurer()
+            val cellPx = with(LocalDensity.current) { (maxWidth / 7 - 2.dp).toPx() }
+            val widest = remember(measurer, headerStyle) {
+                DayOfWeek.entries.maxOf { measurer.measure(it.getDisplayName(TextStyle.SHORT, Locale.ENGLISH), headerStyle, maxLines = 1).size.width }
+            }
+            val names = if (widest * HEADER_ROOM <= cellPx) TextStyle.SHORT else TextStyle.NARROW
+            Row {
+                DayOfWeek.entries.forEach { dow ->
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Text(
+                            dow.getDisplayName(names, Locale.ENGLISH),
+                            style = headerStyle,
+                            color = scheme.onSurfaceVariant,
+                            maxLines = 1,
+                            modifier = Modifier.semantics { contentDescription = dow.getDisplayName(TextStyle.FULL, Locale.ENGLISH) }.testTag("calendar-weekday-${dow.value}"),
+                        )
+                    }
                 }
             }
         }
@@ -133,7 +151,8 @@ fun MonthCalendar(
                             Box(circle, contentAlignment = Alignment.Center) {
                                 Text(
                                     day.dayOfMonth.toString(),
-                                    fontSize = 13.sp,
+                                    fontSize = dayNumberSize,
+                                    maxLines = 1,
                                     fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = when {
                                         isSelected -> scheme.onPrimary
@@ -160,3 +179,10 @@ fun MonthCalendar(
         }
     }
 }
+
+const val CalendarMaxFontScale = 1.3f
+
+private const val HEADER_ROOM = 1.15f
+
+fun calendarDayNumberSize(fontScale: Float): TextUnit =
+    if (fontScale <= CalendarMaxFontScale) 13.sp else (13f * CalendarMaxFontScale / fontScale).sp

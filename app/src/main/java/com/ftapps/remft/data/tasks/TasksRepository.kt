@@ -32,9 +32,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import java.io.File
 import java.time.Clock
 import java.time.Instant
@@ -50,6 +52,7 @@ class TasksRepository(
     private val clock: Clock,
     private val attachmentsDir: File? = null,
     private val seriesHooks: TaskSeriesHooks? = null,
+    private val timeChanges: Flow<Unit> = emptyFlow(),
 ) {
     private val dao: TasksDao get() = database().tasksDao()
 
@@ -59,13 +62,29 @@ class TasksRepository(
 
     suspend fun workspaceId(): String = identity.workspaceId()
 
-    fun dayStarts(): Flow<Instant> = flow {
-        while (true) {
-            val nowZoned = ZonedDateTime.now(clock)
-            emit(DayBoundary.startOfDayInstant(nowZoned.toInstant(), nowZoned.zone))
-            delay(DayBoundary.delayUntilNextDay(nowZoned).toMillis().coerceAtLeast(1_000L))
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T> restartedOnTimeChange(block: () -> Flow<T>): Flow<T> =
+        timeChanges.onStart { emit(Unit) }.flatMapLatest { block() }
+
+    fun dayStarts(): Flow<Instant> = restartedOnTimeChange {
+        flow {
+            while (true) {
+                val nowZoned = ZonedDateTime.now(clock)
+                emit(DayBoundary.startOfDayInstant(nowZoned.toInstant(), nowZoned.zone))
+                delay(DayBoundary.delayUntilNextDay(nowZoned).toMillis().coerceAtLeast(1_000L))
+            }
         }
     }.distinctUntilChanged()
+
+    fun minuteTicks(): Flow<Instant> = restartedOnTimeChange {
+        flow {
+            while (true) {
+                val now = clock.instant()
+                emit(now)
+                delay(MINUTE_MS - Math.floorMod(now.toEpochMilli(), MINUTE_MS))
+            }
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun watchHome(): Flow<List<Task>> = flow { emit(workspaceId()) }
@@ -88,11 +107,14 @@ class TasksRepository(
         return TaskDetail(TaskMapping.toDomain(task), dao.checklist(id).map(TaskMapping::toDomain))
     }
 
-    suspend fun create(draft: TaskDraft): String {
+    suspend fun create(draft: TaskDraft, alsoInTransaction: (suspend (String) -> Unit)? = null): String {
         val workspace = workspaceId()
         val id = Ulid.next(clock.millis())
         val task = TaskRules.create(id, workspace, draft, now())
-        database().withTransaction { dao.insertTask(TaskMapping.toEntity(task)) }
+        database().withTransaction {
+            dao.insertTask(TaskMapping.toEntity(task))
+            alsoInTransaction?.invoke(id)
+        }
         return id
     }
 
@@ -235,5 +257,9 @@ class TasksRepository(
                 if (item.sortOrder != index) dao.updateChecklistItem(item.copy(sortOrder = index, updatedAt = stamp))
             }
         }
+    }
+
+    private companion object {
+        const val MINUTE_MS = 60_000L
     }
 }

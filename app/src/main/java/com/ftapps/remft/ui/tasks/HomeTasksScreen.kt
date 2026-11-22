@@ -131,7 +131,7 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
     val state by vm.state.collectAsStateWithLifecycle()
     val format = rememberDateFormat()
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
-    var sheetDue by remember { mutableStateOf<java.time.LocalDateTime?>(null) }
+    var sheetDue by rememberSaveable { mutableStateOf<java.time.LocalDateTime?>(null) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var monthOpen by rememberSaveable { mutableStateOf(false) }
@@ -319,10 +319,8 @@ private fun homeDateLine(today: LocalDate, format: DateFormatId): String {
 
 @Composable
 private fun homeHeadline(state: HomeUiState): String? {
-    val load = state.load as? ListLoad.Ready ?: return null
-    val count = load.items
-        .filter { it.bucket == HomeBucket.Today || it.bucket == HomeBucket.Overdue }
-        .sumOf { it.tasks.size }
+    if (state.load !is ListLoad.Ready) return null
+    val count = state.dueCount
     return if (count == 0) stringResource(R.string.home_headlineNone) else pluralStringResource(R.plurals.home_headlineCount, count, count)
 }
 

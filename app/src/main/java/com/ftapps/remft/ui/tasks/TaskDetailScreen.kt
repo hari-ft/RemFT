@@ -65,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -177,6 +178,7 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
     val passed = stringResource(R.string.task_alarmTimePassed)
     var title by rememberSaveable(task.id) { mutableStateOf(task.title) }
     var lastSeenTitle by remember(task.id) { mutableStateOf(task.title) }
+    var titleFocused by remember(task.id) { mutableStateOf(false) }
     if (task.title != lastSeenTitle) {
         if (title == lastSeenTitle) title = task.title
         lastSeenTitle = task.title
@@ -202,29 +204,32 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
                 focusedIndicatorColor = MaterialTheme.colorScheme.primary,
                 unfocusedIndicatorColor = Color.Transparent,
             ),
-            modifier = Modifier.fillMaxWidth().testTag("task-title"),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focus ->
+                    if (titleFocused && !focus.isFocused) vm.flushTitle(interactive = true)
+                    titleFocused = focus.isFocused
+                }
+                .testTag("task-title"),
         )
         Spacer(Modifier.height(Space.x2))
         DescriptionField(task.id, task.description, vm)
         Spacer(Modifier.height(Space.x3))
         SectionCard(stringResource(R.string.task_details)) {
-            Row {
+            SideBySideOrStacked(gap = Space.x3) {
                 ChoiceField(
                     label = stringResource(R.string.task_statusLabel),
                     selected = task.status,
                     options = TaskStatus.entries.map { it.db },
                     onSelect = { vm.apply(TaskPatch(status = it)) },
                     tag = "status-dropdown",
-                    modifier = Modifier.weight(1f),
                 ) { StatusLabel(it) }
-                Spacer(Modifier.width(Space.x3))
                 ChoiceField(
                     label = stringResource(R.string.task_priorityLabel),
                     selected = task.priority,
                     options = TaskPriority.entries.map { it.db },
                     onSelect = { scoped(TaskPatch(priority = it), false) },
                     tag = "priority-dropdown",
-                    modifier = Modifier.weight(1f),
                 ) { PriorityLabel(it) }
             }
             Spacer(Modifier.height(Space.x2))
@@ -240,9 +245,13 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
             ListItem(
                 headlineContent = { Text(stringResource(R.string.task_muteAlarms), style = MaterialTheme.typography.titleMedium) },
                 supportingContent = { Text(stringResource(R.string.task_alarmsMutedSub)) },
-                leadingContent = {
-                    Box(Modifier.size(40.dp).background(RemftTheme.tonal.level2, MarkedShapes.pill), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                leadingContent = if (isLargeFont()) {
+                    null
+                } else {
+                    {
+                        Box(Modifier.size(40.dp).background(RemftTheme.tonal.level2, MarkedShapes.pill), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 },
                 trailingContent = {
