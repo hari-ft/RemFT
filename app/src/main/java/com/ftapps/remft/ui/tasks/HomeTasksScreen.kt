@@ -297,11 +297,6 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                         }
                     }
                 }
-                UndoSnackbarHost(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = bottomInset),
-                )
             }
         }
     }

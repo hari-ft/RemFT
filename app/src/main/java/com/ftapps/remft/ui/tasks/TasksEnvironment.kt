@@ -34,11 +34,15 @@ class UndoCenter(private val pending: PendingDeletes) {
     val current: StateFlow<UndoRequest?> = state.asStateFlow()
 
     @Synchronized
-    fun post(id: String, message: String, commit: suspend () -> Unit) {
+    fun post(id: String, message: String, hide: Set<String> = emptySet(), commit: suspend () -> Unit) {
         state.value?.let { previous -> if (previous.id != id) pending.commitNow(previous.id) }
-        pending.schedule(id, commit)
         serial += 1
-        state.value = UndoRequest(id, message, serial)
+        val request = UndoRequest(id, message, serial)
+        pending.schedule(id, hide) {
+            state.compareAndSet(request, null)
+            commit()
+        }
+        state.value = request
     }
 
     fun resolve(request: UndoRequest, undo: Boolean): Boolean {

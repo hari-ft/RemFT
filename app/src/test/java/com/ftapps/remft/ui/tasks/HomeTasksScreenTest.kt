@@ -1,6 +1,9 @@
 package com.ftapps.remft.ui.tasks
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getBoundsInRoot
@@ -14,6 +17,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.performImeAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ftapps.remft.data.bin.RecycleBin
 import com.ftapps.remft.domain.tasks.TaskDraft
 import com.ftapps.remft.testing.FakeHealth
 import com.ftapps.remft.testing.TestAlarms
@@ -50,7 +54,10 @@ class HomeTasksScreenTest {
         compose.setContent {
             RemftTheme(darkTheme = dark) {
                 CompositionLocalProvider(LocalTasksEnvironment provides tasks.environment) {
-                    HomeTasksScreen(bottomPadding = androidx.compose.ui.unit.Dp(0f), onOpenSettings = {}, onOpenTask = {})
+                    Box {
+                        HomeTasksScreen(bottomPadding = androidx.compose.ui.unit.Dp(0f), onOpenSettings = {}, onOpenTask = {})
+                        UndoSnackbarHost(Modifier.align(Alignment.BottomCenter))
+                    }
                 }
             }
         }
@@ -119,10 +126,27 @@ class HomeTasksScreenTest {
         compose.onNodeWithTag("swipe-delete-$id").performClick()
         compose.mainClock.advanceTimeBy(500)
         compose.onNodeWithText("“Old errand” deleted").assertIsDisplayed()
-        compose.mainClock.advanceTimeBy(3_500)
         compose.mainClock.autoAdvance = true
         waitFor { tasks.query("SELECT id FROM trash_items").size == 1 }
         assertEquals(0, tasks.query("SELECT id FROM tasks").size)
+        waitFor { compose.onAllNodesWithTextCount("Undo") == 0 }
+    }
+
+    @Test
+    fun aTaskRestoredFromTheBinAfterTheUndoWindowShowsOnHomeAgain() {
+        val id = create(TaskDraft(title = "Old errand"))
+        val bin = RecycleBin({ tasks.holder.db }, tasks.settings, tasks.attachments, { runBlocking { tasks.identity.resolve().workspaceId } })
+        show()
+        waitFor { compose.onAllNodesWithTextCount("Old errand") == 1 }
+        compose.onNodeWithTag("swipe-$id").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("swipe-delete-$id").performClick()
+        waitFor { tasks.query("SELECT id FROM trash_items").size == 1 }
+        waitFor { !tasks.pendingDeletes.isPending(id) }
+        compose.onNodeWithTag("task-row-$id").assertDoesNotExist()
+        val trashId = tasks.query("SELECT id FROM trash_items").single()["id"]!!
+        assertTrue(runBlocking { bin.restore(trashId) })
+        waitFor { compose.onAllNodesWithTextCount("Old errand") == 1 }
     }
 
     @Test
