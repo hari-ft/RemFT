@@ -33,7 +33,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -135,6 +139,16 @@ fun KindTile(icon: ImageVector, tone: TileTone, modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun rememberLocalFile(env: FilesEnvironment, row: FileRowEntity?): File? {
+    var landings by remember(row?.id, row?.localPath) { mutableIntStateOf(0) }
+    LaunchedEffect(env, row?.id, row?.localPath) {
+        val current = row ?: return@LaunchedEffect
+        env.attachments.landedFor(current).collect { landings++ }
+    }
+    return remember(row?.id, row?.localPath, landings) { row?.let { env.attachments.fileOf(it) } }
+}
+
+@Composable
 fun FileThumb(row: FileRowEntity, file: File?) {
     Box(Modifier.size(40.dp).clip(MarkedShapes.tile)) {
         KindTile(kindIcon(row.mime))
@@ -213,7 +227,7 @@ fun FileRowCard(
     badge: String? = null,
     position: GroupPosition = GroupPosition.Single,
 ) {
-    val file = remember(row.id, row.localPath) { env.attachments.fileOf(row) }
+    val file = rememberLocalFile(env, row)
     val subtitle = listOfNotNull(formatBytes(row.sizeBytes), fileDate(row.createdAt, format, env.clock.zone)).joinToString(" · ")
     SwipeToReveal(
         id = row.id,

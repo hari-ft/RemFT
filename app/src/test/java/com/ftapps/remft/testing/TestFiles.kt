@@ -12,6 +12,7 @@ import com.ftapps.remft.ui.files.AttachSource
 import com.ftapps.remft.ui.files.FilesEnvironment
 import com.ftapps.remft.ui.files.PickedFile
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -33,6 +34,7 @@ class TestFiles(
     binSettings: SettingsStore? = null,
     fetchMissing: suspend (String) -> File? = { null },
     canFetch: suspend (String) -> Boolean = { false },
+    downloaded: Flow<String> = emptyFlow(),
 ) {
     val tasks = TestTasks(clock = clock)
     val holder get() = tasks.holder
@@ -42,7 +44,7 @@ class TestFiles(
     val workspace: String = runBlocking { tasks.identity.resolve().workspaceId }
     val dir: File = tasks.attachments
     val bin = RecycleBin(database, binSettings ?: tasks.settings, dir, { workspace }, clock)
-    val attachments = AttachmentStore(database, dir, bin, clock, maxBytes = maxBytes, fetchMissing = fetchMissing, canFetch = canFetch)
+    val attachments = AttachmentStore(database, dir, bin, clock, maxBytes = maxBytes, fetchMissing = fetchMissing, canFetch = canFetch, downloaded = downloaded)
     val files = FilesRepository(database, { workspace }, bin, attachments, clock)
     var picks: List<PickedFile> = emptyList()
     val environment = FilesEnvironment(

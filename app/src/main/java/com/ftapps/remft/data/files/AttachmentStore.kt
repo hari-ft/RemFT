@@ -12,6 +12,12 @@ import com.ftapps.remft.data.onedrive.OneDriveException
 import com.ftapps.remft.domain.time.UtcText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -37,8 +43,17 @@ class AttachmentStore(
     private val maxBytes: Long = MAX_BYTES,
     private val fetchMissing: suspend (String) -> File? = { null },
     private val canFetch: suspend (String) -> Boolean = { false },
+    downloaded: Flow<String> = emptyFlow(),
 ) {
     private val dao: FilesDao get() = database().filesDao()
+    private val fetchedNames = MutableSharedFlow<String>(extraBufferCapacity = 64)
+
+    val landed: Flow<String> = merge(fetchedNames, downloaded).map(PathText::basename)
+
+    fun landedFor(row: FileRowEntity): Flow<Unit> {
+        val name = row.localPath?.let(::safeName) ?: return emptyFlow()
+        return landed.filter { it == name }.map { }
+    }
 
     suspend fun add(
         workspaceId: String,
@@ -150,7 +165,7 @@ class AttachmentStore(
                 throw AttachmentFetchFailed(fetchProblemOf(e))
             }
             fetched?.takeIf { it.isFile }
-        }
+        }?.also { fetchedNames.tryEmit(it.name) }
     }
 
     fun fileOf(row: FileRowEntity): File? {

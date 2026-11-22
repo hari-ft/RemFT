@@ -252,7 +252,7 @@ private fun FileActionsSheet(
     RemftBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("file-actions")) {
         Column(Modifier.navigationBarsPadding()) {
             ListItem(
-                leadingContent = { FileThumb(row, remember(row.id) { env.attachments.fileOf(row) }) },
+                leadingContent = { FileThumb(row, rememberLocalFile(env, row)) },
                 headlineContent = { Text(row.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 supportingContent = { Text(formatBytes(row.sizeBytes), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),

@@ -16,6 +16,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import java.io.File
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -52,6 +54,7 @@ object FilesModule {
         bin = bin,
         fetchMissing = { id -> downloads.get().fetchNow(id) },
         canFetch = { id -> downloads.get().isMissingButFetchable(id) },
+        downloaded = flow { emitAll(downloads.get().landed) },
     )
 
     @Provides
