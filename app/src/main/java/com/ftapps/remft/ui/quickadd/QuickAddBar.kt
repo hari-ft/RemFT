@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -46,6 +49,7 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.quickadd.QuickChip
@@ -54,14 +58,17 @@ import com.ftapps.remft.domain.quickadd.QuickTokenKind
 import com.ftapps.remft.domain.repeat.RepeatRule
 import com.ftapps.remft.domain.repeat.RepeatSentence
 import com.ftapps.remft.domain.settings.DateFormatId
+import com.ftapps.remft.domain.tasks.TaskPriority
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
+import com.ftapps.remft.ui.components.ChipTone
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.chipColors
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
-import com.ftapps.remft.ui.tasks.priorityColor
 import com.ftapps.remft.ui.tasks.priorityLabel
 import com.ftapps.remft.ui.tasks.rememberDateFormat
 import com.ftapps.remft.ui.theme.MarkedShapes
-import com.ftapps.remft.ui.theme.RemftThemeExtras
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 
 class QuickAddHighlight(private val ranges: List<IntRange>, private val style: SpanStyle) : VisualTransformation {
@@ -96,7 +103,7 @@ fun QuickAddBar(
     var ignored by remember { mutableStateOf(emptySet<String>()) }
     var helpOpen by remember { mutableStateOf(false) }
     val parsed = remember(text, ignored, format) { creator.parse(text, format, ignored) }
-    val markStyle = SpanStyle(color = RemftThemeExtras.colors.link, fontWeight = FontWeight.SemiBold)
+    val markStyle = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
     val highlight = remember(parsed.highlightRanges, markStyle) { QuickAddHighlight(parsed.highlightRanges, markStyle) }
     val submit = submit@{
         val raw = text.trim()
@@ -107,38 +114,17 @@ fun QuickAddBar(
         onSubmit(raw, finalParse)
     }
     Column(modifier.fillMaxWidth().padding(vertical = Space.x2).animateContentSize()) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = { value ->
+        QuickAddField(
+            text = text,
+            onTextChange = { value ->
                 if (value.isEmpty()) ignored = emptySet()
                 text = value
             },
-            placeholder = { Text(hint, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            singleLine = true,
-            visualTransformation = highlight,
-            shape = MarkedShapes.pill,
-            textStyle = MaterialTheme.typography.bodyLarge,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { submit() }),
-            trailingIcon = {
-                if (text.isEmpty()) {
-                    IconButton(onClick = { helpOpen = true }, modifier = Modifier.testTag("$tag-help")) {
-                        Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = stringResource(R.string.task_quickParse_helpTooltip))
-                    }
-                } else {
-                    IconButton(onClick = submit, modifier = Modifier.testTag("$tag-submit")) {
-                        Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.task_addTask))
-                    }
-                }
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(tag),
+            hint = hint,
+            tag = tag,
+            highlight = highlight,
+            onHelp = { helpOpen = true },
+            onSubmit = submit,
         )
         if (parsed.chips.isNotEmpty()) {
             QuickAddChips(
@@ -152,6 +138,95 @@ fun QuickAddBar(
         }
     }
     if (helpOpen) QuickAddHelpSheet(onDismiss = { helpOpen = false })
+}
+
+@Composable
+private fun QuickAddField(
+    text: String,
+    onTextChange: (String) -> Unit,
+    hint: String,
+    tag: String,
+    highlight: VisualTransformation,
+    onHelp: () -> Unit,
+    onSubmit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    OutlinedTextField(
+        value = text,
+        onValueChange = onTextChange,
+        placeholder = { Text(hint, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        singleLine = true,
+        visualTransformation = highlight,
+        shape = MarkedShapes.pill,
+        textStyle = MaterialTheme.typography.bodyLarge,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+        trailingIcon = {
+            if (text.isEmpty()) {
+                IconButton(
+                    onClick = onHelp,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = scheme.onSurfaceVariant),
+                    modifier = Modifier.testTag("$tag-help"),
+                ) {
+                    Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = stringResource(R.string.task_quickParse_helpTooltip))
+                }
+            } else {
+                IconButton(
+                    onClick = onSubmit,
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = scheme.primary, contentColor = scheme.onPrimary),
+                    modifier = Modifier.padding(end = Space.x1).testTag("$tag-submit"),
+                ) {
+                    Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.task_addTask))
+                }
+            }
+        },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = scheme.surface,
+            unfocusedContainerColor = scheme.surface,
+            focusedBorderColor = scheme.primary,
+            unfocusedBorderColor = Color.Transparent,
+            cursorColor = scheme.primary,
+            unfocusedPlaceholderColor = scheme.onSurfaceVariant,
+            focusedPlaceholderColor = scheme.onSurfaceVariant,
+        ),
+        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(tag),
+    )
+}
+
+@Composable
+private fun QuickAddTokenChip(
+    icon: ImageVector,
+    label: String,
+    tone: ChipTone,
+    keepAsText: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = chipColors(tone)
+    InputChip(
+        selected = false,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+        avatar = { Icon(icon, contentDescription = null, tint = colors.content, modifier = Modifier.size(18.dp)) },
+        trailingIcon = { Icon(Icons.Outlined.Close, contentDescription = keepAsText, modifier = Modifier.size(18.dp)) },
+        shape = MarkedShapes.pill,
+        colors = InputChipDefaults.inputChipColors(
+            containerColor = colors.container,
+            labelColor = colors.content,
+            leadingIconColor = colors.content,
+            trailingIconColor = colors.content,
+        ),
+        border = null,
+        modifier = modifier,
+    )
+}
+
+private fun priorityTone(priority: String?): ChipTone = when (TaskPriority.parse(priority)) {
+    TaskPriority.Urgent, TaskPriority.High -> ChipTone.Urgent
+    TaskPriority.Medium -> ChipTone.Warning
+    TaskPriority.Low -> ChipTone.File
+    TaskPriority.None -> ChipTone.Neutral
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -182,7 +257,7 @@ private fun QuickAddChips(
     val repeatTemplate = stringResource(R.string.task_quickParse_repeat)
     val priorityTemplate = stringResource(R.string.task_quickParse_priority)
     val priorityName = parsed.priority?.let { stringResource(priorityLabel(it)) }.orEmpty()
-    val priorityTint = parsed.priority?.let { priorityColor(it) }
+    val priorityChipTone = priorityTone(parsed.priority)
     val keepAsText = stringResource(R.string.task_quickParse_keepAsText)
     FlowRow(
         modifier = modifier.fillMaxWidth(),
@@ -191,24 +266,21 @@ private fun QuickAddChips(
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         parsed.chips.forEach { chip ->
-            val (icon, label, tint) = when (chip.kind) {
-                QuickTokenKind.Due, QuickTokenKind.Time -> Triple(Icons.Outlined.Event, dueTemplate.fill("date" to dueText.orEmpty()), null)
+            val (icon, label, tone) = when (chip.kind) {
+                QuickTokenKind.Due, QuickTokenKind.Time -> Triple(Icons.Outlined.Event, dueTemplate.fill("date" to dueText.orEmpty()), ChipTone.Today)
                 QuickTokenKind.Repeat -> Triple(
                     Icons.Outlined.Repeat,
                     if (hasDueChip || dueText == null) rule else repeatTemplate.fill("rule" to rule, "date" to dueText),
-                    null,
+                    ChipTone.Repeat,
                 )
-                QuickTokenKind.Priority -> Triple(Icons.Outlined.Flag, priorityTemplate.fill("label" to priorityName), priorityTint)
+                QuickTokenKind.Priority -> Triple(Icons.Outlined.Flag, priorityTemplate.fill("label" to priorityName), priorityChipTone)
             }
-            InputChip(
-                selected = false,
+            QuickAddTokenChip(
+                icon = icon,
+                label = label,
+                tone = tone,
+                keepAsText = keepAsText,
                 onClick = { onDismiss(chip) },
-                label = { Text(label) },
-                avatar = { Icon(icon, contentDescription = null, tint = tint ?: scheme.onSurfaceVariant, modifier = Modifier.size(18.dp)) },
-                trailingIcon = { Icon(Icons.Outlined.Close, contentDescription = keepAsText, modifier = Modifier.size(18.dp)) },
-                shape = MarkedShapes.pill,
-                colors = InputChipDefaults.inputChipColors(containerColor = scheme.surface, trailingIconColor = scheme.onSurfaceVariant),
-                border = InputChipDefaults.inputChipBorder(enabled = true, selected = false, borderColor = scheme.outlineVariant),
                 modifier = Modifier.testTag("$tag-token-${chip.kind.id}"),
             )
         }
@@ -218,6 +290,44 @@ private fun QuickAddChips(
                 contentDescription = stringResource(R.string.task_quickParse_helpTooltip),
                 tint = scheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Preview(name = "Quick add light")
+@Composable
+private fun QuickAddLightPreview() {
+    RemftTheme(darkTheme = false) { QuickAddPreviewContent() }
+}
+
+@Preview(name = "Quick add dark")
+@Composable
+private fun QuickAddDarkPreview() {
+    RemftTheme(darkTheme = true) { QuickAddPreviewContent() }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun QuickAddPreviewContent() {
+    val sample = "Water the plants tomorrow 7pm every sunday p1"
+    val style = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+    PreviewSurface {
+        Column(verticalArrangement = Arrangement.spacedBy(Space.x3)) {
+            QuickAddField("", {}, "Quick add a task…", "preview-empty", VisualTransformation.None, onHelp = {}, onSubmit = {})
+            QuickAddField(
+                sample,
+                {},
+                "Quick add a task…",
+                "preview-filled",
+                QuickAddHighlight(listOf(17..28, 30..41, 43..44), style),
+                onHelp = {},
+                onSubmit = {},
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.x2), verticalArrangement = Arrangement.spacedBy(Space.x1)) {
+                QuickAddTokenChip(Icons.Outlined.Event, "Due 23 Nov, 7:00 pm", ChipTone.Today, "Keep as text", onClick = {})
+                QuickAddTokenChip(Icons.Outlined.Repeat, "Every Sunday", ChipTone.Repeat, "Keep as text", onClick = {})
+                QuickAddTokenChip(Icons.Outlined.Flag, "Priority: High", ChipTone.Urgent, "Keep as text", onClick = {})
+            }
         }
     }
 }

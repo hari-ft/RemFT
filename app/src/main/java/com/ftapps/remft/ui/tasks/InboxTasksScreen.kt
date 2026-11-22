@@ -1,6 +1,19 @@
 package com.ftapps.remft.ui.tasks
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.tooling.preview.Preview
+import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftFilledButton
+import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -22,16 +34,11 @@ import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SearchOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,8 +66,6 @@ import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.ErrorState
 import com.ftapps.remft.ui.quickadd.InboxQuickCapture
 import com.ftapps.remft.ui.search.SearchField
-import com.ftapps.remft.ui.theme.Radius
-import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -197,62 +202,106 @@ fun InboxTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit) {
         TaskCreateSheet(onDismiss = { planning = null }, editing = task)
     }
     converting?.let { task ->
-        AlertDialog(
+        RemftDialog(
             onDismissRequest = { converting = null },
-            title = { Text(stringResource(R.string.inbox_convertTitle)) },
-            text = { Text(stringResource(R.string.inbox_convertBody)) },
+            title = stringResource(R.string.inbox_convertTitle),
+            text = {
+                Text(
+                    stringResource(R.string.inbox_convertBody),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
             dismissButton = {
-                TextButton(onClick = { converting = null }) { Text(stringResource(R.string.common_cancel)) }
+                RemftTextButton(stringResource(R.string.common_cancel), onClick = { converting = null })
             },
             confirmButton = {
-                Button(
+                RemftFilledButton(
+                    stringResource(R.string.inbox_convert),
                     onClick = {
                         converting = null
                         vm.convertToNote(task) {
                             android.widget.Toast.makeText(context, movedText, android.widget.Toast.LENGTH_SHORT).show()
                         }
                     },
+                    icon = Icons.Outlined.Description,
                     modifier = Modifier.testTag("convert-confirm"),
-                ) { Text(stringResource(R.string.inbox_convert)) }
+                )
             },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(Radius.sheet),
         )
     }
 }
 
 @Composable
 private fun CaptureRow(task: Task, onPlan: () -> Unit, onConvert: () -> Unit, onDelete: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
     SwipeToReveal(
         id = task.id,
         deleteDescription = stringResource(R.string.task_deleteSemantic).fill("title" to task.title),
         onDelete = onDelete,
         modifier = Modifier.padding(vertical = Space.x1),
     ) {
-        Card(
-            shape = RoundedCornerShape(Radius.card),
-            colors = CardDefaults.cardColors(containerColor = scheme.surface),
-            border = BorderStroke(1.dp, RemftThemeExtras.colors.hairline),
-            modifier = Modifier.fillMaxWidth().testTag("capture-row-${task.id}"),
+        CaptureRowContent(task.id, task.title, onPlan, onConvert, onDelete)
+    }
+}
+
+@Composable
+private fun CaptureRowContent(id: String, title: String, onPlan: () -> Unit, onConvert: () -> Unit, onDelete: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    MarkedCard(Modifier.fillMaxWidth().testTag("capture-row-$id")) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(onClick = onPlan).padding(start = Space.x3, end = Space.x1, top = Space.x2, bottom = Space.x2),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onPlan).padding(start = Space.x3, end = Space.x1),
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
+                Modifier.size(40.dp).background(scheme.primaryContainer, MarkedShapes.pill),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Inbox, contentDescription = null, tint = scheme.onSurfaceVariant)
-                Spacer(Modifier.width(Space.x3))
-                Text(task.title, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                IconButton(onClick = onPlan, modifier = Modifier.testTag("capture-plan-${task.id}")) {
-                    Icon(Icons.Outlined.Event, contentDescription = stringResource(R.string.inbox_plan))
-                }
-                IconButton(onClick = onConvert, modifier = Modifier.testTag("capture-to-note-${task.id}")) {
-                    Icon(Icons.Outlined.Description, contentDescription = stringResource(R.string.inbox_convertToNote))
-                }
-                IconButton(onClick = onDelete, modifier = Modifier.testTag("capture-delete-${task.id}")) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.common_delete))
-                }
+                Icon(Icons.Outlined.Inbox, contentDescription = null, tint = scheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
             }
+            Spacer(Modifier.width(Space.x3))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = scheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            CaptureAction(Icons.Outlined.Event, stringResource(R.string.inbox_plan), onPlan, "capture-plan-$id", scheme.primary)
+            CaptureAction(Icons.Outlined.Description, stringResource(R.string.inbox_convertToNote), onConvert, "capture-to-note-$id", RemftTheme.colors.note.color)
+            CaptureAction(Icons.Outlined.DeleteOutline, stringResource(R.string.common_delete), onDelete, "capture-delete-$id", scheme.onSurfaceVariant)
         }
+    }
+}
+
+@Composable
+private fun CaptureAction(icon: ImageVector, description: String, onClick: () -> Unit, tag: String, tint: Color) {
+    IconButton(
+        onClick = onClick,
+        colors = IconButtonDefaults.iconButtonColors(contentColor = tint),
+        modifier = Modifier.testTag(tag),
+    ) {
+        Icon(icon, contentDescription = description)
+    }
+}
+
+@Preview(name = "Inbox light", widthDp = 411)
+@Composable
+private fun InboxLightPreview() {
+    RemftTheme(darkTheme = false) { InboxPreviewContent() }
+}
+
+@Preview(name = "Inbox dark", widthDp = 411)
+@Composable
+private fun InboxDarkPreview() {
+    RemftTheme(darkTheme = true) { InboxPreviewContent() }
+}
+
+@Composable
+private fun InboxPreviewContent() {
+    Column(Modifier.background(RemftTheme.tonal.level0).padding(Space.x4), verticalArrangement = Arrangement.spacedBy(Space.x2)) {
+        CaptureRowContent("a", "Ask about the car service slot", {}, {}, {})
+        CaptureRowContent("b", "Ideas for the weekend trip", {}, {}, {})
+        CaptureRowContent("c", "Renew the library card before the end of the month", {}, {}, {})
     }
 }

@@ -1,6 +1,10 @@
 package com.ftapps.remft.ui.repeat
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,11 +13,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,15 +27,25 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.repeat.EditScope
 import com.ftapps.remft.domain.tasks.Task
+import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftFilledButton
+import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.tasks.TasksEnvironment
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -38,76 +53,132 @@ import kotlinx.coroutines.launch
 @Composable
 fun SeriesScopeDialog(isDateEdit: Boolean, onDismiss: () -> Unit, onApply: (EditScope) -> Unit) {
     var scope by remember { mutableStateOf(EditScope.preselected(isDateEdit)) }
+    SeriesScopeDialogContent(scope, { scope = it }, onDismiss, onApply)
+}
+
+@Composable
+private fun SeriesScopeDialogContent(
+    scope: EditScope,
+    onPick: (EditScope) -> Unit,
+    onDismiss: () -> Unit,
+    onApply: (EditScope) -> Unit,
+) {
     val labels = mapOf(
         EditScope.This to R.string.repeat_scope_this,
         EditScope.Future to R.string.repeat_scope_future,
         EditScope.All to R.string.repeat_scope_all,
     )
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag("series-scope-dialog"),
-        title = { Text(stringResource(R.string.repeat_scope_title)) },
+        title = stringResource(R.string.repeat_scope_title),
         text = {
             Column {
-                Text(stringResource(R.string.repeat_scope_question))
-                Spacer(Modifier.height(Space.x2))
-                Column(Modifier.selectableGroup()) {
+                Text(
+                    stringResource(R.string.repeat_scope_question),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(Space.x3))
+                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(Space.x1)) {
                     EditScope.entries.forEach { option ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(selected = scope == option, role = Role.RadioButton) { scope = option }
-                                .testTag("scope-${option.wire}"),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(selected = scope == option, onClick = null)
-                            Text(stringResource(labels.getValue(option)), modifier = Modifier.padding(start = Space.x3))
-                        }
+                        ScopeOption(
+                            label = stringResource(labels.getValue(option)),
+                            selected = scope == option,
+                            onClick = { onPick(option) },
+                            modifier = Modifier.testTag("scope-${option.wire}"),
+                        )
                     }
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.testTag("scope-cancel")) { Text(stringResource(R.string.common_cancel)) }
+            RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss, modifier = Modifier.testTag("scope-cancel"))
         },
         confirmButton = {
-            Button(onClick = { onApply(scope) }, modifier = Modifier.testTag("scope-apply")) { Text(stringResource(R.string.repeat_scope_apply)) }
+            RemftFilledButton(stringResource(R.string.repeat_scope_apply), onClick = { onApply(scope) }, modifier = Modifier.testTag("scope-apply"))
         },
     )
 }
 
 @Composable
+private fun ScopeOption(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val container = if (selected) scheme.primaryContainer else Color.Transparent
+    val content = if (selected) scheme.onPrimaryContainer else scheme.onSurface
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(MarkedShapes.small)
+            .background(container, MarkedShapes.small)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = Space.x2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            colors = RadioButtonDefaults.colors(selectedColor = scheme.primary, unselectedColor = scheme.outline),
+        )
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = content, modifier = Modifier.padding(start = Space.x3))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 fun OccurrenceDeleteDialog(onDismiss: () -> Unit, onThis: () -> Unit, onFuture: () -> Unit) {
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag("occurrence-delete-scope"),
-        title = { Text(stringResource(R.string.repeat_scope_title)) },
-        text = { Text(stringResource(R.string.repeat_scope_question)) },
+        title = stringResource(R.string.repeat_scope_title),
+        text = {
+            Text(
+                stringResource(R.string.repeat_scope_question),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
         dismissButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.testTag("delete-scope-cancel")) { Text(stringResource(R.string.common_cancel)) }
+            RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss, modifier = Modifier.testTag("delete-scope-cancel"))
         },
         confirmButton = {
-            Row {
-                TextButton(onClick = onThis, modifier = Modifier.testTag("delete-scope-this")) { Text(stringResource(R.string.repeat_scope_this)) }
-                Button(onClick = onFuture, modifier = Modifier.testTag("delete-scope-future")) { Text(stringResource(R.string.repeat_scope_future)) }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.x1, Alignment.End), verticalArrangement = Arrangement.spacedBy(Space.x1)) {
+                RemftTonalButton(stringResource(R.string.repeat_scope_this), onClick = onThis, modifier = Modifier.testTag("delete-scope-this"))
+                DangerButton(stringResource(R.string.repeat_scope_future), onClick = onFuture, modifier = Modifier.testTag("delete-scope-future"))
             }
         },
     )
 }
 
 @Composable
+private fun DangerButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Button(
+        onClick = onClick,
+        shape = MarkedShapes.pill,
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
+        modifier = modifier.heightIn(min = Sizes.touchTarget),
+    ) { Text(text, style = MaterialTheme.typography.labelLarge) }
+}
+
+@Composable
 fun StopRepeatDialog(afterCompletion: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag("repeat-stop-dialog"),
-        title = { Text(stringResource(R.string.repeat_stop)) },
-        text = { Text(stringResource(if (afterCompletion) R.string.repeat_stopConfirmAfter else R.string.repeat_stopConfirm)) },
+        title = stringResource(R.string.repeat_stop),
+        text = {
+            Text(
+                stringResource(if (afterCompletion) R.string.repeat_stopConfirmAfter else R.string.repeat_stopConfirm),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+            RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss)
         },
         confirmButton = {
-            Button(onClick = onConfirm, modifier = Modifier.testTag("repeat-stop-confirm")) { Text(stringResource(R.string.repeat_stop)) }
+            RemftFilledButton(stringResource(R.string.repeat_stop), onClick = onConfirm, modifier = Modifier.testTag("repeat-stop-confirm"))
         },
     )
 }
@@ -225,4 +296,40 @@ fun OccurrenceDeleteHost(deleter: OccurrenceDeleter) {
         onThis = { deleter.answer(thisOnly = true) },
         onFuture = { deleter.answer(thisOnly = false) },
     )
+}
+
+@Preview(name = "Series scope light")
+@Composable
+private fun SeriesScopeLightPreview() {
+    RemftTheme(darkTheme = false) { SeriesScopeDialogContent(EditScope.Future, {}, {}, {}) }
+}
+
+@Preview(name = "Series scope dark")
+@Composable
+private fun SeriesScopeDarkPreview() {
+    RemftTheme(darkTheme = true) { SeriesScopeDialogContent(EditScope.Future, {}, {}, {}) }
+}
+
+@Preview(name = "Occurrence delete light")
+@Composable
+private fun OccurrenceDeleteLightPreview() {
+    RemftTheme(darkTheme = false) { OccurrenceDeleteDialog({}, {}, {}) }
+}
+
+@Preview(name = "Occurrence delete dark")
+@Composable
+private fun OccurrenceDeleteDarkPreview() {
+    RemftTheme(darkTheme = true) { OccurrenceDeleteDialog({}, {}, {}) }
+}
+
+@Preview(name = "Stop repeat light")
+@Composable
+private fun StopRepeatLightPreview() {
+    RemftTheme(darkTheme = false) { StopRepeatDialog(afterCompletion = false, onDismiss = {}, onConfirm = {}) }
+}
+
+@Preview(name = "Stop repeat dark")
+@Composable
+private fun StopRepeatDarkPreview() {
+    RemftTheme(darkTheme = true) { StopRepeatDialog(afterCompletion = true, onDismiss = {}, onConfirm = {}) }
 }

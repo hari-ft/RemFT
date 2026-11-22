@@ -1,5 +1,19 @@
 package com.ftapps.remft.ui.tasks
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
+import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,7 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
@@ -24,7 +37,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -50,7 +62,6 @@ import com.ftapps.remft.domain.tasks.TaskPriority
 import com.ftapps.remft.ui.repeat.CreateSheetRepeatRow
 import com.ftapps.remft.ui.repeat.RepeatDraft
 import com.ftapps.remft.ui.theme.Breakpoints
-import com.ftapps.remft.ui.theme.Radius
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -176,12 +187,9 @@ fun TaskCreateSheet(
             if (ok) onDismiss() else saveError = true
         }
     }
-    ModalBottomSheet(
+    RemftBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = Radius.sheet, topEnd = Radius.sheet),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        sheetMaxWidth = Breakpoints.sheetMaxWidth,
         modifier = Modifier.testTag("task-sheet"),
     ) {
         Column(Modifier.fillMaxWidth().imePadding()) {
@@ -191,10 +199,7 @@ fun TaskCreateSheet(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = Space.x6, vertical = Space.x1),
             ) {
-                Text(
-                    stringResource(if (editing != null) R.string.task_planTask else R.string.task_newTask),
-                    style = MaterialTheme.typography.titleLarge,
-                )
+                SheetHeading(stringResource(if (editing != null) R.string.task_planTask else R.string.task_newTask))
                 Spacer(Modifier.height(Space.x4))
                 OutlinedTextField(
                     value = state.title,
@@ -210,6 +215,8 @@ fun TaskCreateSheet(
                         null
                     },
                     singleLine = true,
+                    shape = MarkedShapes.small,
+                    colors = sheetFieldColors(),
                     modifier = Modifier.fillMaxWidth().testTag("task-sheet-title"),
                 )
                 Spacer(Modifier.height(Space.x3))
@@ -220,6 +227,8 @@ fun TaskCreateSheet(
                     placeholder = { Text(stringResource(R.string.task_descriptionHint)) },
                     minLines = 1,
                     maxLines = 4,
+                    shape = MarkedShapes.small,
+                    colors = sheetFieldColors(),
                     modifier = Modifier.fillMaxWidth().testTag("task-sheet-description"),
                 )
                 Spacer(Modifier.height(Space.x3))
@@ -280,14 +289,20 @@ fun TaskCreateSheet(
                     Spacer(Modifier.height(Space.x3))
                     Text(
                         stringResource(R.string.task_couldNotSave),
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.testTag("task-sheet-error"),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.errorContainer, MarkedShapes.small)
+                            .padding(horizontal = Space.x4, vertical = Space.x3)
+                            .testTag("task-sheet-error"),
                     )
                 }
             }
             Button(
                 onClick = save,
                 enabled = !saving,
+                shape = MarkedShapes.pill,
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
@@ -296,9 +311,9 @@ fun TaskCreateSheet(
                     .testTag("task-sheet-create"),
             ) {
                 if (saving) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = LocalContentColor.current)
                 } else {
-                    Text(stringResource(if (editing != null) R.string.common_save else R.string.task_createTask))
+                    Text(stringResource(if (editing != null) R.string.common_save else R.string.task_createTask), style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -308,26 +323,140 @@ fun TaskCreateSheet(
 @Composable
 fun SheetSurface(content: @Composable () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(Radius.input),
+        shape = MarkedShapes.medium,
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth().widthIn(max = Breakpoints.sheetMaxWidth),
     ) { content() }
 }
 
 @Composable
-fun UrgentSwitch(checked: Boolean, onChange: (Boolean) -> Unit, tag: String) {
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.task_urgentAlarm)) },
-        supportingContent = { Text(stringResource(R.string.task_urgentAlarmSub)) },
-        leadingContent = { Icon(Icons.Outlined.NotificationImportant, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onChange, colors = successSwitchColors(), modifier = Modifier.testTag(tag)) },
-        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+fun SheetHeading(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.semantics { heading() },
     )
 }
 
 @Composable
-fun successSwitchColors() = androidx.compose.material3.SwitchDefaults.colors(
-    checkedTrackColor = com.ftapps.remft.ui.theme.RemftThemeExtras.colors.success,
-    checkedThumbColor = MaterialTheme.colorScheme.surface,
-    checkedBorderColor = com.ftapps.remft.ui.theme.RemftThemeExtras.colors.success,
+fun sheetFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = MaterialTheme.colorScheme.surface,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+    errorContainerColor = MaterialTheme.colorScheme.surface,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
 )
+
+@Composable
+fun UrgentSwitch(checked: Boolean, onChange: (Boolean) -> Unit, tag: String) {
+    val urgent = RemftTheme.colors.urgent
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.task_urgentAlarm), style = MaterialTheme.typography.titleMedium) },
+        supportingContent = { Text(stringResource(R.string.task_urgentAlarmSub)) },
+        leadingContent = {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .background(if (checked) urgent.container else RemftTheme.tonal.level2, MarkedShapes.pill),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.NotificationImportant,
+                    contentDescription = null,
+                    tint = if (checked) urgent.onContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        trailingContent = { Switch(checked = checked, onCheckedChange = onChange, colors = successSwitchColors(), modifier = Modifier.testTag(tag)) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent, supportingColor = MaterialTheme.colorScheme.onSurfaceVariant),
+    )
+}
+
+@Composable
+fun successSwitchColors() = SwitchDefaults.colors(
+    checkedTrackColor = RemftTheme.colors.success.color,
+    checkedThumbColor = RemftTheme.colors.success.onColor,
+    checkedIconColor = RemftTheme.colors.success.color,
+    checkedBorderColor = RemftTheme.colors.success.color,
+)
+
+@Preview(name = "Task sheet light", widthDp = 411, heightDp = 900)
+@Composable
+private fun TaskSheetLightPreview() {
+    RemftTheme(darkTheme = false) { TaskSheetPreviewContent() }
+}
+
+@Preview(name = "Task sheet dark", widthDp = 411, heightDp = 900)
+@Composable
+private fun TaskSheetDarkPreview() {
+    RemftTheme(darkTheme = true) { TaskSheetPreviewContent() }
+}
+
+@Composable
+private fun TaskSheetPreviewContent() {
+    Box(Modifier.fillMaxSize().background(RemftTheme.tonal.level0), contentAlignment = Alignment.BottomCenter) {
+        Surface(shape = MarkedShapes.sheet, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(horizontal = Space.x6, vertical = Space.x6)) {
+                SheetHeading("New task")
+                Spacer(Modifier.height(Space.x4))
+                OutlinedTextField(
+                    value = "Book train tickets",
+                    onValueChange = {},
+                    label = { Text("Title") },
+                    singleLine = true,
+                    shape = MarkedShapes.small,
+                    colors = sheetFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(Space.x3))
+                ChoiceField(
+                    label = "Priority",
+                    selected = TaskPriority.Medium.db,
+                    options = TaskPriority.entries.map { it.db },
+                    onSelect = {},
+                    tag = "preview-priority",
+                ) { PriorityLabel(it) }
+                Spacer(Modifier.height(Space.x3))
+                SheetSurface {
+                    DateTimeFieldContent(
+                        tag = "preview-due",
+                        label = "Due",
+                        icon = Icons.Outlined.Flag,
+                        dateText = "Sun, 22 Nov 2026",
+                        timeText = "6:00 pm",
+                        isSet = true,
+                        afterDeadline = false,
+                        clearDescription = "Clear due",
+                        onClear = {},
+                        onPickDate = {},
+                        onPickTime = {},
+                        modifier = Modifier.padding(start = Space.x4, end = Space.x3, top = Space.x1, bottom = Space.x3),
+                    )
+                }
+                Spacer(Modifier.height(Space.x2))
+                SheetSurface {
+                    DateTimeFieldContent(
+                        tag = "preview-remind",
+                        label = "Remind",
+                        icon = Icons.Outlined.Alarm,
+                        dateText = "Add date",
+                        timeText = "Add time",
+                        isSet = false,
+                        afterDeadline = false,
+                        clearDescription = "Clear reminder",
+                        onClear = {},
+                        onPickDate = {},
+                        onPickTime = {},
+                        modifier = Modifier.padding(start = Space.x4, end = Space.x3, top = Space.x1, bottom = Space.x3),
+                    )
+                }
+                Spacer(Modifier.height(Space.x2))
+                SheetSurface { UrgentSwitch(true, {}, "preview-urgent") }
+                Spacer(Modifier.height(Space.x4))
+                Button(onClick = {}, shape = MarkedShapes.pill, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text("Create task", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
+    }
+}

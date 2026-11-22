@@ -1,14 +1,8 @@
 package com.ftapps.remft.ui.quickadd
 
 import android.widget.Toast
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,10 +19,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.quickadd.QuickParse
 import com.ftapps.remft.domain.text.fill
+import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftFilledButton
+import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.tasks.DateTimeField
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.tasks.TasksEnvironment
-import com.ftapps.remft.ui.theme.Radius
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -113,9 +109,9 @@ fun InboxQuickCapture(hint: String, modifier: Modifier = Modifier) {
 @Composable
 fun DeadlineDialog(initial: LocalDateTime?, now: () -> LocalDateTime, onAnswer: (LocalDateTime?) -> Unit) {
     var value by remember(initial) { mutableStateOf(initial) }
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = { onAnswer(null) },
-        title = { Text(stringResource(R.string.home_deadlineTitle)) },
+        title = stringResource(R.string.home_deadlineTitle),
         text = {
             DateTimeField(
                 tag = "quick-add-deadline",
@@ -127,17 +123,19 @@ fun DeadlineDialog(initial: LocalDateTime?, now: () -> LocalDateTime, onAnswer: 
             )
         },
         dismissButton = {
-            TextButton(onClick = { onAnswer(null) }, modifier = Modifier.testTag("quick-add-deadline-skip")) {
-                Text(stringResource(R.string.home_deadlineSkip))
-            }
+            RemftTextButton(
+                stringResource(R.string.home_deadlineSkip),
+                onClick = { onAnswer(null) },
+                modifier = Modifier.testTag("quick-add-deadline-skip"),
+            )
         },
         confirmButton = {
-            Button(onClick = { onAnswer(value) }, modifier = Modifier.testTag("quick-add-deadline-set")) {
-                Text(stringResource(R.string.home_deadlineSet))
-            }
+            RemftFilledButton(
+                stringResource(R.string.home_deadlineSet),
+                onClick = { onAnswer(value) },
+                modifier = Modifier.testTag("quick-add-deadline-set"),
+            )
         },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(Radius.sheet),
         modifier = Modifier.testTag("quick-add-deadline-dialog"),
     )
 }

@@ -1,5 +1,18 @@
 package com.ftapps.remft.ui.tasks
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,7 +27,6 @@ import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DatePickerState
@@ -26,7 +38,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -83,51 +94,20 @@ fun DateTimeField(
     val dateText = value?.let { DateFormats.date(it, format) } ?: stringResource(R.string.dateField_addDate)
     val timeText = value?.let { DateFormats.time(it, format) } ?: stringResource(R.string.dateField_addTime)
     val afterDeadline = value != null && deadline != null && value.isAfter(deadline)
-    Column(modifier.testTag(tag)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.width(Space.x4))
-            Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            if (value != null) {
-                val clear = clearDescription ?: stringResource(R.string.task_clearField).fill("field" to label)
-                IconButton(onClick = { onChanged(null) }, modifier = Modifier.testTag("$tag-clear")) {
-                    Icon(Icons.Outlined.Close, contentDescription = clear)
-                }
-            }
-        }
-        Spacer(Modifier.size(Space.x2))
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.x2), modifier = Modifier.fillMaxWidth()) {
-            PartButton(
-                text = dateText,
-                isSet = value != null,
-                icon = Icons.Outlined.CalendarToday,
-                description = stringResource(R.string.dateField_dateOf).fill("field" to label),
-                tag = "$tag-date",
-                onClick = { pickingDate = true },
-                modifier = Modifier.weight(1f),
-            )
-            PartButton(
-                text = timeText,
-                isSet = value != null,
-                icon = Icons.Outlined.Schedule,
-                description = stringResource(R.string.dateField_timeOf).fill("field" to label),
-                tag = "$tag-time",
-                onClick = { pickingTime = true },
-                modifier = Modifier.weight(1f),
-            )
-        }
-        if (afterDeadline) {
-            Row(Modifier.padding(top = Space.x2).testTag("$tag-after-deadline")) {
-                Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(Space.x2))
-                Text(
-                    stringResource(R.string.dateField_afterDeadline),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-    }
+    DateTimeFieldContent(
+        tag = tag,
+        label = label,
+        icon = icon,
+        dateText = dateText,
+        timeText = timeText,
+        isSet = value != null,
+        afterDeadline = afterDeadline,
+        clearDescription = clearDescription ?: stringResource(R.string.task_clearField).fill("field" to label),
+        onClear = { onChanged(null) },
+        onPickDate = { pickingDate = true },
+        onPickTime = { pickingTime = true },
+        modifier = modifier,
+    )
     if (pickingDate) {
         val at = now()
         TaskDatePickerDialog(
@@ -158,6 +138,81 @@ fun DateTimeField(
 }
 
 @Composable
+fun DateTimeFieldContent(
+    tag: String,
+    label: String,
+    icon: ImageVector,
+    dateText: String,
+    timeText: String,
+    isSet: Boolean,
+    afterDeadline: Boolean,
+    clearDescription: String,
+    onClear: () -> Unit,
+    onPickDate: () -> Unit,
+    onPickTime: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Column(modifier.testTag(tag)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = if (isSet) scheme.primary else scheme.onSurfaceVariant)
+            Spacer(Modifier.width(Space.x4))
+            Text(label, style = MaterialTheme.typography.titleMedium, color = scheme.onSurface, modifier = Modifier.weight(1f))
+            if (isSet) {
+                IconButton(
+                    onClick = onClear,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = scheme.onSurfaceVariant),
+                    modifier = Modifier.testTag("$tag-clear"),
+                ) {
+                    Icon(Icons.Outlined.Close, contentDescription = clearDescription)
+                }
+            }
+        }
+        Spacer(Modifier.size(Space.x2))
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.x2), modifier = Modifier.fillMaxWidth()) {
+            PartButton(
+                text = dateText,
+                isSet = isSet,
+                icon = Icons.Outlined.CalendarToday,
+                description = stringResource(R.string.dateField_dateOf).fill("field" to label),
+                tag = "$tag-date",
+                onClick = onPickDate,
+                modifier = Modifier.weight(1f),
+            )
+            PartButton(
+                text = timeText,
+                isSet = isSet,
+                icon = Icons.Outlined.Schedule,
+                description = stringResource(R.string.dateField_timeOf).fill("field" to label),
+                tag = "$tag-time",
+                onClick = onPickTime,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (afterDeadline) {
+            val warning = RemftTheme.colors.warning
+            Row(
+                Modifier
+                    .padding(top = Space.x2)
+                    .fillMaxWidth()
+                    .background(warning.container, MarkedShapes.small)
+                    .padding(horizontal = Space.x3, vertical = Space.x2)
+                    .testTag("$tag-after-deadline"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = warning.onContainer, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(Space.x2))
+                Text(
+                    stringResource(R.string.dateField_afterDeadline),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = warning.onContainer,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun PartButton(
     text: String,
     isSet: Boolean,
@@ -167,17 +222,24 @@ private fun PartButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scheme = MaterialTheme.colorScheme
     OutlinedButton(
         onClick = onClick,
+        shape = MarkedShapes.pill,
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (isSet) RemftTheme.tonal.level2 else Color.Transparent,
+            contentColor = if (isSet) scheme.onSurface else scheme.primary,
+        ),
+        border = if (isSet) null else BorderStroke(1.dp, scheme.outline),
         modifier = modifier.heightIn(min = 48.dp).semantics { contentDescription = "$description, $text" }.testTag(tag),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Space.x3),
+        contentPadding = PaddingValues(horizontal = Space.x3),
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(Space.x2))
         Text(
             text,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = if (isSet) FontWeight.SemiBold else null,
-            color = if (isSet) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f),
         )
     }
@@ -221,22 +283,26 @@ fun TaskDatePickerDialog(
             },
         )
     }
+    val colors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
+            RemftTextButton(
+                stringResource(R.string.tasks_pickerOk),
                 onClick = {
                     val millis = state.selectedDateMillis
                     if (millis == null) onDismiss() else onPicked(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate())
                 },
                 modifier = Modifier.testTag("date-picker-ok"),
-            ) { Text(stringResource(R.string.tasks_pickerOk)) }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+            RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss)
         },
+        shape = MarkedShapes.large,
+        colors = colors,
     ) {
-        DatePicker(state = state)
+        DatePicker(state = state, colors = colors)
     }
 }
 
@@ -249,16 +315,77 @@ fun TaskTimePickerDialog(
     onPicked: (LocalTime) -> Unit,
 ) {
     val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = is24Hour)
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = { onPicked(LocalTime.of(state.hour, state.minute)) }, modifier = Modifier.testTag("time-picker-ok")) {
-                Text(stringResource(R.string.tasks_pickerOk))
-            }
+            RemftTextButton(
+                stringResource(R.string.tasks_pickerOk),
+                onClick = { onPicked(LocalTime.of(state.hour, state.minute)) },
+                modifier = Modifier.testTag("time-picker-ok"),
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+            RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss)
         },
         text = { TimePicker(state = state) },
     )
+}
+
+@Preview(name = "Date and time field light")
+@Composable
+private fun DateTimeFieldLightPreview() {
+    RemftTheme(darkTheme = false) { DateTimeFieldPreviewContent() }
+}
+
+@Preview(name = "Date and time field dark")
+@Composable
+private fun DateTimeFieldDarkPreview() {
+    RemftTheme(darkTheme = true) { DateTimeFieldPreviewContent() }
+}
+
+@Composable
+private fun DateTimeFieldPreviewContent() {
+    PreviewSurface {
+        Column(verticalArrangement = Arrangement.spacedBy(Space.x3)) {
+            DateTimeFieldContent(
+                tag = "preview-due",
+                label = "Due",
+                icon = Icons.Outlined.CalendarToday,
+                dateText = "Sun, 22 Nov 2026",
+                timeText = "6:30 pm",
+                isSet = true,
+                afterDeadline = false,
+                clearDescription = "Clear due",
+                onClear = {},
+                onPickDate = {},
+                onPickTime = {},
+            )
+            DateTimeFieldContent(
+                tag = "preview-remind",
+                label = "Remind",
+                icon = Icons.Outlined.Schedule,
+                dateText = "Add date",
+                timeText = "Add time",
+                isSet = false,
+                afterDeadline = false,
+                clearDescription = "Clear reminder",
+                onClear = {},
+                onPickDate = {},
+                onPickTime = {},
+            )
+            DateTimeFieldContent(
+                tag = "preview-late",
+                label = "Remind",
+                icon = Icons.Outlined.Schedule,
+                dateText = "Mon, 23 Nov 2026",
+                timeText = "9:00 am",
+                isSet = true,
+                afterDeadline = true,
+                clearDescription = "Clear reminder",
+                onClear = {},
+                onPickDate = {},
+                onPickTime = {},
+            )
+        }
+    }
 }

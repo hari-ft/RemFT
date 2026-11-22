@@ -108,7 +108,8 @@ private fun TaskRowContent(
     val recurring = !completed && task.isRecurring
     val priority = TaskPriority.parse(task.priority)
     val urgentAlarm = task.isUrgent && !completed && (task.dueAt != null || task.remindAt != null)
-    val hasChips = due != null || muted || recurring || (priority != TaskPriority.None && !completed) || urgentAlarm
+    val showPriority = !completed && priority.showsChip()
+    val hasChips = due != null || muted || recurring || showPriority || urgentAlarm
     Row(
         Modifier
             .fillMaxWidth()
@@ -147,11 +148,13 @@ private fun TaskRowContent(
                             modifier = Modifier.testTag("task-due-${task.id}"),
                         )
                     }
-                    if (priority != TaskPriority.None && !completed) {
-                        PriorityChip(
-                            stringResource(R.string.task_prioritySemantic).fill("priority" to stringResource(priorityLabel(task.priority))),
-                            strong = priority == TaskPriority.High || priority == TaskPriority.Urgent,
-                        )
+                    if (showPriority) {
+                        val text = stringResource(R.string.task_prioritySemantic).fill("priority" to stringResource(priorityLabel(task.priority)))
+                        if (priority == TaskPriority.Low) {
+                            StatusChip(text, ChipTone.File, modifier = Modifier.testTag("task-priority-${task.id}"))
+                        } else {
+                            PriorityChip(text, strong = true, modifier = Modifier.testTag("task-priority-${task.id}"))
+                        }
                     }
                     if (urgentAlarm) StatusChip(stringResource(R.string.task_urgent), ChipTone.Urgent, icon = Icons.Filled.NotificationImportant)
                     if (recurring) RepeatChip(stringResource(R.string.repeat_badgeTooltip))
@@ -168,3 +171,5 @@ private fun TaskRowContent(
         )
     }
 }
+
+fun TaskPriority.showsChip(): Boolean = this != TaskPriority.None && this != TaskPriority.Medium

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.CalendarViewMonth
 import androidx.compose.material.icons.outlined.CalendarViewWeek
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Checkbox
@@ -44,6 +45,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -197,10 +199,11 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                                     if (searchOpen) searchQuery = ""
                                     searchOpen = !searchOpen
                                 },
+                                colors = homeFilterToggleColors(searchOpen),
                                 modifier = Modifier.testTag("home-search-toggle"),
                             ) {
                                 Icon(
-                                    if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search,
+                                    if (searchOpen) Icons.Outlined.Close else Icons.Outlined.FilterList,
                                     contentDescription = stringResource(if (searchOpen) R.string.common_close else R.string.common_search),
                                 )
                             }
@@ -377,6 +380,16 @@ fun HomeDock(modifier: Modifier = Modifier, bottom: Dp = 0.dp, content: @Composa
             verticalAlignment = Alignment.Top,
             content = content,
         )
+    }
+}
+
+@Composable
+private fun homeFilterToggleColors(active: Boolean): IconButtonColors {
+    val scheme = MaterialTheme.colorScheme
+    return if (active) {
+        IconButtonDefaults.iconButtonColors(containerColor = scheme.primaryContainer, contentColor = scheme.onPrimaryContainer)
+    } else {
+        IconButtonDefaults.iconButtonColors(contentColor = scheme.onSurfaceVariant)
     }
 }
 
