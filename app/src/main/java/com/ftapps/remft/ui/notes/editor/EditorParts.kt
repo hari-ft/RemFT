@@ -56,6 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -207,12 +208,17 @@ fun FindReplaceBar(
     var needle by remember { mutableStateOf("") }
     var replacement by remember { mutableStateOf("") }
     var index by remember { mutableIntStateOf(0) }
+    var jumps by remember { mutableIntStateOf(0) }
     val matches = remember(text, needle) { FindReplace.matches(text, needle) }
+    val current = if (matches.isEmpty()) 0 else index.coerceIn(0, matches.size - 1)
+    val latestMatches by rememberUpdatedState(matches)
+    val select by rememberUpdatedState(onSelect)
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    LaunchedEffect(matches, index) {
-        val at = matches.getOrNull(index.coerceIn(0, (matches.size - 1).coerceAtLeast(0)))
-        if (at != null) onSelect(at, at + needle.length)
+    LaunchedEffect(needle, index, jumps) {
+        val found = latestMatches
+        val at = found.getOrNull(index.coerceIn(0, (found.size - 1).coerceAtLeast(0)))
+        if (at != null) select(at, at + needle.length)
     }
     Column(
         Modifier
@@ -237,15 +243,15 @@ fun FindReplaceBar(
                 )
                 Text(
                     if (needle.isEmpty()) "" else if (matches.isEmpty()) stringResource(R.string.note_noMatches) else
-                        stringResource(R.string.note_matchCount).fill("index" to index + 1, "total" to matches.size),
+                        stringResource(R.string.note_matchCount).fill("index" to current + 1, "total" to matches.size),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = Space.x2).testTag("find-count"),
                 )
-                RemftIconButton(label = stringResource(R.string.common_previous), onClick = { if (matches.isNotEmpty()) index = (index - 1 + matches.size) % matches.size }) {
+                RemftIconButton(label = stringResource(R.string.common_previous), onClick = { if (matches.isNotEmpty()) index = (current - 1 + matches.size) % matches.size }) {
                     Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.common_previous))
                 }
-                RemftIconButton(label = stringResource(R.string.common_next), onClick = { if (matches.isNotEmpty()) index = (index + 1) % matches.size }) {
+                RemftIconButton(label = stringResource(R.string.common_next), onClick = { if (matches.isNotEmpty()) index = (current + 1) % matches.size }, modifier = Modifier.testTag("find-next")) {
                     Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.common_next))
                 }
                 RemftIconButton(label = stringResource(R.string.notes_findClose), onClick = onClose, modifier = Modifier.testTag("find-close")) {
@@ -261,11 +267,13 @@ fun FindReplaceBar(
                         modifier = Modifier.weight(1f).testTag("replace-field"),
                     )
                     RemftTextButton(stringResource(R.string.note_replace), onClick = {
-                        matches.getOrNull(index)?.let { at ->
+                        matches.getOrNull(current)?.let { at ->
                             val edit = FindReplace.replaceAt(text, at, needle.length, replacement)
                             onReplaceText(edit.text, edit.selection)
+                            index = if (matches.size > 1) current % (matches.size - 1) else 0
+                            jumps++
                         }
-                    })
+                    }, modifier = Modifier.testTag("replace-one"))
                     RemftTextButton(
                         stringResource(R.string.note_replaceAll),
                         onClick = { if (matches.isNotEmpty()) onReplaceText(FindReplace.replaceAll(text, needle, replacement), 0) },

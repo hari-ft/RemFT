@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -131,12 +132,17 @@ class NotesRepository(
         deleted
     }
 
+    suspend fun <T> outliving(block: suspend () -> T): T = background.async { block() }.await()
+
     fun detached(block: suspend () -> Unit) {
         background.launch { runCatching { block() } }
     }
 
-    fun deleteInBackground(id: String) {
-        background.launch { runCatching { delete(id) } }
+    fun deleteInBackground(id: String, then: suspend () -> Unit = {}) {
+        background.launch {
+            runCatching { delete(id) }
+            then()
+        }
     }
 
     suspend fun attachmentFile(fileId: String): File? = withContext(Dispatchers.IO) {

@@ -875,4 +875,6 @@
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <string name="noteLeave_body">{name} has changes that are not saved to the file yet.</string>
+    <string name="noteLeave_discard">Discard</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.notes.editor
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -119,12 +120,16 @@ fun NoteEditorScreen(
     onBack: () -> Unit,
 ) {
     val snackbar = remember { SnackbarHostState() }
+    var confirmLeave by rememberSaveable { mutableStateOf(false) }
+    val unsavedExternal = viewModel.isExternal && viewModel.dirty
+    val requestClose = { if (viewModel.isExternal && viewModel.dirty) confirmLeave = true else onBack() }
     LaunchedEffect(viewModel.closed) { if (viewModel.closed) onBack() }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.flush() }
+    if (viewModel.isExternal) BackHandler(onBack = requestClose)
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = { EditorTopBar(viewModel, exportViewModel, onBack) },
+        topBar = { EditorTopBar(viewModel, exportViewModel, requestClose) },
         modifier = Modifier.testTag("screen-note-editor"),
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).imePadding()) {
@@ -142,6 +147,49 @@ fun NoteEditorScreen(
     }
     NoteExportHost(exportViewModel, snackbar)
     ExternalMessages(viewModel, snackbar)
+    if (confirmLeave && unsavedExternal) {
+        LeaveExternalDialog(
+            viewModel,
+            onSave = { asNote ->
+                confirmLeave = false
+                viewModel.saveExternalAndClose(asNote)
+            },
+            onDiscard = {
+                confirmLeave = false
+                onBack()
+            },
+            onCancel = { confirmLeave = false },
+        )
+    }
+}
+
+@Composable
+private fun LeaveExternalDialog(viewModel: NoteEditorViewModel, onSave: (Boolean) -> Unit, onDiscard: () -> Unit, onCancel: () -> Unit) {
+    val session by viewModel.externalSession.collectAsStateWithLifecycle()
+    val writable = session?.writable == true
+    val name = session?.handle?.displayName.orEmpty()
+    RemftDialog(
+        onDismissRequest = onCancel,
+        modifier = Modifier.testTag("leave-dialog"),
+        title = stringResource(R.string.note_extUnsaved),
+        text = { Text(stringResource(R.string.noteLeave_body).fill("name" to name), style = MaterialTheme.typography.bodyMedium) },
+        confirmButton = {
+            Row {
+                RemftTextButton(
+                    stringResource(R.string.noteLeave_discard),
+                    onClick = onDiscard,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("leave-discard"),
+                )
+                RemftTextButton(
+                    stringResource(if (writable) R.string.note_extSave else R.string.note_extSaveAsNote),
+                    onClick = { onSave(!writable) },
+                    modifier = Modifier.testTag("leave-save"),
+                )
+            }
+        },
+        dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onCancel, modifier = Modifier.testTag("leave-cancel")) },
+    )
 }
 
 @Composable

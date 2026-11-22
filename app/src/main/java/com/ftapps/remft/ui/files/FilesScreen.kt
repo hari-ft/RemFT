@@ -120,6 +120,19 @@ object FileSort {
         }
     }
 
+    fun folderComparator(state: SortState): Comparator<FolderEntity> {
+        val byName = Comparator<FolderEntity> { a, b -> Fold.searchText(a.name).compareTo(Fold.searchText(b.name)) }
+        val ordered = when (state.id) {
+            "name" -> state.comparator(byName)
+            "size" -> byName
+            else -> state.comparator(Comparator { a, b -> a.createdAt.orEmpty().compareTo(b.createdAt.orEmpty()) })
+        }
+        return Comparator { a, b ->
+            val result = ordered.compare(a, b)
+            if (result != 0) result else b.id.compareTo(a.id)
+        }
+    }
+
     fun label(id: String): Int = when (id) {
         "name" -> R.string.sort_fileName
         "size" -> R.string.sort_fileSize
@@ -295,6 +308,7 @@ fun FilesScreen(
                         folders = folders,
                         workspaceFiles = workspaceFiles,
                         jobs = jobs,
+                        sort = sort,
                         query = query,
                         format = format,
                         highlighted = highlighted,
@@ -354,6 +368,7 @@ private fun FoldersLayer(
     folders: List<FolderEntity>,
     workspaceFiles: List<FileRowEntity>,
     jobs: List<UploadJob>,
+    sort: SortState,
     query: String,
     format: DateFormatId,
     highlighted: String?,
@@ -364,7 +379,9 @@ private fun FoldersLayer(
     val scope = rememberCoroutineScope()
     val folderId = trail.lastOrNull()?.id
     val level = folders.filter { it.parentId == folderId && SearchMatch.matchesSearch(query, listOf(it.name)) }
+        .sortedWith(FileSort.folderComparator(sort))
     val files = workspaceFiles.filter { it.folderId == folderId && SearchMatch.matchesSearch(query, listOf(it.name)) }
+        .sortedWith(FileSort.comparator(sort))
     val uploads = jobs.filter { it.target.targetType == "workspace" && it.target.folderId == folderId }
     val pickFailed = stringResource(R.string.file_pickFailed)
     val moveText = stringResource(R.string.files_moveTo)
