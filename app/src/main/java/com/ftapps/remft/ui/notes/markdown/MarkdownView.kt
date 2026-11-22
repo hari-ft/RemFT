@@ -51,6 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -121,6 +122,7 @@ import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.SemanticColor
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.commonmark.ext.footnotes.FootnoteDefinition
@@ -176,6 +178,7 @@ fun markdownDocument(source: String): MarkdownDocument {
 @Composable
 fun rememberMarkdownDocument(source: String): MarkdownDocument? {
     val document by produceState<MarkdownDocument?>(initialValue = null, source) {
+        if (value != null && source.length > PARSE_DEBOUNCE_ABOVE) delay(PARSE_DEBOUNCE_MS)
         value = withContext(Dispatchers.Default) { runCatching { markdownDocument(source) }.getOrNull() }
     }
     return document
@@ -279,10 +282,11 @@ private fun HeadingBlock(block: Heading, foldable: ((Int) -> Unit)?, collapsed: 
     Row(verticalAlignment = Alignment.CenterVertically) {
         InlineText(block, headingStyle(block.level), Modifier.weight(1f).semantics { heading() })
         if (foldable != null) {
-            RemftIconButton(label = stringResource(R.string.note_outline), onClick = { foldable(index) }, modifier = Modifier.testTag("fold-$index")) {
+            val foldLabel = stringResource(if (collapsed) R.string.lownt_sectionExpand else R.string.lownt_sectionCollapse)
+            RemftIconButton(label = foldLabel, onClick = { foldable(index) }, modifier = Modifier.testTag("fold-$index")) {
                 Icon(
                     if (collapsed) Icons.Outlined.ExpandMore else Icons.Outlined.ExpandLess,
-                    contentDescription = stringResource(R.string.note_outline),
+                    contentDescription = foldLabel,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -569,6 +573,12 @@ fun CodePanel(code: String, info: String?) {
     val clipboard = LocalClipboard.current
     val clipScope = rememberCoroutineScope()
     var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(COPIED_RESET_MS)
+            copied = false
+        }
+    }
     val shape = MarkedShapes.medium
     Column(
         Modifier
@@ -743,6 +753,7 @@ private fun TableView(node: TableBlock) {
                     Modifier
                         .background(if (header) headerBackground else Color.Transparent)
                         .border(0.5.dp, border)
+                        .testTag("table-cell")
                         .padding(horizontal = Space.x3, vertical = Space.x2),
                     contentAlignment = when (cell?.alignment) {
                         TableCell.Alignment.CENTER -> Alignment.TopCenter
@@ -775,9 +786,9 @@ private fun TableGrid(columns: Int, modifier: Modifier = Modifier, content: @Com
             val c = i % columns
             widths[c] = maxOf(widths[c], minOf(maxCell, m.maxIntrinsicWidth(Constraints.Infinity)))
         }
-        val placeables = measurables.mapIndexed { i, m -> m.measure(Constraints.fixedWidth(widths[i % columns])) }
         val heights = IntArray(rows)
-        placeables.forEachIndexed { i, p -> heights[i / columns] = maxOf(heights[i / columns], p.height) }
+        measurables.forEachIndexed { i, m -> heights[i / columns] = maxOf(heights[i / columns], m.maxIntrinsicHeight(widths[i % columns])) }
+        val placeables = measurables.mapIndexed { i, m -> m.measure(Constraints.fixed(widths[i % columns], heights[i / columns])) }
         val totalWidth = widths.sum()
         val totalHeight = heights.sum()
         layout(totalWidth.coerceAtMost(constraints.maxWidth.takeIf { it != Constraints.Infinity } ?: totalWidth).coerceAtLeast(totalWidth), totalHeight) {
@@ -931,3 +942,7 @@ private fun MarkdownLightPreview() {
 private fun MarkdownDarkPreview() {
     RemftTheme(darkTheme = true) { MarkdownPreviewContent() }
 }
+
+const val COPIED_RESET_MS = 2_000L
+private const val PARSE_DEBOUNCE_ABOVE = 20_000
+private const val PARSE_DEBOUNCE_MS = 300L

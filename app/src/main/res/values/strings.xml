@@ -899,4 +899,6 @@
     </plurals>
     <string name="lowui_deleteFolderBody">{folders} and {files} will be deleted. This cannot be undone.</string>
     <string name="lowui_deleteFolderBodyBin">{folders} and {files} go to the recycle bin.</string>
+    <string name="lownt_sectionCollapse">Collapse section</string>
+    <string name="lownt_sectionExpand">Expand section</string>
 </resources>

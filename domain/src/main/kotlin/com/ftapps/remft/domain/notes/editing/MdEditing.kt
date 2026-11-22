@@ -200,15 +200,19 @@ object MdEditing {
     fun htmlToMarkdown(html: String): String {
         val options = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
         var out = html
-        out = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE).replace(out, "\n")
-        out = Regex("<h([1-6])[^>]*>(.*?)</h\\1>", options).replace(out) { "#".repeat(it.groupValues[1].toInt()) + " " + it.groupValues[2] + "\n" }
-        out = Regex("<(strong|b)[^>]*>(.*?)</\\1>", options).replace(out) { "**${it.groupValues[2]}**" }
-        out = Regex("<(em|i)[^>]*>(.*?)</\\1>", options).replace(out) { "*${it.groupValues[2]}*" }
-        out = Regex("<code[^>]*>(.*?)</code>", options).replace(out) { "`${it.groupValues[1]}`" }
-        out = Regex("<a[^>]*href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", options).replace(out) { "[${it.groupValues[2]}](${it.groupValues[1]})" }
-        out = Regex("<li[^>]*>(.*?)</li>", options).replace(out) { "- ${it.groupValues[1]}\n" }
-        out = Regex("</?(ul|ol|p|div)[^>]*>", RegexOption.IGNORE_CASE).replace(out, "\n")
-        out = out.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
+        out = Regex("<!--.*?-->", options).replace(out, "")
+        out = Regex("<(head|style|script|title)\\b[^>]*>.*?</\\1\\s*>", options).replace(out, "")
+        out = Regex("<br\\b[^>]*>", RegexOption.IGNORE_CASE).replace(out, "\n")
+        out = Regex("<h([1-6])\\b[^>]*>(.*?)</h\\1\\s*>", options).replace(out) { "#".repeat(it.groupValues[1].toInt()) + " " + it.groupValues[2] + "\n" }
+        out = Regex("<(strong|b)\\b[^>]*>(.*?)</\\1\\s*>", options).replace(out) { "**${it.groupValues[2]}**" }
+        out = Regex("<(em|i)\\b[^>]*>(.*?)</\\1\\s*>", options).replace(out) { "*${it.groupValues[2]}*" }
+        out = Regex("<code\\b[^>]*>(.*?)</code\\s*>", options).replace(out) { "`${it.groupValues[1]}`" }
+        out = Regex("<a\\b[^>]*href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a\\s*>", options).replace(out) { "[${it.groupValues[2]}](${it.groupValues[1]})" }
+        out = Regex("<li\\b[^>]*>(.*?)</li\\s*>", options).replace(out) { "- ${it.groupValues[1]}\n" }
+        out = Regex("</?(ul|ol|p|div)\\b[^>]*>", RegexOption.IGNORE_CASE).replace(out, "\n")
+        out = Regex("<[^>]*>").replace(out, "")
+        out = out.replace("&nbsp;", " ").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
+            .replace("&#39;", "'").replace("&apos;", "'").replace("&amp;", "&")
         return Regex("\n{3,}").replace(out, "\n\n").trim()
     }
 }

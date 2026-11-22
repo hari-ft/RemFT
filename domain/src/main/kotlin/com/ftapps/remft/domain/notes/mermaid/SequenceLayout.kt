@@ -35,6 +35,9 @@ data class SequenceLayout(
         const val SELF_LOOP_HEIGHT = 34.0
         const val MARGIN = 12.0
         const val LIFELINE_TAIL = 20.0
+        const val SELF_TEXT_GAP = 8.0
+        const val SELF_TEXT_MAX = 220.0
+        const val MESSAGE_TEXT_PAD = 8.0
 
         fun of(seq: MermaidSequence, measure: MermaidMeasure): SequenceLayout {
             if (seq.participants.isEmpty()) return SequenceLayout(emptyList(), emptyList(), DiagramSize.Zero)
@@ -47,22 +50,46 @@ data class SequenceLayout(
                 headerSizes[p.id] = header
                 columnWidths[p.id] = max(header.width, MIN_COLUMN)
             }
+            val ids = seq.participants.map { it.id }
+            val index = ids.withIndex().associate { (i, id) -> id to i }
+            val selfReach = DoubleArray(ids.size)
             for (m in seq.messages) {
                 if (!m.isSelf) continue
-                val caption = measure.measure(m.text).width + SELF_LOOP_HEIGHT + 24
-                columnWidths[m.from] = max(columnWidths[m.from] ?: 0.0, caption)
+                val i = index[m.from] ?: continue
+                val caption = measure.measure(m.text).width
+                columnWidths[m.from] = max(columnWidths[m.from] ?: 0.0, caption + SELF_LOOP_HEIGHT + 24)
+                selfReach[i] = max(selfReach[i], SELF_LOOP_HEIGHT + SELF_TEXT_GAP + minOf(caption, SELF_TEXT_MAX) + SELF_TEXT_GAP)
             }
+            val rightHalf = DoubleArray(ids.size) { max(columnWidths.getValue(ids[it]) / 2, selfReach[it]) }
 
             val headerHeight = headerSizes.values.fold(0.0) { a, s -> max(a, s.height) }
 
-            val centres = HashMap<String, Double>()
-            var x = MARGIN
-            for (p in seq.participants) {
-                val width = columnWidths.getValue(p.id)
-                centres[p.id] = x + width / 2
-                x += width + COLUMN_GAP
+            val extra = DoubleArray(ids.size)
+            fun positions(): DoubleArray {
+                val out = DoubleArray(ids.size)
+                for (i in ids.indices) {
+                    val leftHalf = columnWidths.getValue(ids[i]) / 2
+                    out[i] = if (i == 0) MARGIN + leftHalf else out[i - 1] + rightHalf[i - 1] + COLUMN_GAP + leftHalf + extra[i]
+                }
+                return out
             }
-            val totalWidth = x - COLUMN_GAP + MARGIN
+            var xs = positions()
+            for (m in seq.messages) {
+                if (m.isSelf) continue
+                val a = index[m.from] ?: continue
+                val b = index[m.to] ?: continue
+                val lo = minOf(a, b)
+                val hi = maxOf(a, b)
+                val needed = measure.measure(m.text).width + MESSAGE_TEXT_PAD * 2
+                val deficit = needed - (xs[hi] - xs[lo])
+                if (deficit > 0) {
+                    extra[hi] += deficit
+                    xs = positions()
+                }
+            }
+            val centres = HashMap<String, Double>()
+            ids.forEachIndexed { i, id -> centres[id] = xs[i] }
+            val totalWidth = xs.last() + rightHalf.last() + MARGIN
 
             val lines = ArrayList<SeqMessageLine>()
             var y = MARGIN + headerHeight + ROW_GAP
@@ -82,7 +109,7 @@ data class SequenceLayout(
                             text = m.text,
                             dotted = m.dotted,
                             arrow = m.arrow,
-                            textAnchor = DiagramPoint(fromX + SELF_LOOP_HEIGHT + 8, y + 4),
+                            textAnchor = DiagramPoint(fromX + SELF_LOOP_HEIGHT + SELF_TEXT_GAP, y + 4),
                             isSelf = true,
                         ),
                     )

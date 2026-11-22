@@ -62,6 +62,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,21 +73,26 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.notes.NoteText
+import com.ftapps.remft.domain.notes.TextCounts
 import com.ftapps.remft.domain.notes.editing.MdActionId
 import com.ftapps.remft.domain.notes.editing.MdActions
 import com.ftapps.remft.domain.notes.markdown.Outline
@@ -114,7 +120,10 @@ import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -269,6 +278,7 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
     val scope = rememberCoroutineScope()
     val session by viewModel.externalSession.collectAsStateWithLifecycle()
     val pickFailed = stringResource(R.string.file_pickFailed)
+    val deletedTemplate = stringResource(R.string.note_deleted)
     val attachLauncher = rememberAttachLauncher(
         onPicked = { picks ->
             scope.launch {
@@ -370,7 +380,7 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
                     stringResource(R.string.common_delete),
                     onClick = {
                         confirmDelete = false
-                        viewModel.delete()
+                        viewModel.delete(deletedTemplate.fill("title" to viewModel.titleForExport()))
                     },
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.testTag("note-delete-confirm"),
@@ -395,11 +405,75 @@ private fun SaveIndicator(state: SaveState, external: Boolean, dirty: Boolean, m
         text,
         style = MaterialTheme.typography.labelMedium,
         color = if (state == SaveState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 1,
+        maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.End,
         modifier = modifier.padding(horizontal = Space.x2).semantics { liveRegion = LiveRegionMode.Polite }.testTag("save-indicator"),
     )
+}
+
+@Composable
+private fun saveLabelReserve(): Int {
+    val measurer = rememberTextMeasurer()
+    val style = MaterialTheme.typography.labelMedium
+    val labels = listOf(
+        stringResource(R.string.note_saving),
+        stringResource(R.string.note_saved),
+        stringResource(R.string.note_saveFailed),
+        stringResource(R.string.note_extUnsaved),
+    )
+    val padding = with(LocalDensity.current) { (Space.x2 * 2).roundToPx() }
+    return remember(labels, style, measurer) { labels.maxOf { measurer.measure(it, style, maxLines = 1, softWrap = false).size.width } } + padding
+}
+
+@Composable
+private fun ModeBar(
+    segments: @Composable () -> Unit,
+    status: @Composable () -> Unit,
+    actions: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val reserve = saveLabelReserve()
+    Layout(contents = listOf(segments, status, actions), modifier = modifier) { (segmentParts, statusParts, actionParts), constraints ->
+        val width = constraints.maxWidth
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val segment = segmentParts.first().measure(loose)
+        val actionRow = actionParts.first().measure(loose)
+        val oneLine = segment.width + actionRow.width + reserve <= width
+        val actionsBesideSegments = segment.width + actionRow.width <= width
+        val statusWidth = when {
+            oneLine -> width - segment.width - actionRow.width
+            actionsBesideSegments -> width
+            else -> (width - actionRow.width).coerceAtLeast(0)
+        }
+        val label = statusParts.first().measure(Constraints(minWidth = statusWidth, maxWidth = statusWidth))
+        when {
+            oneLine -> {
+                val height = maxOf(segment.height, actionRow.height, label.height)
+                layout(width, height) {
+                    segment.placeRelative(0, (height - segment.height) / 2)
+                    label.placeRelative(segment.width, (height - label.height) / 2)
+                    actionRow.placeRelative(width - actionRow.width, (height - actionRow.height) / 2)
+                }
+            }
+            actionsBesideSegments -> {
+                val first = maxOf(segment.height, actionRow.height)
+                layout(width, first + label.height) {
+                    segment.placeRelative(0, (first - segment.height) / 2)
+                    actionRow.placeRelative(width - actionRow.width, (first - actionRow.height) / 2)
+                    label.placeRelative(0, first)
+                }
+            }
+            else -> {
+                val second = maxOf(actionRow.height, label.height)
+                layout(width, segment.height + second) {
+                    segment.placeRelative(0, 0)
+                    label.placeRelative(0, segment.height + (second - label.height) / 2)
+                    actionRow.placeRelative(width - actionRow.width, segment.height + (second - actionRow.height) / 2)
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -443,7 +517,7 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
     val scope = rememberCoroutineScope()
     var collapsed by rememberSaveable { mutableStateOf(setOf<Int>()) }
     val document = rememberMarkdownDocument(viewModel.source.text)
-    val counts = remember(viewModel.source.text) { NoteText.countText(viewModel.source.text) }
+    val counts = rememberCounts(viewModel.source.text)
     val countText = stringResource(R.string.note_counts).fill("words" to counts.words, "characters" to counts.characters)
     val slashToken = remember(viewModel.source.text, viewModel.source.selection) {
         if (viewModel.source.selection.collapsed) MdActions.slashTokenAt(viewModel.source.text, viewModel.source.selection.start) else null
@@ -491,56 +565,63 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
         val wide = maxWidth >= Breakpoints.splitView
         Column(Modifier.fillMaxSize()) {
             if (viewModel.isExternal) ExternalBand(viewModel)
-            Row(Modifier.fillMaxWidth().padding(horizontal = Space.x3, vertical = Space.x1), verticalAlignment = Alignment.CenterVertically) {
-                val segmentColors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    activeBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    inactiveContainerColor = RemftTheme.tonal.level1,
-                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                )
-                SingleChoiceSegmentedButtonRow {
-                    EditorMode.entries.forEachIndexed { index, mode ->
-                        SegmentedButton(
-                            selected = viewModel.mode == mode,
-                            onClick = { viewModel.mode = mode },
-                            shape = SegmentedButtonDefaults.itemShape(index, EditorMode.entries.size, CircleShape),
-                            colors = segmentColors,
-                            modifier = Modifier.testTag("mode-${mode.name.lowercase()}"),
-                        ) {
-                            Text(
-                                stringResource(if (mode == EditorMode.Source) R.string.note_modeSource else R.string.note_modeReading),
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
-                                softWrap = false,
-                            )
+            ModeBar(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Space.x3, vertical = Space.x1).testTag("mode-bar"),
+                segments = {
+                    val segmentColors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        activeBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        inactiveContainerColor = RemftTheme.tonal.level1,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    )
+                    SingleChoiceSegmentedButtonRow {
+                        EditorMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = viewModel.mode == mode,
+                                onClick = { viewModel.mode = mode },
+                                shape = SegmentedButtonDefaults.itemShape(index, EditorMode.entries.size, CircleShape),
+                                colors = segmentColors,
+                                modifier = Modifier.testTag("mode-${mode.name.lowercase()}"),
+                            ) {
+                                Text(
+                                    stringResource(if (mode == EditorMode.Source) R.string.note_modeSource else R.string.note_modeReading),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
+                            }
                         }
                     }
-                }
-                SaveIndicator(viewModel.saveState, viewModel.isExternal, viewModel.dirty, Modifier.weight(1f))
-                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
-                    RemftIconButton(label = stringResource(R.string.note_outline), onClick = { outline = true }, modifier = Modifier.testTag("open-outline")) {
-                        Icon(Icons.AutoMirrored.Outlined.Toc, contentDescription = stringResource(R.string.note_outline))
-                    }
-                    if (viewModel.mode == EditorMode.Source) {
-                        RemftIconButton(label = stringResource(R.string.note_find), onClick = {
-                            finding = !finding
-                            replacing = finding
-                        }, modifier = Modifier.testTag("open-find")) {
-                            Icon(Icons.Outlined.FindReplace, contentDescription = stringResource(R.string.note_find))
+                },
+                status = { SaveIndicator(viewModel.saveState, viewModel.isExternal, viewModel.dirty) },
+                actions = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+                            RemftIconButton(label = stringResource(R.string.note_outline), onClick = { outline = true }, modifier = Modifier.testTag("open-outline")) {
+                                Icon(Icons.AutoMirrored.Outlined.Toc, contentDescription = stringResource(R.string.note_outline))
+                            }
+                            if (viewModel.mode == EditorMode.Source) {
+                                RemftIconButton(label = stringResource(R.string.note_find), onClick = {
+                                    finding = !finding
+                                    replacing = finding
+                                }, modifier = Modifier.testTag("open-find")) {
+                                    Icon(Icons.Outlined.FindReplace, contentDescription = stringResource(R.string.note_find))
+                                }
+                            }
+                            if (wide) {
+                                RemftIconButton(label = stringResource(if (split) R.string.note_splitOff else R.string.note_splitOn), onClick = { split = !split }, modifier = Modifier.testTag("toggle-split")) {
+                                    Icon(Icons.Outlined.VerticalSplit, contentDescription = stringResource(if (split) R.string.note_splitOff else R.string.note_splitOn))
+                                }
+                                RemftIconButton(label = stringResource(if (focusMode) R.string.note_focusOff else R.string.note_focusOn), onClick = { focusMode = !focusMode }, modifier = Modifier.testTag("toggle-focus")) {
+                                    Icon(Icons.Outlined.CenterFocusStrong, contentDescription = stringResource(if (focusMode) R.string.note_focusOff else R.string.note_focusOn))
+                                }
+                            }
                         }
                     }
-                    if (wide) {
-                        RemftIconButton(label = stringResource(if (split) R.string.note_splitOff else R.string.note_splitOn), onClick = { split = !split }, modifier = Modifier.testTag("toggle-split")) {
-                            Icon(Icons.Outlined.VerticalSplit, contentDescription = stringResource(if (split) R.string.note_splitOff else R.string.note_splitOn))
-                        }
-                        RemftIconButton(label = stringResource(if (focusMode) R.string.note_focusOff else R.string.note_focusOn), onClick = { focusMode = !focusMode }, modifier = Modifier.testTag("toggle-focus")) {
-                            Icon(Icons.Outlined.CenterFocusStrong, contentDescription = stringResource(if (focusMode) R.string.note_focusOff else R.string.note_focusOn))
-                        }
-                    }
-                }
-            }
+                },
+            )
             if (finding && viewModel.mode == EditorMode.Source) {
                 FindReplaceBar(
                     text = viewModel.source.text,
@@ -675,3 +756,18 @@ private fun smartPaste(context: android.content.Context, viewModel: NoteEditorVi
     viewModel.applyEdit(com.ftapps.remft.domain.notes.editing.MdEditing.pasteOverSelection(viewModel.source.text, selection.min, selection.max, pasted))
     return true
 }
+
+@Composable
+private fun rememberCounts(text: String): TextCounts {
+    val small = text.length <= COUNT_NOW_LIMIT
+    val now = remember(text) { if (small) NoteText.countText(text) else null }
+    val later by produceState<TextCounts?>(null, text) {
+        if (small) return@produceState
+        delay(COUNT_DEBOUNCE_MS)
+        value = withContext(Dispatchers.Default) { NoteText.countText(text) }
+    }
+    return now ?: later ?: TextCounts(0, text.length)
+}
+
+private const val COUNT_NOW_LIMIT = 20_000
+private const val COUNT_DEBOUNCE_MS = 400L

@@ -21,6 +21,7 @@ import com.ftapps.remft.domain.notes.editing.MdEdit
 import com.ftapps.remft.domain.notes.editing.MdEditing
 import com.ftapps.remft.domain.settings.NoteSourceStyling
 import com.ftapps.remft.domain.settings.SettingKeys
+import com.ftapps.remft.ui.tasks.TasksEnvironment
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -48,6 +49,7 @@ class NoteEditorViewModel @Inject constructor(
     private val repository: NotesRepository,
     private val external: ExternalDocumentStore,
     settings: SettingsStore,
+    private val tasks: TasksEnvironment,
 ) : ViewModel() {
     private val initialId: String? = savedState.get<String>(KEY_ID)
     val isExternal: Boolean = savedState.get<Boolean>("external") == true
@@ -245,9 +247,10 @@ class NoteEditorViewModel @Inject constructor(
         }
     }
 
-    private suspend fun write(draft: Draft, createWhenUnchanged: Boolean): String? = writeLock.withLock {
+    private suspend fun write(draft: Draft, createWhenUnchanged: Boolean, whenDeleted: Boolean = false): String? = writeLock.withLock {
         val id = storedId
-        if (deleted) return@withLock id
+        if (deleted && !whenDeleted) return@withLock id
+        if (persisted == null) return@withLock id
         if (draft == persisted && (id != null || !createWhenUnchanged)) return@withLock id
         if (id == null) {
             storedId = repository.create(draft.title, draft.markdown)
@@ -286,12 +289,14 @@ class NoteEditorViewModel @Inject constructor(
 
     suspend fun binEnabled(): Boolean = repository.binEnabled()
 
-    fun delete() {
+    fun delete(message: String) {
         debounce?.cancel()
+        val draft = Draft(title.text, source.text)
         deleted = true
         dirty = false
         viewModelScope.launch {
-            repository.outliving { writeLock.withLock { storedId?.let { repository.delete(it) } } }
+            val id = runCatching { repository.outliving { write(draft, createWhenUnchanged = false, whenDeleted = true) } }.getOrElse { storedId }
+            if (id != null) tasks.undo.post(id, message) { repository.delete(id) }
             closed = true
         }
     }

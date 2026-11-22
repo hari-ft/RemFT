@@ -26,9 +26,21 @@ object SourceTokens {
             "|(?<italic>\\*[^*\\n]+?\\*|_[^_\\n]+?_)",
     )
 
-    fun scan(text: String): List<MdToken> {
+    const val LARGE_TEXT = 200_000
+    const val WINDOW_RADIUS = 40_000
+    private const val WINDOW_STEP = 8_192
+
+    fun window(length: Int, caret: Int): IntRange? {
+        if (length <= LARGE_TEXT) return null
+        val centre = (caret.coerceIn(0, length) / WINDOW_STEP) * WINDOW_STEP
+        return (centre - WINDOW_RADIUS).coerceAtLeast(0)..(centre + WINDOW_RADIUS).coerceAtMost(length)
+    }
+
+    fun scan(text: String, window: IntRange? = null): List<MdToken> {
         val tokens = ArrayList<MdToken>()
         if (text.isEmpty()) return tokens
+        val from = window?.first ?: 0
+        val to = window?.last ?: text.length
         var offset = 0
         var line = 0
         var inFence = false
@@ -76,6 +88,14 @@ object SourceTokens {
         while (offset <= text.length) {
             val br = text.indexOf('\n', offset)
             val lineEnd = if (br == -1) text.length else br
+            if (offset > to) break
+            if (lineEnd < from) {
+                if (opensFence(text, offset, lineEnd)) inFence = !inFence
+                if (br == -1) break
+                offset = lineEnd + 1
+                line += 1
+                continue
+            }
             val content = text.substring(offset, lineEnd)
             if (fence.containsMatchIn(content)) {
                 inFence = !inFence
@@ -111,6 +131,16 @@ object SourceTokens {
             line += 1
         }
         return tokens
+    }
+
+    private const val FENCE_INDENT = " \t\u000B\u000C\r"
+
+    private fun opensFence(text: String, start: Int, end: Int): Boolean {
+        var i = start
+        while (i < end && i - start < 3 && text[i] in FENCE_INDENT) i++
+        if (i + 3 > end) return false
+        val c = text[i]
+        return (c == '`' || c == '~') && text[i + 1] == c && text[i + 2] == c
     }
 
     fun lineOf(text: String, offset: Int): Int {

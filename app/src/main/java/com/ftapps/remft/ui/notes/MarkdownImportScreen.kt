@@ -36,6 +36,7 @@ import com.ftapps.remft.ui.notes.markdown.rememberMarkdownDocument
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.Space
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -47,13 +48,28 @@ class MarkdownImportViewModel @Inject constructor(
 ) : ViewModel() {
     val document: StateFlow<ImportedMarkdown?> = external.pendingImport
 
-    suspend fun save(): String? {
-        val pending = document.value ?: return null
-        val split = NoteText.splitMarkdownTitle(pending.markdown, NoteText.fileStem(pending.name))
-        val id = runCatching { repository.create(split.title, split.body) }.getOrNull() ?: return null
+    private val saving = AtomicBoolean(false)
+
+    suspend fun save(): ImportSave {
+        if (!saving.compareAndSet(false, true)) return ImportSave.Busy
+        val pending = document.value
+        val id = pending?.let {
+            val split = NoteText.splitMarkdownTitle(it.markdown, NoteText.fileStem(it.name))
+            runCatching { repository.create(split.title, split.body) }.getOrNull()
+        }
+        if (id == null) {
+            saving.set(false)
+            return ImportSave.Failed
+        }
         external.setPendingImport(null)
-        return id
+        return ImportSave.Saved(id)
     }
+}
+
+sealed interface ImportSave {
+    data class Saved(val id: String) : ImportSave
+    data object Failed : ImportSave
+    data object Busy : ImportSave
 }
 
 @Composable
@@ -71,8 +87,11 @@ fun MarkdownImportScreen(viewModel: MarkdownImportViewModel, onBack: () -> Unit,
                     ExtendedFloatingActionButton(
                         onClick = {
                             scope.launch {
-                                val id = viewModel.save()
-                                if (id != null) onSaved(id) else snackbar.showSnackbar(failed)
+                                when (val result = viewModel.save()) {
+                                    is ImportSave.Saved -> onSaved(result.id)
+                                    ImportSave.Failed -> snackbar.showSnackbar(failed)
+                                    ImportSave.Busy -> Unit
+                                }
                             }
                         },
                         icon = { Icon(Icons.AutoMirrored.Outlined.NoteAdd, contentDescription = null) },
