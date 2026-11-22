@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.automirrored.outlined.NoteAdd
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -32,6 +33,7 @@ import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.SectionScaffold
 import com.ftapps.remft.ui.notes.markdown.MarkdownView
 import com.ftapps.remft.ui.notes.markdown.rememberMarkdownDocument
+import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.Space
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
@@ -74,7 +76,10 @@ fun MarkdownImportScreen(viewModel: MarkdownImportViewModel, onBack: () -> Unit,
                             }
                         },
                         icon = { Icon(Icons.AutoMirrored.Outlined.NoteAdd, contentDescription = null) },
-                        text = { Text(stringResource(R.string.note_mdImport)) },
+                        text = { Text(stringResource(R.string.note_mdImport), style = MaterialTheme.typography.labelLarge) },
+                        shape = MarkedShapes.fab,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.testTag("md-import-save"),
                     )
                 }

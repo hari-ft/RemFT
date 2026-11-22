@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,9 +34,9 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +56,11 @@ import com.ftapps.remft.domain.notes.mermaid.MermaidShape
 import com.ftapps.remft.domain.notes.mermaid.MermaidUnsupported
 import com.ftapps.remft.domain.notes.mermaid.SequenceLayout
 import com.ftapps.remft.domain.text.fill
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.theme.CodeStyle
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.Space
 
 @Composable
 fun MermaidDiagram(source: String, modifier: Modifier = Modifier) {
@@ -80,15 +84,15 @@ fun MermaidDiagram(source: String, modifier: Modifier = Modifier) {
 @Composable
 private fun MermaidPlaceholder(reason: String, source: String, modifier: Modifier) {
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(12.dp)
+    val shape = MarkedShapes.medium
     Column(
         modifier = modifier
-            .padding(vertical = 8.dp)
+            .padding(vertical = Space.x2)
             .fillMaxWidth()
             .clip(shape)
-            .background(scheme.surfaceContainerLow)
+            .background(RemftTheme.tonal.level0)
             .border(1.dp, scheme.outlineVariant, shape)
-            .padding(12.dp),
+            .padding(Space.x4),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
@@ -99,7 +103,7 @@ private fun MermaidPlaceholder(reason: String, source: String, modifier: Modifie
         Box(modifier = Modifier.horizontalScroll(rememberScrollState())) {
             Text(
                 text = source.trimEnd(),
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                style = CodeStyle.copy(fontSize = 12.sp, lineHeight = 18.sp),
                 color = scheme.onSurface,
                 softWrap = false,
             )
@@ -110,7 +114,12 @@ private fun MermaidPlaceholder(reason: String, source: String, modifier: Modifie
 private data class DiagramPalette(
     val nodeFill: Color,
     val nodeInk: Color,
+    val nodeStroke: Color,
+    val decisionFill: Color,
+    val decisionInk: Color,
+    val decisionStroke: Color,
     val line: Color,
+    val labelInk: Color,
     val ink: Color,
     val chip: Color,
     val lifeline: Color,
@@ -144,25 +153,31 @@ private fun MermaidCanvas(flow: MermaidFlow?, sequence: MermaidSequence?, modifi
             ?: ""
     }
 
+    val note = RemftTheme.colors.note
     val palette = DiagramPalette(
         nodeFill = scheme.primaryContainer,
         nodeInk = scheme.onPrimaryContainer,
+        nodeStroke = scheme.primary,
+        decisionFill = note.container,
+        decisionInk = note.onContainer,
+        decisionStroke = note.color,
         line = scheme.outline,
+        labelInk = scheme.onSurfaceVariant,
         ink = scheme.onSurface,
-        chip = scheme.surfaceContainerLow,
+        chip = RemftTheme.tonal.level2,
         lifeline = scheme.outlineVariant,
     )
-    val shape = RoundedCornerShape(12.dp)
+    val shape = MarkedShapes.medium
 
     Box(
         modifier = modifier
-            .padding(vertical = 8.dp)
+            .padding(vertical = Space.x2)
             .fillMaxWidth()
             .clip(shape)
-            .background(scheme.surfaceContainerLow)
-            .border(1.dp, scheme.outlineVariant, shape)
+            .background(RemftTheme.tonal.level0)
+            .border(1.dp, RemftTheme.extras.hairline, shape)
             .horizontalScroll(rememberScrollState())
-            .padding(8.dp),
+            .padding(Space.x3),
     ) {
         Canvas(
             modifier = Modifier
@@ -272,13 +287,14 @@ private class DiagramPainter(
                     size = Size(chipWidth, chipHeight),
                     cornerRadius = CornerRadius(px(4.0)),
                 )
-                text(label, anchor, palette.line)
+                text(label, anchor, palette.labelInk)
             }
         }
 
         for (node in layout.nodes) {
             drawShape(node)
-            text(node.label, node.rect.center, palette.nodeInk, maxWidth = (node.rect.width - 8).coerceAtLeast(1.0))
+            val decision = node.shape == MermaidShape.Diamond
+            text(node.label, node.rect.center, if (decision) palette.decisionInk else palette.nodeInk, maxWidth = (node.rect.width - 8).coerceAtLeast(1.0))
         }
     }
 
@@ -295,12 +311,12 @@ private class DiagramPainter(
                     lineTo(px(r.left), px(c.y))
                     close()
                 }
-                scope.drawPath(path, palette.nodeFill)
-                scope.drawPath(path, palette.line, style = outline)
+                scope.drawPath(path, palette.decisionFill)
+                scope.drawPath(path, palette.decisionStroke, style = outline)
             }
             MermaidShape.Circle -> {
                 scope.drawOval(palette.nodeFill, topLeft(r), size(r))
-                scope.drawOval(palette.line, topLeft(r), size(r), style = outline)
+                scope.drawOval(palette.nodeStroke, topLeft(r), size(r), style = outline)
             }
             MermaidShape.Stadium -> roundRect(r, r.height / 2, outline)
             MermaidShape.Round -> roundRect(r, 12.0, outline)
@@ -311,7 +327,7 @@ private class DiagramPainter(
     private fun roundRect(r: DiagramRect, radius: Double, outline: Stroke) {
         val corner = CornerRadius(px(radius))
         scope.drawRoundRect(palette.nodeFill, topLeft(r), size(r), corner)
-        scope.drawRoundRect(palette.line, topLeft(r), size(r), corner, style = outline)
+        scope.drawRoundRect(palette.nodeStroke, topLeft(r), size(r), corner, style = outline)
     }
 
     fun drawSequence(layout: SequenceLayout) {
@@ -340,4 +356,24 @@ private class DiagramPainter(
             )
         }
     }
+}
+
+private val PreviewFlow = """
+flowchart TD
+    A[Plan the trip] --> B{Tickets booked?}
+    B -->|Yes| C[Pack the bags]
+    B -->|No| D(Book tickets)
+    D --> C
+""".trimIndent()
+
+@Preview(name = "Mermaid light")
+@Composable
+private fun MermaidLightPreview() {
+    RemftTheme(darkTheme = false) { PreviewSurface { MermaidDiagram(PreviewFlow) } }
+}
+
+@Preview(name = "Mermaid dark")
+@Composable
+private fun MermaidDarkPreview() {
+    RemftTheme(darkTheme = true) { PreviewSurface { MermaidDiagram(PreviewFlow) } }
 }

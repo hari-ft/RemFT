@@ -1,7 +1,5 @@
 package com.ftapps.remft.ui.notes
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +20,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Add
@@ -39,14 +36,11 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.outlined.SwapVert
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,7 +67,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -84,12 +80,18 @@ import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.domain.time.UtcText
+import com.ftapps.remft.ui.components.ChipTone
 import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.ErrorState
+import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RoundIconButton
+import com.ftapps.remft.ui.components.SquareFab
+import com.ftapps.remft.ui.components.StatusChip
 import com.ftapps.remft.ui.notes.export.NoteExportFormat
-import com.ftapps.remft.ui.theme.Radius
-import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.tasks.SwipeToReveal
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -176,13 +178,12 @@ fun NotesScreen(
         modifier = Modifier.testTag("screen-notes"),
         snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = bottomPadding)) },
         floatingActionButton = {
-            FloatingActionButton(
+            SquareFab(
+                Icons.Outlined.Add,
+                stringResource(R.string.shell_fabNewNote),
                 onClick = { onOpenNote(null) },
                 modifier = Modifier.padding(bottom = bottomPadding).testTag("new-note"),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = androidx.compose.foundation.shape.CircleShape,
-            ) { Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.shell_fabNewNote)) }
+            )
         },
         topBar = {
             TopAppBar(
@@ -191,16 +192,28 @@ fun NotesScreen(
                         TextField(
                             value = query.search,
                             onValueChange = viewModel::setSearch,
-                            placeholder = { Text(stringResource(R.string.note_searchHint)) },
+                            placeholder = { Text(stringResource(R.string.note_searchHint), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                             singleLine = true,
+                            shape = MarkedShapes.pill,
+                            textStyle = MaterialTheme.typography.bodyLarge,
                             colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
+                                focusedContainerColor = RemftTheme.tonal.level2,
+                                unfocusedContainerColor = RemftTheme.tonal.level2,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             ),
-                            modifier = Modifier.fillMaxWidth().testTag("notes-search"),
+                            modifier = Modifier.fillMaxWidth().padding(end = Space.x2).testTag("notes-search"),
                         )
                     } else {
-                        Text(stringResource(R.string.nav_notes))
+                        Text(
+                            stringResource(R.string.nav_notes),
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.W700),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 },
                 navigationIcon = {
@@ -213,9 +226,12 @@ fun NotesScreen(
                 },
                 actions = {
                     if (!searching) {
-                        IconButton(onClick = { searching = true }, modifier = Modifier.testTag("notes-search-open")) {
-                            Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.common_search))
-                        }
+                        RoundIconButton(
+                            Icons.Outlined.Search,
+                            stringResource(R.string.common_search),
+                            onClick = { searching = true },
+                            modifier = Modifier.testTag("notes-search-open"),
+                        )
                     }
                     SortMenu(
                         sortField = sort.field,
@@ -229,7 +245,13 @@ fun NotesScreen(
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.shell_settingsTooltip))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                ),
             )
         },
     ) { padding ->
@@ -246,7 +268,15 @@ fun NotesScreen(
                     FilterChip(
                         selected = query.filter == filter,
                         onClick = { viewModel.setFilter(filter) },
-                        label = { Text(stringResource(label)) },
+                        label = { Text(stringResource(label), style = MaterialTheme.typography.labelLarge) },
+                        shape = MarkedShapes.pill,
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = RemftTheme.tonal.level2,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = null,
                         modifier = Modifier.heightIn(min = 48.dp).testTag("filter-${filter.name.lowercase()}"),
                     )
                 }
@@ -299,12 +329,49 @@ private fun PinButton(note: NoteRow, actions: NoteRowActions) {
         Icon(
             if (note.isPinned) Icons.Outlined.Star else Icons.Outlined.StarBorder,
             contentDescription = stringResource(if (note.isPinned) R.string.note_unpin else R.string.note_pin),
-            tint = if (note.isPinned) RemftThemeExtras.colors.warning else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (note.isPinned) RemftTheme.colors.note.color else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NoteTileContent(note: NoteRow, meta: String, actions: NoteRowActions, modifier: Modifier = Modifier) {
+    MarkedCard(modifier.fillMaxWidth(), onClick = { actions.open(note) }) {
+        Row(
+            Modifier.padding(start = Space.x4, top = Space.x1, bottom = Space.x1, end = Space.x1),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f).padding(vertical = Space.x2), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    note.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (note.snippet.isNotEmpty()) {
+                    Text(
+                        note.snippet,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    meta,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            PinButton(note, actions)
+            NoteMenu(note, actions)
+        }
+    }
+}
+
 @Composable
 private fun NoteTile(note: NoteRow, dateFormat: DateFormatId, actions: NoteRowActions) {
     val meta = stringResource(R.string.note_edited).fill("date" to formatNoteDate(note.updatedAt, dateFormat)) + " · " +
@@ -315,43 +382,29 @@ private fun NoteTile(note: NoteRow, dateFormat: DateFormatId, actions: NoteRowAc
         onDelete = { actions.delete(note) },
         modifier = Modifier.testTag("note-${note.id}"),
     ) {
-        Card(
-            shape = RoundedCornerShape(Radius.card),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = androidx.compose.foundation.BorderStroke(1.dp, RemftThemeExtras.colors.hairline),
-            modifier = Modifier.fillMaxWidth().clickable { actions.open(note) },
-        ) {
-            Row(Modifier.padding(vertical = Space.x2, horizontal = Space.x1), verticalAlignment = Alignment.CenterVertically) {
-                PinButton(note, actions)
-                Column(Modifier.weight(1f).padding(vertical = Space.x1)) {
-                    Text(note.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        if (note.snippet.isEmpty()) meta else "${note.snippet}\n$meta",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                NoteMenu(note, actions)
-            }
-        }
+        NoteTileContent(note, meta, actions)
     }
 }
 
 @Composable
 private fun NoteCard(note: NoteRow, dateFormat: DateFormatId, actions: NoteRowActions) {
-    Card(
-        shape = RoundedCornerShape(Radius.card),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, RemftThemeExtras.colors.hairline),
-        modifier = Modifier.aspectRatio(210f / 297f).clickable { actions.open(note) }.testTag("note-${note.id}"),
-    ) {
-        Column(Modifier.fillMaxSize().padding(start = Space.x3, end = Space.x1, bottom = Space.x3, top = Space.x1)) {
+    NoteCardContent(
+        note,
+        stringResource(R.string.note_edited).fill("date" to formatNoteDate(note.updatedAt, dateFormat)),
+        actions,
+        Modifier.testTag("note-${note.id}"),
+    )
+}
+
+@Composable
+private fun NoteCardContent(note: NoteRow, edited: String, actions: NoteRowActions, modifier: Modifier = Modifier) {
+    MarkedCard(modifier.aspectRatio(210f / 297f), onClick = { actions.open(note) }) {
+        Column(Modifier.fillMaxSize().padding(start = Space.x4, end = Space.x1, bottom = Space.x3, top = Space.x1)) {
             Row(verticalAlignment = Alignment.Top) {
                 Text(
                     note.title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(top = Space.x3),
@@ -361,19 +414,13 @@ private fun NoteCard(note: NoteRow, dateFormat: DateFormatId, actions: NoteRowAc
             }
             Text(
                 note.snippet,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(end = Space.x1),
+                modifier = Modifier.weight(1f).padding(top = Space.x1, end = Space.x3),
             )
-            Spacer(Modifier.height(Space.x1))
-            Text(
-                stringResource(R.string.note_edited).fill("date" to formatNoteDate(note.updatedAt, dateFormat)),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Spacer(Modifier.height(Space.x2))
+            StatusChip(edited, ChipTone.Note)
         }
     }
 }
@@ -385,7 +432,7 @@ private fun NoteMenu(note: NoteRow, actions: NoteRowActions) {
         IconButton(onClick = { open = true }, modifier = Modifier.testTag("note-menu-${note.id}")) {
             Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.note_actions))
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        NotesDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             ExportMenuItems { format ->
                 open = false
                 actions.export(note, format)
@@ -437,7 +484,7 @@ private fun SortMenu(
         IconButton(onClick = { open = true }, modifier = Modifier.testTag("notes-sort")) {
             Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = stringResource(R.string.sort_tooltip))
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        NotesDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             MenuHeader(stringResource(R.string.sort_sectionTitle))
             listOf(
                 NoteSortField.Updated to R.string.sort_updated,
@@ -463,7 +510,7 @@ private fun SortMenu(
                 },
                 modifier = Modifier.testTag("sort-reverse"),
             )
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             MenuHeader(stringResource(R.string.sort_viewSection))
             listOf("list" to R.string.sort_viewList, "grid" to R.string.sort_viewGrid).forEach { (mode, label) ->
                 DropdownMenuItem(
@@ -502,7 +549,7 @@ private fun ExternalMenu(
         IconButton(onClick = { open = true }, modifier = Modifier.testTag("notes-external")) {
             Icon(Icons.Outlined.FileOpen, contentDescription = stringResource(R.string.note_mdOpen))
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        NotesDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(text = { Text(stringResource(R.string.note_extEditFile)) }, onClick = {
                 open = false
                 onEdit()
@@ -511,7 +558,7 @@ private fun ExternalMenu(
                 open = false
                 onImport()
             }, modifier = Modifier.testTag("notes-import"))
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             MenuHeader(stringResource(R.string.note_extRecents))
             if (recents.isEmpty()) {
                 Text(
@@ -529,4 +576,35 @@ private fun ExternalMenu(
             }
         }
     }
+}
+
+private val PreviewNotes = listOf(
+    NoteRow("p1", "Weekend plan", "Market first, then the park. Bring the reusable bags.", isPinned = true, isArchived = false, createdAt = null, updatedAt = null),
+    NoteRow("p2", "Soup recipe", "Leeks, potatoes, a little thyme and plenty of pepper.", isPinned = false, isArchived = false, createdAt = null, updatedAt = null),
+)
+
+private val PreviewActions = NoteRowActions({}, {}, {}, {}, { _, _ -> })
+
+@Composable
+private fun NotesPreviewContent() {
+    PreviewSurface {
+        Column(verticalArrangement = Arrangement.spacedBy(Space.x3)) {
+            PreviewNotes.forEach { NoteTileContent(it, "Edited 21 Nov · Created 2 Nov", PreviewActions) }
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.x3)) {
+                PreviewNotes.forEach { NoteCardContent(it, "Edited 21 Nov", PreviewActions, Modifier.width(170.dp)) }
+            }
+        }
+    }
+}
+
+@Preview(name = "Notes light", widthDp = 380)
+@Composable
+private fun NotesLightPreview() {
+    RemftTheme(darkTheme = false) { NotesPreviewContent() }
+}
+
+@Preview(name = "Notes dark", widthDp = 380)
+@Composable
+private fun NotesDarkPreview() {
+    RemftTheme(darkTheme = true) { NotesPreviewContent() }
 }

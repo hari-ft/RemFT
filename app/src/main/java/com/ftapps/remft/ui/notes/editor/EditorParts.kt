@@ -5,16 +5,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.Checklist
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.outlined.HorizontalRule
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StrikethroughS
 import androidx.compose.material.icons.outlined.TableChart
 import androidx.compose.material.icons.outlined.TextFields
@@ -39,13 +43,15 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,12 +60,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.notes.editing.FindReplace
@@ -67,6 +76,13 @@ import com.ftapps.remft.domain.notes.editing.MdActionId
 import com.ftapps.remft.domain.notes.editing.MdActions
 import com.ftapps.remft.domain.notes.markdown.OutlineHeading
 import com.ftapps.remft.domain.text.fill
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.notes.NotesSheetTitle
+import com.ftapps.remft.ui.theme.JetBrainsMono
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 
 data class ActionLook(val icon: ImageVector, @param:StringRes val label: Int)
@@ -92,22 +108,32 @@ fun lookOf(id: MdActionId): ActionLook = when (id) {
 
 @Composable
 fun FormattingToolbar(onAction: (MdActionId) -> Unit, counts: String, modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
-    Row(modifier.fillMaxWidth().testTag("note-toolbar"), verticalAlignment = Alignment.CenterVertically) {
-        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-            MdActionId.entries.forEach { id ->
-                val look = lookOf(id)
-                IconButton(onClick = { onAction(id) }, modifier = Modifier.testTag("action-${id.name.lowercase()}")) {
-                    Icon(look.icon, contentDescription = stringResource(look.label))
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = Space.x3, vertical = Space.x1)
+            .clip(MarkedShapes.pill)
+            .background(RemftTheme.tonal.level2)
+            .testTag("note-toolbar"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(horizontal = Space.x1)) {
+                MdActionId.entries.forEach { id ->
+                    val look = lookOf(id)
+                    IconButton(onClick = { onAction(id) }, modifier = Modifier.testTag("action-${id.name.lowercase()}")) {
+                        Icon(look.icon, contentDescription = stringResource(look.label))
+                    }
                 }
+                trailing()
             }
-            trailing()
         }
         Text(
             counts,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            modifier = Modifier.padding(horizontal = Space.x2).testTag("note-counts"),
+            modifier = Modifier.padding(start = Space.x2, end = Space.x4).testTag("note-counts"),
         )
     }
 }
@@ -115,6 +141,7 @@ fun FormattingToolbar(onAction: (MdActionId) -> Unit, counts: String, modifier: 
 @Composable
 fun SlashSuggestions(matches: List<MdActionId>, onPick: (MdActionId) -> Unit) {
     if (matches.isEmpty()) return
+    val note = RemftTheme.colors.note
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Space.x3).testTag("slash-menu"),
         horizontalArrangement = Arrangement.spacedBy(Space.x2),
@@ -122,12 +149,51 @@ fun SlashSuggestions(matches: List<MdActionId>, onPick: (MdActionId) -> Unit) {
         matches.forEach { id ->
             SuggestionChip(
                 onClick = { onPick(id) },
-                label = { Text("${id.slash}  ${stringResource(lookOf(id).label)}") },
+                label = {
+                    Text(
+                        "${id.slash}  ${stringResource(lookOf(id).label)}",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                },
                 icon = { Icon(lookOf(id).icon, contentDescription = null) },
+                shape = MarkedShapes.pill,
+                colors = SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = note.container,
+                    labelColor = note.onContainer,
+                    iconContentColor = note.onContainer,
+                ),
+                border = null,
                 modifier = Modifier.heightIn(min = 48.dp).testTag("slash-${id.name.lowercase()}"),
             )
         }
     }
+}
+
+@Composable
+private fun notesFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = RemftTheme.tonal.level1,
+    unfocusedContainerColor = RemftTheme.tonal.level1,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent,
+)
+
+@Composable
+private fun NotesField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        shape = MarkedShapes.pill,
+        textStyle = MaterialTheme.typography.bodyLarge,
+        colors = notesFieldColors(),
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -149,52 +215,63 @@ fun FindReplaceBar(
         if (at != null) onSelect(at, at + needle.length)
     }
     Column(
-        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(horizontal = Space.x3, vertical = Space.x1).testTag("find-bar"),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Space.x3, vertical = Space.x1)
+            .clip(MarkedShapes.medium)
+            .background(RemftTheme.tonal.level2)
+            .padding(horizontal = Space.x2, vertical = Space.x2)
+            .testTag("find-bar"),
+        verticalArrangement = Arrangement.spacedBy(Space.x1),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = needle,
-                onValueChange = {
-                    needle = it
-                    index = 0
-                },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.note_find)) },
-                modifier = Modifier.weight(1f).focusRequester(focus).testTag("find-field"),
-            )
-            Text(
-                if (needle.isEmpty()) "" else if (matches.isEmpty()) stringResource(R.string.note_noMatches) else
-                    stringResource(R.string.note_matchCount).fill("index" to index + 1, "total" to matches.size),
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(horizontal = Space.x2).testTag("find-count"),
-            )
-            IconButton(onClick = { if (matches.isNotEmpty()) index = (index - 1 + matches.size) % matches.size }) {
-                Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.common_previous))
-            }
-            IconButton(onClick = { if (matches.isNotEmpty()) index = (index + 1) % matches.size }) {
-                Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.common_next))
-            }
-            IconButton(onClick = onClose, modifier = Modifier.testTag("find-close")) {
-                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.notes_findClose))
-            }
-        }
-        if (showReplace) {
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = replacement,
-                    onValueChange = { replacement = it },
-                    singleLine = true,
-                    placeholder = { Text(stringResource(R.string.note_replace)) },
-                    modifier = Modifier.weight(1f).testTag("replace-field"),
+                NotesField(
+                    value = needle,
+                    onValueChange = {
+                        needle = it
+                        index = 0
+                    },
+                    placeholder = stringResource(R.string.note_find),
+                    modifier = Modifier.weight(1f).focusRequester(focus).testTag("find-field"),
                 )
-                TextButton(onClick = {
-                    val at = matches.getOrNull(index) ?: return@TextButton
-                    val edit = FindReplace.replaceAt(text, at, needle.length, replacement)
-                    onReplaceText(edit.text, edit.selection)
-                }) { Text(stringResource(R.string.note_replace)) }
-                TextButton(onClick = {
-                    if (matches.isNotEmpty()) onReplaceText(FindReplace.replaceAll(text, needle, replacement), 0)
-                }, modifier = Modifier.testTag("replace-all")) { Text(stringResource(R.string.note_replaceAll)) }
+                Text(
+                    if (needle.isEmpty()) "" else if (matches.isEmpty()) stringResource(R.string.note_noMatches) else
+                        stringResource(R.string.note_matchCount).fill("index" to index + 1, "total" to matches.size),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Space.x2).testTag("find-count"),
+                )
+                IconButton(onClick = { if (matches.isNotEmpty()) index = (index - 1 + matches.size) % matches.size }) {
+                    Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.common_previous))
+                }
+                IconButton(onClick = { if (matches.isNotEmpty()) index = (index + 1) % matches.size }) {
+                    Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.common_next))
+                }
+                IconButton(onClick = onClose, modifier = Modifier.testTag("find-close")) {
+                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.notes_findClose))
+                }
+            }
+            if (showReplace) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    NotesField(
+                        value = replacement,
+                        onValueChange = { replacement = it },
+                        placeholder = stringResource(R.string.note_replace),
+                        modifier = Modifier.weight(1f).testTag("replace-field"),
+                    )
+                    RemftTextButton(stringResource(R.string.note_replace), onClick = {
+                        matches.getOrNull(index)?.let { at ->
+                            val edit = FindReplace.replaceAt(text, at, needle.length, replacement)
+                            onReplaceText(edit.text, edit.selection)
+                        }
+                    })
+                    RemftTextButton(
+                        stringResource(R.string.note_replaceAll),
+                        onClick = { if (matches.isNotEmpty()) onReplaceText(FindReplace.replaceAll(text, needle, replacement), 0) },
+                        modifier = Modifier.testTag("replace-all"),
+                    )
+                }
             }
         }
     }
@@ -203,7 +280,7 @@ fun FindReplaceBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OutlineSheet(headings: List<OutlineHeading>, onPick: (OutlineHeading) -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("outline-sheet")) {
+    RemftBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("outline-sheet")) {
         OutlineList(headings, onPick)
     }
 }
@@ -211,16 +288,18 @@ fun OutlineSheet(headings: List<OutlineHeading>, onPick: (OutlineHeading) -> Uni
 @Composable
 fun OutlineList(headings: List<OutlineHeading>, onPick: (OutlineHeading) -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.padding(bottom = Space.x6)) {
-        Text(stringResource(R.string.note_outline), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = Space.x6, vertical = Space.x2))
+        NotesSheetTitle(stringResource(R.string.note_outline), Modifier.padding(horizontal = Space.x6, vertical = Space.x2))
         if (headings.isEmpty()) {
             Text(
                 stringResource(R.string.note_outlineEmpty),
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = Space.x6, vertical = Space.x3),
             )
         }
         LazyColumn {
             items(headings) { heading ->
+                val major = heading.level <= 2
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -230,9 +309,16 @@ fun OutlineList(headings: List<OutlineHeading>, onPick: (OutlineHeading) -> Unit
                         .testTag("outline-${heading.slug}"),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Box(
+                        Modifier
+                            .size(if (major) 8.dp else 6.dp)
+                            .background(if (major) RemftTheme.colors.note.color else MaterialTheme.colorScheme.outline, CircleShape),
+                    )
+                    Spacer(Modifier.width(Space.x3))
                     Text(
                         heading.text,
-                        style = if (heading.level <= 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+                        style = if (major) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+                        color = if (major) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -248,37 +334,80 @@ fun CommandPalette(onPick: (MdActionId) -> Unit, onDismiss: () -> Unit) {
     val labels = MdActionId.entries.associateWith { stringResource(lookOf(it).label) }
     val matches = remember(query) { MdActions.match(query) { labels[it].orEmpty() } }
     val focus = remember { FocusRequester() }
+    val note = RemftTheme.colors.note
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) } },
+        confirmButton = { RemftTextButton(stringResource(R.string.common_close), onClick = onDismiss) },
+        shape = MarkedShapes.large,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         title = {
-            OutlinedTextField(
+            TextField(
                 value = query,
                 onValueChange = { query = it },
                 singleLine = true,
-                placeholder = { Text(stringResource(R.string.note_paletteHint)) },
+                placeholder = { Text(stringResource(R.string.note_paletteHint), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                shape = MarkedShapes.pill,
+                textStyle = MaterialTheme.typography.bodyLarge,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = RemftTheme.tonal.level2,
+                    unfocusedContainerColor = RemftTheme.tonal.level2,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
                 modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag("palette-field"),
             )
         },
         text = {
             if (matches.isEmpty()) {
-                Text(stringResource(R.string.note_paletteEmpty))
+                Text(stringResource(R.string.note_paletteEmpty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 LazyColumn {
                     items(matches) { id ->
                         Row(
-                            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { onPick(id) },
+                            Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(MarkedShapes.small).clickable { onPick(id) }.padding(horizontal = Space.x1),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(lookOf(id).icon, contentDescription = null)
+                            Box(Modifier.size(36.dp).background(note.container, CircleShape), contentAlignment = Alignment.Center) {
+                                Icon(lookOf(id).icon, contentDescription = null, tint = note.onContainer, modifier = Modifier.size(20.dp))
+                            }
                             Spacer(Modifier.width(Space.x3))
-                            Text(labels[id].orEmpty(), modifier = Modifier.weight(1f))
-                            Text(id.slash, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(labels[id].orEmpty(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                            Text(
+                                id.slash,
+                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = JetBrainsMono),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
             }
         },
     )
+}
+
+@Composable
+private fun EditorPartsPreviewContent() {
+    PreviewSurface {
+        Column(verticalArrangement = Arrangement.spacedBy(Space.x3)) {
+            FormattingToolbar(onAction = {}, counts = "128 words")
+            SlashSuggestions(listOf(MdActionId.H1, MdActionId.Todo, MdActionId.Table)) {}
+            FindReplaceBar(text = "Plan the weekend plan", showReplace = true, onSelect = { _, _ -> }, onReplaceText = { _, _ -> }, onClose = {})
+        }
+    }
+}
+
+@Preview(name = "Editor parts light", widthDp = 400)
+@Composable
+private fun EditorPartsLightPreview() {
+    RemftTheme(darkTheme = false) { EditorPartsPreviewContent() }
+}
+
+@Preview(name = "Editor parts dark", widthDp = 400)
+@Composable
+private fun EditorPartsDarkPreview() {
+    RemftTheme(darkTheme = true) { EditorPartsPreviewContent() }
 }
