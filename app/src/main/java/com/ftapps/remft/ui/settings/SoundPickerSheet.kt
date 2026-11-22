@@ -8,11 +8,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
@@ -20,17 +22,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material.icons.outlined.UploadFile
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,12 +37,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.RingtoneFile
@@ -53,7 +52,10 @@ import com.ftapps.remft.domain.alarm.AlarmSounds
 import com.ftapps.remft.domain.alarm.SoundChoice
 import com.ftapps.remft.domain.settings.SettingKey
 import com.ftapps.remft.domain.settings.SettingKeys
-import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.components.RemftTonalButton
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -193,71 +195,60 @@ fun SoundPickerSheet(env: AlarmEnvironment, lane: SoundLane, onMessage: (String)
         }
     }
 
-    ModalBottomSheet(
+    RemftBottomSheet(
         onDismissRequest = {
             preview.stop()
             onDismiss()
         },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.widthIn(max = Breakpoints.sheetMaxWidth).testTag("sound-sheet-${lane.name.lowercase()}"),
+        modifier = Modifier.testTag("sound-sheet-${lane.name.lowercase()}"),
     ) {
-        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState())) {
+        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = Space.x4)) {
             Text(
                 stringResource(lane.title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = Space.x4, end = Space.x4, top = Space.x1, bottom = Space.x2),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = Space.x2, end = Space.x2, top = Space.x1, bottom = Space.x3),
             )
-            SoundOption("sound-os", stringResource(R.string.sound_osDefault), choice == SoundChoice.Os, onSelect = { pick(SoundChoice.Os) })
-            AlarmSounds.bundled.forEach { sound ->
-                val option = SoundChoice.Bundled(sound.id)
-                SoundOption(
-                    "sound-bundled-${sound.id}",
-                    stringResource(bundledSoundLabel(sound.id)),
-                    choice == option,
-                    onSelect = { pick(option) },
-                    playing = previewing == option.encode(),
-                    onPreview = { togglePreview(option) },
-                )
+            SettingsCard {
+                SoundOption("sound-os", stringResource(R.string.sound_osDefault), choice == SoundChoice.Os, onSelect = { pick(SoundChoice.Os) })
+                AlarmSounds.bundled.forEach { sound ->
+                    val option = SoundChoice.Bundled(sound.id)
+                    SoundOption(
+                        "sound-bundled-${sound.id}",
+                        stringResource(bundledSoundLabel(sound.id)),
+                        choice == option,
+                        onSelect = { pick(option) },
+                        playing = previewing == option.encode(),
+                        onPreview = { togglePreview(option) },
+                    )
+                }
             }
-            HorizontalDivider(Modifier.padding(horizontal = Space.x4, vertical = Space.x2))
-            Text(
-                stringResource(R.string.sound_yours),
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(horizontal = Space.x4),
-            )
+            SettingsSectionHeader(stringResource(R.string.sound_yours))
             if (ringtones.isEmpty()) {
-                Text(
-                    stringResource(R.string.sound_noneYet),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = Space.x4, end = Space.x4, top = Space.x2),
-                )
+                SettingsNote(stringResource(R.string.sound_noneYet))
+            } else {
+                SettingsCard {
+                    ringtones.forEach { file ->
+                        val option = SoundChoice.File(file.id)
+                        SoundOption(
+                            "sound-file-${file.id}",
+                            file.name,
+                            choice == option,
+                            onSelect = { pick(option) },
+                            playing = previewing == option.encode(),
+                            onPreview = { togglePreview(option) },
+                        )
+                    }
+                }
             }
-            ringtones.forEach { file ->
-                val option = SoundChoice.File(file.id)
-                SoundOption(
-                    "sound-file-${file.id}",
-                    file.name,
-                    choice == option,
-                    onSelect = { pick(option) },
-                    playing = previewing == option.encode(),
-                    onPreview = { togglePreview(option) },
-                )
-            }
-            TextButton(
+            Spacer(Modifier.height(Space.x2))
+            RemftTonalButton(
+                stringResource(R.string.sound_upload),
                 onClick = { launcher.launch(arrayOf("audio/*")) },
                 enabled = !busy,
-                modifier = Modifier.padding(horizontal = Space.x2).testTag("sound-upload"),
-            ) {
-                Icon(Icons.Outlined.UploadFile, contentDescription = null)
-                Text(stringResource(R.string.sound_upload), modifier = Modifier.padding(start = Space.x2))
-            }
-            Text(
-                stringResource(R.string.sound_rules),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = Space.x4),
+                icon = Icons.Outlined.UploadFile,
+                modifier = Modifier.testTag("sound-upload"),
             )
+            SettingsNote(stringResource(R.string.sound_rules))
             Spacer(Modifier.height(Space.x4))
         }
     }
@@ -272,20 +263,46 @@ private fun SoundOption(
     playing: Boolean = false,
     onPreview: (() -> Unit)? = null,
 ) {
-    ListItem(
-        modifier = Modifier.testTag(tag).selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
-        leadingContent = { RadioButton(selected = selected, onClick = null) },
-        headlineContent = { Text(title) },
-        trailingContent = onPreview?.let {
-            {
-                IconButton(onClick = it, modifier = Modifier.testTag("$tag-preview")) {
-                    Icon(
-                        if (playing) Icons.Outlined.StopCircle else Icons.Outlined.PlayCircleOutline,
-                        contentDescription = stringResource(if (playing) R.string.sound_stopPreview else R.string.sound_preview),
-                    )
-                }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .testTag(tag)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(start = Space.x2, end = Space.x1),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(Space.x3))
+        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        if (onPreview != null) {
+            IconButton(onClick = onPreview, modifier = Modifier.testTag("$tag-preview")) {
+                Icon(
+                    if (playing) Icons.Outlined.StopCircle else Icons.Outlined.PlayCircleOutline,
+                    contentDescription = stringResource(if (playing) R.string.sound_stopPreview else R.string.sound_preview),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
             }
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-    )
+        }
+    }
+}
+
+@Preview(name = "Sound options light")
+@Composable
+private fun SoundOptionsLightPreview() {
+    RemftTheme(darkTheme = false) { PreviewSurface { SoundOptionsPreview() } }
+}
+
+@Preview(name = "Sound options dark")
+@Composable
+private fun SoundOptionsDarkPreview() {
+    RemftTheme(darkTheme = true) { PreviewSurface { SoundOptionsPreview() } }
+}
+
+@Composable
+private fun SoundOptionsPreview() {
+    SettingsCard {
+        SoundOption("p-os", "The system sound", selected = false, onSelect = {})
+        SoundOption("p-chime", "Chime", selected = true, onSelect = {}, playing = true, onPreview = {})
+        SoundOption("p-ping", "Ping", selected = false, onSelect = {}, onPreview = {})
+    }
 }

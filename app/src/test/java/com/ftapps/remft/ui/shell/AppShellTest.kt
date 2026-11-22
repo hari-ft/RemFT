@@ -1,5 +1,9 @@
 package com.ftapps.remft.ui.shell
 
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -57,6 +61,7 @@ class AppShellTest {
         compose.setContent { RemftTheme { Shell() } }
         compose.onNodeWithTag("open-settings").performClick()
         compose.onNodeWithTag("settings-general").assertIsDisplayed()
+        compose.onAllNodes(hasScrollToNodeAction()).onFirst().performScrollToNode(hasTestTag("settings-bin"))
         compose.onNodeWithTag("settings-bin").assertExists()
         compose.onNodeWithTag("back").performClick()
         compose.onNodeWithTag("screen-home").assertIsDisplayed()

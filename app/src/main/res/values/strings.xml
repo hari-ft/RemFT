@@ -822,4 +822,27 @@
     <string name="app_shortcut_new_task_long">Add a new task</string>
     <string name="app_shortcut_today_short">Today</string>
     <string name="app_shortcut_today_long">Show today</string>
+    <string name="setx_sectionPreferences">Preferences</string>
+    <string name="setx_sectionData">Your data</string>
+    <string name="setx_sectionSupport">Troubleshooting</string>
+    <string name="setx_sectionAbout">About</string>
+    <string name="setx_sectionLook">Look and feel</string>
+    <string name="setx_sectionHelp">Help</string>
+    <string name="setx_sectionAlarms">Alarms</string>
+    <string name="setx_sectionReminders">Reminders</string>
+    <string name="setx_sectionSounds">Sounds</string>
+    <string name="setx_sectionBackUpRestore">Back up and restore</string>
+    <string name="setx_sectionCloud">In the cloud</string>
+    <string name="setx_sectionConnection">Connection</string>
+    <string name="setx_sectionSchedule">Schedule</string>
+    <string name="setx_sectionStorage">Storage</string>
+    <string name="setx_logEntries">Entries</string>
+    <string name="setx_licences">Font licences</string>
+    <string name="setx_licencesSub">The fonts that ship with the app and their licences</string>
+    <string name="setx_licencesIntro">RemFT bundles these fonts. Tap one to read its licence.</string>
+    <string name="setx_licenceKind">SIL Open Font Licence 1.1</string>
+    <string name="setx_licenceFailed">This licence could not be opened.</string>
+    <string name="setx_fontBricolage">Bricolage Grotesque</string>
+    <string name="setx_fontInstrument">Instrument Sans</string>
+    <string name="setx_fontJetBrains">JetBrains Mono</string>
 </resources>

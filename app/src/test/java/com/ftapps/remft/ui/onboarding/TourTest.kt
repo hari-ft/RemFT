@@ -1,5 +1,9 @@
 package com.ftapps.remft.ui.onboarding
 
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasScrollToNodeAction
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -147,6 +151,7 @@ class TourTest {
         compose.onNodeWithTag("nav-inbox").performClick()
         compose.onNodeWithTag("open-settings").performClick()
         compose.onNodeWithTag("settings-general").performClick()
+        compose.onAllNodes(hasScrollToNodeAction()).onFirst().performScrollToNode(hasTestTag("replay-tour"))
         compose.onNodeWithTag("replay-tour").assertIsDisplayed().performClick()
         compose.waitForIdle()
         assertTrue(tour.running)
