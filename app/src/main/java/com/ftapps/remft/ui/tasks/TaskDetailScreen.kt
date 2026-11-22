@@ -1,6 +1,16 @@
 package com.ftapps.remft.ui.tasks
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
+import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -30,8 +39,6 @@ import androidx.compose.material.icons.outlined.Notes
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material.icons.outlined.SearchOff
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -91,7 +98,6 @@ import com.ftapps.remft.ui.repeat.TaskRepeatRow
 import com.ftapps.remft.ui.repeat.rememberOccurrenceDeleter
 import com.ftapps.remft.ui.repeat.rememberSeriesScopeAsker
 import com.ftapps.remft.ui.theme.Breakpoints
-import com.ftapps.remft.ui.theme.Radius
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.files.AttachmentsSection
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
@@ -188,10 +194,12 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
                 vm.onTitleChanged(it)
             },
             placeholder = { Text(stringResource(R.string.task_titleHint)) },
-            textStyle = MaterialTheme.typography.headlineSmall,
+            textStyle = MaterialTheme.typography.headlineSmall.copy(color = MaterialTheme.colorScheme.onBackground),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = Color.Transparent,
             ),
             modifier = Modifier.fillMaxWidth().testTag("task-title"),
         )
@@ -229,9 +237,13 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
                 )
             }
             ListItem(
-                headlineContent = { Text(stringResource(R.string.task_muteAlarms)) },
+                headlineContent = { Text(stringResource(R.string.task_muteAlarms), style = MaterialTheme.typography.titleMedium) },
                 supportingContent = { Text(stringResource(R.string.task_alarmsMutedSub)) },
-                leadingContent = { Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                leadingContent = {
+                    Box(Modifier.size(40.dp).background(RemftTheme.tonal.level2, MarkedShapes.pill), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
                 trailingContent = {
                     Switch(
                         checked = task.alarmsMutedAt != null,
@@ -247,8 +259,9 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
                         modifier = Modifier.testTag("mute-alarms-switch"),
                     )
                 },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent, supportingColor = MaterialTheme.colorScheme.onSurfaceVariant),
             )
+            SectionDivider()
             DateTimeField(
                 tag = "due-row",
                 label = stringResource(R.string.task_due),
@@ -270,6 +283,7 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
                 onChanged = { scoped(TaskPatch(remindAt = Change(it?.toInstant(zone))), true) },
                 modifier = Modifier.padding(vertical = Space.x2),
             )
+            SectionDivider()
             TaskRepeatRow(task)
         }
         Spacer(Modifier.height(Space.x3))
@@ -288,18 +302,23 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
 
 @Composable
 private fun SectionCard(title: String, content: @Composable () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(Radius.card),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, RemftThemeExtras.colors.hairline),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
+    MarkedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Space.x4)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.semantics { heading() },
+            )
             Spacer(Modifier.height(Space.x2))
             content()
         }
     }
+}
+
+@Composable
+private fun SectionDivider() {
+    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = Space.x1))
 }
 
 @Composable
@@ -318,15 +337,22 @@ private fun DescriptionField(taskId: String, description: String?, vm: TaskDetai
             },
             placeholder = { Text(stringResource(R.string.task_descriptionHint)) },
             label = { Text(stringResource(R.string.task_descriptionLabel)) },
+            shape = MarkedShapes.small,
+            colors = sheetFieldColors(),
             modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag("task-description"),
         )
         return
     }
     if (description.isNullOrBlank()) {
-        TextButton(onClick = { editing = true }, modifier = Modifier.heightIn(min = 48.dp).testTag("task-add-description")) {
+        TextButton(
+            onClick = { editing = true },
+            shape = MarkedShapes.pill,
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+            modifier = Modifier.heightIn(min = 48.dp).testTag("task-add-description"),
+        ) {
             Icon(Icons.Outlined.Notes, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(Space.x2))
-            Text(stringResource(R.string.task_addDescription), color = RemftThemeExtras.colors.link)
+            Text(stringResource(R.string.task_addDescription), style = MaterialTheme.typography.labelLarge)
         }
         return
     }
@@ -338,7 +364,7 @@ private fun DescriptionField(taskId: String, description: String?, vm: TaskDetai
             .padding(vertical = Space.x3)
             .testTag("task-description-display"),
     ) {
-        Text(linkified(description, linkColor), style = MaterialTheme.typography.bodyMedium)
+        Text(linkified(description, linkColor), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -374,8 +400,18 @@ private fun Checklist(items: List<ChecklistItem>, vm: TaskDetailViewModel) {
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { add() }),
+            shape = MarkedShapes.pill,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = RemftTheme.tonal.level2,
+                unfocusedContainerColor = RemftTheme.tonal.level2,
+                unfocusedBorderColor = Color.Transparent,
+            ),
             trailingIcon = {
-                IconButton(onClick = add, modifier = Modifier.testTag("checklist-add-button")) {
+                IconButton(
+                    onClick = add,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.testTag("checklist-add-button"),
+                ) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.task_addItem))
                 }
             },
@@ -407,6 +443,8 @@ private fun ChecklistRow(item: ChecklistItem, index: Int, count: Int, vm: TaskDe
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { save() }),
+                shape = MarkedShapes.small,
+                colors = sheetFieldColors(),
                 trailingIcon = {
                     IconButton(onClick = save, modifier = Modifier.testTag("checklist-save-${item.id}")) {
                         Icon(Icons.Outlined.CheckCircleOutline, contentDescription = stringResource(R.string.common_save))
@@ -415,11 +453,10 @@ private fun ChecklistRow(item: ChecklistItem, index: Int, count: Int, vm: TaskDe
                 modifier = Modifier.weight(1f).testTag("checklist-edit-${item.id}"),
             )
         } else {
-            Text(
+            ChecklistTitle(
                 item.title,
-                style = MaterialTheme.typography.bodyLarge.copy(textDecoration = if (item.isDone) TextDecoration.LineThrough else null),
-                color = if (item.isDone) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
+                item.isDone,
+                Modifier
                     .weight(1f)
                     .clickable(onClickLabel = stringResource(R.string.tasks_checklistEdit)) {
                         draft = item.title
@@ -429,10 +466,19 @@ private fun ChecklistRow(item: ChecklistItem, index: Int, count: Int, vm: TaskDe
             )
         }
         Box {
-            IconButton(onClick = { menu = true }, modifier = Modifier.testTag("checklist-menu-${item.id}")) {
+            IconButton(
+                onClick = { menu = true },
+                colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+                modifier = Modifier.testTag("checklist-menu-${item.id}"),
+            ) {
                 Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.tasks_checklistItemOptions))
             }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenu(
+                expanded = menu,
+                onDismissRequest = { menu = false },
+                shape = MarkedShapes.medium,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.tasks_checklistEdit)) },
                     onClick = {
@@ -470,6 +516,99 @@ private fun ChecklistRow(item: ChecklistItem, index: Int, count: Int, vm: TaskDe
                     },
                     modifier = Modifier.testTag("checklist-remove-${item.id}"),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChecklistTitle(title: String, done: Boolean, modifier: Modifier = Modifier) {
+    Text(
+        title,
+        style = MaterialTheme.typography.bodyLarge.copy(textDecoration = if (done) TextDecoration.LineThrough else null),
+        color = if (done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+        modifier = modifier,
+    )
+}
+
+@Preview(name = "Task detail light", widthDp = 411, heightDp = 1100)
+@Composable
+private fun TaskDetailLightPreview() {
+    RemftTheme(darkTheme = false) { TaskDetailPreviewContent() }
+}
+
+@Preview(name = "Task detail dark", widthDp = 411, heightDp = 1100)
+@Composable
+private fun TaskDetailDarkPreview() {
+    RemftTheme(darkTheme = true) { TaskDetailPreviewContent() }
+}
+
+@Composable
+private fun TaskDetailPreviewContent() {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(RemftTheme.tonal.level0)
+            .padding(horizontal = Space.x4, vertical = Space.x2),
+    ) {
+        Text(
+            "Book train tickets",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(horizontal = Space.x4, vertical = Space.x3),
+        )
+        Text(
+            linkified("Window seats if possible, see example.com/trains", RemftThemeExtras.colors.link),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(vertical = Space.x3),
+        )
+        Spacer(Modifier.height(Space.x3))
+        SectionCard("Details") {
+            Row {
+                ChoiceField(
+                    label = "Status",
+                    selected = TaskStatus.Open.db,
+                    options = TaskStatus.entries.map { it.db },
+                    onSelect = {},
+                    tag = "preview-status",
+                    modifier = Modifier.weight(1f),
+                ) { StatusLabel(it) }
+                Spacer(Modifier.width(Space.x3))
+                ChoiceField(
+                    label = "Priority",
+                    selected = TaskPriority.High.db,
+                    options = TaskPriority.entries.map { it.db },
+                    onSelect = {},
+                    tag = "preview-priority",
+                    modifier = Modifier.weight(1f),
+                ) { PriorityLabel(it) }
+            }
+            Spacer(Modifier.height(Space.x2))
+            UrgentSwitch(true, {}, "preview-urgent")
+            SectionDivider()
+            DateTimeFieldContent(
+                tag = "preview-due",
+                label = "Due",
+                icon = Icons.Outlined.Flag,
+                dateText = "Sun, 22 Nov 2026",
+                timeText = "6:00 pm",
+                isSet = true,
+                afterDeadline = false,
+                clearDescription = "Clear due",
+                onClear = {},
+                onPickDate = {},
+                onPickTime = {},
+                modifier = Modifier.padding(vertical = Space.x2),
+            )
+        }
+        Spacer(Modifier.height(Space.x3))
+        SectionCard("Checklist") {
+            listOf("Check the timetable" to true, "Pay for the tickets" to false).forEach { (title, done) ->
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularCheck(done, title, onToggle = {})
+                    ChecklistTitle(title, done, Modifier.weight(1f).padding(vertical = Space.x3))
+                }
             }
         }
     }

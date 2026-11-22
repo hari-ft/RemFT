@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Flag
@@ -34,12 +33,13 @@ import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PauseCircleOutline
 import androidx.compose.material.icons.outlined.Timelapse
-import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -65,6 +65,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ftapps.remft.R
@@ -73,8 +74,10 @@ import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.tasks.TaskPriority
 import com.ftapps.remft.domain.tasks.TaskStatus
 import com.ftapps.remft.ui.components.CircleCheckbox
+import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RemftSnackbar
-import com.ftapps.remft.ui.theme.Radius
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.coroutineScope
@@ -177,24 +180,31 @@ fun <T> ChoiceField(
 ) {
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
-        OutlinedCard(
+        Surface(
             onClick = { open = true },
-            shape = RoundedCornerShape(Radius.input),
+            shape = MarkedShapes.small,
+            color = RemftTheme.tonal.level2,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(tag),
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = Space.x4, vertical = Space.x2),
+                Modifier.fillMaxWidth().padding(start = Space.x4, end = Space.x3, top = Space.x2, bottom = Space.x2),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(2.dp))
-                    item(selected)
+                    ProvideTextStyle(MaterialTheme.typography.titleMedium) { item(selected) }
                 }
-                Icon(Icons.Outlined.ArrowDropDown, contentDescription = null)
+                Icon(Icons.Outlined.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            shape = MarkedShapes.medium,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
             options.forEach { option ->
                 DropdownMenuItem(
                     text = { item(option) },
@@ -235,7 +245,7 @@ fun SwipeToReveal(
                         .width(88.dp)
                         .fillMaxHeight()
                         .padding(vertical = 2.dp)
-                        .background(MaterialTheme.colorScheme.error, RoundedCornerShape(Radius.card))
+                        .background(MaterialTheme.colorScheme.error, MarkedShapes.medium)
                         .toggleable(value = false, role = Role.Button, onValueChange = {
                             scope.launch { offset.snapTo(0f) }
                             onDelete()
@@ -297,5 +307,42 @@ fun UndoSnackbarHost(modifier: Modifier = Modifier) {
     }
     SnackbarHost(host, modifier.testTag("undo-snackbar")) { data ->
         RemftSnackbar(data)
+    }
+}
+
+@Preview(name = "Choice fields light")
+@Composable
+private fun ChoiceFieldsLightPreview() {
+    RemftTheme(darkTheme = false) { ChoiceFieldsPreviewContent() }
+}
+
+@Preview(name = "Choice fields dark")
+@Composable
+private fun ChoiceFieldsDarkPreview() {
+    RemftTheme(darkTheme = true) { ChoiceFieldsPreviewContent() }
+}
+
+@Composable
+private fun ChoiceFieldsPreviewContent() {
+    PreviewSurface {
+        Row {
+            ChoiceField(
+                label = "Status",
+                selected = TaskStatus.InProgress.db,
+                options = TaskStatus.entries.map { it.db },
+                onSelect = {},
+                tag = "preview-status",
+                modifier = Modifier.weight(1f),
+            ) { StatusLabel(it) }
+            Spacer(Modifier.width(Space.x3))
+            ChoiceField(
+                label = "Priority",
+                selected = TaskPriority.High.db,
+                options = TaskPriority.entries.map { it.db },
+                onSelect = {},
+                tag = "preview-priority",
+                modifier = Modifier.weight(1f),
+            ) { PriorityLabel(it) }
+        }
     }
 }

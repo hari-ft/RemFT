@@ -1,7 +1,10 @@
 package com.ftapps.remft.ui.repeat
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -13,27 +16,28 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.EventRepeat
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonColors
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SelectableChipColors
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,10 +49,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.repeat.AfterCompletionUnits
@@ -63,13 +71,19 @@ import com.ftapps.remft.domain.repeat.RepeatPreset
 import com.ftapps.remft.domain.repeat.RepeatRule
 import com.ftapps.remft.domain.repeat.RepeatString
 import com.ftapps.remft.domain.repeat.RepeatWeekdays
+import com.ftapps.remft.domain.repeat.WeekdayPick
 import com.ftapps.remft.domain.settings.DateFormatId
-import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.domain.tasks.DateInput
+import com.ftapps.remft.domain.time.DateFormats
+import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.components.RemftFilledButton
+import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.tasks.ChoiceField
 import com.ftapps.remft.ui.tasks.TaskDatePickerDialog
-import com.ftapps.remft.ui.theme.Breakpoints
-import com.ftapps.remft.ui.theme.Radius
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -90,12 +104,9 @@ fun RepeatEditorSheet(
     onTurnOff: (() -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
+    RemftBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = Radius.sheet, topEnd = Radius.sheet),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        sheetMaxWidth = Breakpoints.sheetMaxWidth,
         modifier = Modifier.testTag("repeat-sheet"),
     ) {
         RepeatEditorContent(anchor, initial, format, today, onDismiss, onSave, previewFrom, onTurnOff)
@@ -123,7 +134,12 @@ fun RepeatEditorContent(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Space.x6, vertical = Space.x1),
         ) {
-            Text(stringResource(R.string.repeat_dialogTitle), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.repeat_dialogTitle),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.semantics { heading() },
+            )
             Spacer(Modifier.height(Space.x4))
             BasisSwitch(editor.basis) { editor = editor.copy(basis = it) }
             Spacer(Modifier.height(Space.x3))
@@ -133,10 +149,9 @@ fun RepeatEditorContent(
                 CalendarBody(editor, format, previewFrom) { editor = it }
             }
             Spacer(Modifier.height(Space.x2))
-            Text(
+            SentenceBanner(
                 sentence.sentence(editor.rule, format, if (editor.isAfter) null else RepeatDays.key(anchor)),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.testTag("repeat-sentence"),
+                Modifier.testTag("repeat-sentence"),
             )
             Spacer(Modifier.height(Space.x2))
             AdvancedToggle(editor.advanced) { editor = editor.copy(advanced = it) }
@@ -162,20 +177,22 @@ fun RepeatEditorContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (onTurnOff != null) {
-                TextButton(onClick = onTurnOff, modifier = Modifier.heightIn(min = 48.dp).testTag("repeat-off")) {
-                    Text(stringResource(R.string.repeat_off))
-                }
+                RemftTextButton(
+                    stringResource(R.string.repeat_off),
+                    onClick = onTurnOff,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("repeat-off"),
+                )
             }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onCancel, modifier = Modifier.heightIn(min = 48.dp).testTag("repeat-cancel")) {
-                Text(stringResource(R.string.common_cancel))
-            }
+            RemftTextButton(stringResource(R.string.common_cancel), onClick = onCancel, modifier = Modifier.testTag("repeat-cancel"))
             Spacer(Modifier.width(Space.x2))
-            Button(
+            RemftFilledButton(
+                stringResource(R.string.common_save),
                 onClick = { onSave(editor.rule) },
                 enabled = valid,
-                modifier = Modifier.heightIn(min = 48.dp).testTag("repeat-save"),
-            ) { Text(stringResource(R.string.common_save)) }
+                modifier = Modifier.testTag("repeat-save"),
+            )
         }
     }
 }
@@ -193,15 +210,21 @@ private fun BasisSwitch(basis: RepeatBasis, onChange: (RepeatBasis) -> Unit) {
                 selected = basis == value,
                 onClick = { onChange(value) },
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                modifier = Modifier.testTag(if (value == RepeatBasis.Calendar) "repeat-basis-calendar" else "repeat-basis-completion"),
-            ) { Text(label, textAlign = TextAlign.Center) }
+                colors = repeatSegmentColors(),
+                modifier = Modifier.heightIn(min = Sizes.touchTarget).testTag(if (value == RepeatBasis.Calendar) "repeat-basis-calendar" else "repeat-basis-completion"),
+            ) { Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center) }
         }
     }
 }
 
 @Composable
 private fun Label(text: String) {
-    Text(text, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(bottom = Space.x2))
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = Space.x2).semantics { heading() },
+    )
 }
 
 @StringRes
@@ -219,12 +242,15 @@ private fun presetLabel(preset: RepeatPreset): Int = when (preset) {
 @Composable
 private fun CalendarBody(editor: RepeatEditor, format: DateFormatId, previewFrom: LocalDate?, onChange: (RepeatEditor) -> Unit) {
     Label(stringResource(R.string.repeat_presets))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.x2)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.x2), verticalArrangement = Arrangement.spacedBy(Space.x1)) {
         RepeatPreset.entries.forEach { preset ->
             FilterChip(
                 selected = editor.activePreset == preset,
                 onClick = { onChange(editor.applyPreset(preset)) },
-                label = { Text(stringResource(presetLabel(preset))) },
+                label = { Text(stringResource(presetLabel(preset)), style = MaterialTheme.typography.labelLarge) },
+                shape = MarkedShapes.pill,
+                colors = repeatChipColors(),
+                border = repeatChipBorder(editor.activePreset == preset),
                 modifier = Modifier.heightIn(min = 48.dp).testTag("repeat-preset-${preset.key}"),
             )
         }
@@ -236,19 +262,21 @@ private fun CalendarBody(editor: RepeatEditor, format: DateFormatId, previewFrom
 
 @Composable
 private fun PreviewCard(title: String, days: List<String>, format: DateFormatId, tag: String) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth().testTag(tag),
-    ) {
-        Column(Modifier.padding(Space.x3)) {
-            Text(title, style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(Space.x1))
+    MarkedCard(Modifier.fillMaxWidth().testTag(tag), color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(horizontal = Space.x4, vertical = Space.x3)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.EventRepeat, contentDescription = null, tint = RemftTheme.colors.repeat.color, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(Space.x2))
+                Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.height(Space.x2))
             days.forEach { day ->
                 val date = LocalDate.parse(day)
                 Text(
                     DateFormats.date(date.atStartOfDay(), format),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.testTag("$tag-$day"),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(vertical = 2.dp).testTag("$tag-$day"),
                 )
             }
             if (days.isEmpty()) {
@@ -328,8 +356,12 @@ private fun DayPicker(editor: RepeatEditor, onChange: (RepeatEditor) -> Unit) {
 
 @Composable
 private fun AdvancedToggle(open: Boolean, onChange: (Boolean) -> Unit) {
-    TextButton(onClick = { onChange(!open) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("repeat-advanced")) {
-        Text(stringResource(R.string.repeat_advanced), modifier = Modifier.weight(1f))
+    TextButton(
+        onClick = { onChange(!open) },
+        shape = MarkedShapes.pill,
+        modifier = Modifier.fillMaxWidth().heightIn(min = Sizes.touchTarget).testTag("repeat-advanced"),
+    ) {
+        Text(stringResource(R.string.repeat_advanced), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
         Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
     }
 }
@@ -348,6 +380,7 @@ private fun NumberField(value: Int, label: String, tag: String, range: IntRange 
         label = { Text(label) },
         isError = text.toIntOrNull()?.let { it !in range } ?: true,
         singleLine = true,
+        shape = MarkedShapes.small,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth().padding(bottom = Space.x3).testTag(tag),
     )
@@ -358,7 +391,7 @@ private fun NumberField(value: Int, label: String, tag: String, range: IntRange 
 private fun FreqFields(editor: RepeatEditor, weekdayName: (String) -> String, onChange: (RepeatEditor) -> Unit) {
     when (editor.freq) {
         RepeatFreq.Daily -> Unit
-        RepeatFreq.Weekly -> FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.x2), modifier = Modifier.padding(bottom = Space.x3)) {
+        RepeatFreq.Weekly -> FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.x2), verticalArrangement = Arrangement.spacedBy(Space.x1), modifier = Modifier.padding(bottom = Space.x3)) {
             RepeatWeekdays.forEach { day ->
                 val on = day in editor.weekdays
                 FilterChip(
@@ -367,7 +400,10 @@ private fun FreqFields(editor: RepeatEditor, weekdayName: (String) -> String, on
                         val next = if (on) editor.weekdays - day else editor.weekdays + day
                         if (next.isNotEmpty()) onChange(editor.copy(weekdays = next))
                     },
-                    label = { Text(weekdayName(day)) },
+                    label = { Text(weekdayName(day), style = MaterialTheme.typography.labelLarge) },
+                    shape = MarkedShapes.pill,
+                    colors = repeatChipColors(),
+                    border = repeatChipBorder(on),
                     modifier = Modifier.heightIn(min = 48.dp).testTag("repeat-weekday-$day"),
                 )
             }
@@ -385,7 +421,8 @@ private fun FreqFields(editor: RepeatEditor, weekdayName: (String) -> String, on
                         onClick = { onChange(editor.copy(monthMode = mode)) },
                         shape = SegmentedButtonDefaults.itemShape(index, modes.size),
                         icon = {},
-                        modifier = Modifier.testTag("repeat-mode-${mode.name}"),
+                        colors = repeatSegmentColors(),
+                        modifier = Modifier.heightIn(min = Sizes.touchTarget).testTag("repeat-mode-${mode.name}"),
                     ) { Text(stringResource(label), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center) }
                 }
             }
@@ -469,7 +506,8 @@ private fun EndFields(editor: RepeatEditor, format: DateFormatId, today: LocalDa
                 },
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
                 icon = {},
-                modifier = Modifier.testTag("repeat-end-${type.wire}"),
+                colors = repeatSegmentColors(),
+                modifier = Modifier.heightIn(min = Sizes.touchTarget).testTag("repeat-end-${type.wire}"),
             ) { Text(stringResource(label), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center) }
         }
     }
@@ -477,7 +515,9 @@ private fun EndFields(editor: RepeatEditor, format: DateFormatId, today: LocalDa
         EndType.Never -> Unit
         EndType.Until -> OutlinedButton(
             onClick = { picking = true },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("repeat-until"),
+            shape = MarkedShapes.pill,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            modifier = Modifier.fillMaxWidth().heightIn(min = Sizes.touchTarget).testTag("repeat-until"),
         ) {
             Icon(Icons.Outlined.CalendarToday, contentDescription = null)
             Spacer(Modifier.width(Space.x2))
@@ -520,7 +560,7 @@ private fun AfterBody(editor: RepeatEditor, format: DateFormatId, today: LocalDa
         tag = "repeat-after-interval",
         onValue = { onChange(editor.withAfterInterval(it)) },
     )
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.x2)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.x2), verticalArrangement = Arrangement.spacedBy(Space.x1)) {
         AfterCompletionUnits.forEach { unit ->
             val key = when (unit) {
                 RepeatFreq.Daily -> "days"
@@ -535,7 +575,10 @@ private fun AfterBody(editor: RepeatEditor, format: DateFormatId, today: LocalDa
             FilterChip(
                 selected = editor.afterFreq == unit,
                 onClick = { onChange(editor.copy(afterFreq = unit)) },
-                label = { Text(stringResource(label)) },
+                label = { Text(stringResource(label), style = MaterialTheme.typography.labelLarge) },
+                shape = MarkedShapes.pill,
+                colors = repeatChipColors(),
+                border = repeatChipBorder(editor.afterFreq == unit),
                 modifier = Modifier.heightIn(min = 48.dp).testTag("repeat-after-unit-$key"),
             )
         }
@@ -548,4 +591,84 @@ private fun AfterBody(editor: RepeatEditor, format: DateFormatId, today: LocalDa
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = Space.x2).testTag("repeat-after-hint"),
     )
+}
+
+@Composable
+private fun SentenceBanner(text: String, modifier: Modifier = Modifier) {
+    val repeat = RemftTheme.colors.repeat
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(repeat.container, MarkedShapes.small)
+            .padding(horizontal = Space.x3, vertical = Space.x3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.Repeat, contentDescription = null, tint = repeat.onContainer, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(Space.x2))
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = repeat.onContainer, modifier = modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun repeatChipColors(): SelectableChipColors {
+    val repeat = RemftTheme.colors.repeat
+    val scheme = MaterialTheme.colorScheme
+    return FilterChipDefaults.filterChipColors(
+        containerColor = Color.Transparent,
+        labelColor = scheme.onSurfaceVariant,
+        selectedContainerColor = repeat.container,
+        selectedLabelColor = repeat.onContainer,
+        selectedLeadingIconColor = repeat.onContainer,
+    )
+}
+
+@Composable
+private fun repeatChipBorder(selected: Boolean): BorderStroke =
+    FilterChipDefaults.filterChipBorder(
+        enabled = true,
+        selected = selected,
+        borderColor = MaterialTheme.colorScheme.outlineVariant,
+        selectedBorderColor = Color.Transparent,
+    )
+
+@Composable
+private fun repeatSegmentColors(): SegmentedButtonColors {
+    val repeat = RemftTheme.colors.repeat
+    val scheme = MaterialTheme.colorScheme
+    return SegmentedButtonDefaults.colors(
+        activeContainerColor = repeat.container,
+        activeContentColor = repeat.onContainer,
+        activeBorderColor = scheme.outline,
+        inactiveContainerColor = Color.Transparent,
+        inactiveContentColor = scheme.onSurfaceVariant,
+        inactiveBorderColor = scheme.outline,
+    )
+}
+
+@Preview(name = "Repeat editor light", heightDp = 900)
+@Composable
+private fun RepeatEditorLightPreview() {
+    RemftTheme(darkTheme = false) { RepeatEditorPreviewContent() }
+}
+
+@Preview(name = "Repeat editor dark", heightDp = 900)
+@Composable
+private fun RepeatEditorDarkPreview() {
+    RemftTheme(darkTheme = true) { RepeatEditorPreviewContent() }
+}
+
+@Composable
+private fun RepeatEditorPreviewContent() {
+    val day = LocalDate.of(2026, 11, 22)
+    Box(Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow).padding(vertical = Space.x4)) {
+        RepeatEditorContent(
+            anchor = day,
+            initial = RepeatRule(RepeatFreq.Weekly, byWeekday = listOf(WeekdayPick("SU"))),
+            format = DateFormatId.System,
+            today = day,
+            onCancel = {},
+            onSave = {},
+            onTurnOff = {},
+        )
+    }
 }

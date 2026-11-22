@@ -1,10 +1,10 @@
 package com.ftapps.remft.ui.repeat
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Repeat
@@ -14,7 +14,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
@@ -28,7 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import com.ftapps.remft.R
 import com.ftapps.remft.data.repeat.SeriesRepository
 import com.ftapps.remft.data.tasks.TasksRepository
@@ -42,9 +41,14 @@ import com.ftapps.remft.domain.tasks.DefaultTime
 import com.ftapps.remft.domain.tasks.Task
 import com.ftapps.remft.domain.tasks.TaskDefaults
 import com.ftapps.remft.domain.tasks.TaskPatch
+import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.tasks.rememberDateFormat
 import com.ftapps.remft.ui.tasks.successSwitchColors
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -101,35 +105,17 @@ fun TaskRepeatRow(task: Task, modifier: Modifier = Modifier) {
         Toast.makeText(context, if (error is SeriesTooDenseException) tooDense else failed, Toast.LENGTH_SHORT).show()
     }
     val on = seriesId != null
-    Column(modifier.fillMaxWidth().testTag("repeat-row")) {
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.repeat_switchTitle)) },
-            supportingContent = { Text(stringResource(R.string.repeat_switchSubtitle)) },
-            leadingContent = { Icon(Icons.Outlined.Repeat, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-            trailingContent = {
-                Switch(
-                    checked = on,
-                    onCheckedChange = { wanted -> if (wanted) editing = true else stopping = true },
-                    colors = successSwitchColors(),
-                    modifier = Modifier.testTag("repeat-switch"),
-                )
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        )
-        val current = record
-        if (current != null && rule != null) {
-            Row(Modifier.fillMaxWidth().padding(start = Space.x4), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    sentence.sentence(rule, format, current.anchorDay),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f).testTag("repeat-summary"),
-                )
-                TextButton(onClick = { editing = true }, modifier = Modifier.heightIn(min = 48.dp).testTag("repeat-change")) {
-                    Text(stringResource(R.string.repeat_change))
-                }
-            }
-        }
-    }
+    val current = record
+    RepeatSwitchRow(
+        on = on,
+        summary = if (current != null && rule != null) sentence.sentence(rule, format, current.anchorDay) else null,
+        onToggle = { wanted -> if (wanted) editing = true else stopping = true },
+        onChange = { editing = true },
+        switchTag = "repeat-switch",
+        summaryTag = "repeat-summary",
+        changeTag = "repeat-change",
+        modifier = modifier.testTag("repeat-row"),
+    )
     if (editing) {
         val now = LocalDateTime.ofInstant(repository.now(), zone)
         val today = now.toLocalDate()
@@ -176,5 +162,83 @@ fun TaskRepeatRow(task: Task, modifier: Modifier = Modifier) {
                 if (id != null) scope.launch { runCatching { series.stop(id, keepTaskId = task.id) }.onFailure(report) }
             },
         )
+    }
+}
+
+@Composable
+fun RepeatSwitchRow(
+    on: Boolean,
+    summary: String?,
+    onToggle: (Boolean) -> Unit,
+    onChange: () -> Unit,
+    switchTag: String,
+    summaryTag: String,
+    changeTag: String,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val repeat = RemftTheme.colors.repeat
+    Column(modifier.fillMaxWidth()) {
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.repeat_switchTitle), style = MaterialTheme.typography.titleMedium) },
+            supportingContent = { Text(stringResource(R.string.repeat_switchSubtitle), color = scheme.onSurfaceVariant) },
+            leadingContent = {
+                Icon(Icons.Outlined.Repeat, contentDescription = null, tint = if (on) repeat.color else scheme.onSurfaceVariant)
+            },
+            trailingContent = {
+                Switch(
+                    checked = on,
+                    onCheckedChange = onToggle,
+                    colors = successSwitchColors(),
+                    modifier = Modifier.testTag(switchTag),
+                )
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        )
+        if (summary != null) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = Space.x4, end = Space.x2, bottom = Space.x2)
+                    .background(repeat.container, MarkedShapes.small)
+                    .padding(start = Space.x3),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = repeat.onContainer,
+                    modifier = Modifier.weight(1f).padding(vertical = Space.x2).testTag(summaryTag),
+                )
+                RemftTextButton(
+                    stringResource(R.string.repeat_change),
+                    onClick = onChange,
+                    color = repeat.onContainer,
+                    modifier = Modifier.testTag(changeTag),
+                )
+            }
+        }
+    }
+}
+
+@Preview(name = "Repeat row light")
+@Composable
+private fun RepeatRowLightPreview() {
+    RemftTheme(darkTheme = false) { RepeatRowPreviewContent() }
+}
+
+@Preview(name = "Repeat row dark")
+@Composable
+private fun RepeatRowDarkPreview() {
+    RemftTheme(darkTheme = true) { RepeatRowPreviewContent() }
+}
+
+@Composable
+private fun RepeatRowPreviewContent() {
+    PreviewSurface {
+        MarkedCard {
+            RepeatSwitchRow(false, null, {}, {}, "preview-switch-off", "preview-summary-off", "preview-change-off")
+            RepeatSwitchRow(true, "Every week on Sunday · no end", {}, {}, "preview-switch", "preview-summary", "preview-change")
+        }
     }
 }
