@@ -62,19 +62,23 @@ class TestAlarms(
     val health: FakeHealth = FakeHealth(),
     seed: (android.database.sqlite.SQLiteDatabase) -> Unit = {},
     snoozeSource: Flow<String?>? = null,
+    onDatabase: () -> Unit = {},
 ) {
     val context: Context = ApplicationProvider.getApplicationContext()
     val tasks = TestTasks(clock, seed)
     val snoozeOrder = snoozeSource?.let(::SnoozeOrderSnapshot) ?: SnoozeOrderSnapshot.of(tasks.settings)
     val env = AlarmEnvironment(
         context = context,
-        database = { tasks.holder.db },
+        database = {
+            onDatabase()
+            tasks.holder.db
+        },
         identity = tasks.identity,
         settings = tasks.settings,
         tasks = tasks.repository,
         clock = clock,
         snoozeOrder = snoozeOrder,
-        gateway = gateway ?: AndroidAlarmGateway(context) { snoozeOrder.current() },
+        gateway = gateway ?: AndroidAlarmGateway(context, snoozeOrder = { snoozeOrder.current() }),
         filesDir = tasks.dir,
         scope = tasks.scope,
         health = health,

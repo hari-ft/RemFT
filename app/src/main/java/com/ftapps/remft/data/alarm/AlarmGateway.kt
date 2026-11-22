@@ -46,6 +46,7 @@ enum class BookResult { EXACT, INEXACT }
 class AndroidAlarmGateway(
     private val context: Context,
     private val snoozeOrder: () -> List<String> = { SnoozePresets.ids },
+    private val fullScreen: () -> Boolean = { true },
 ) : AlarmGateway {
     private val alarmManager: AlarmManager get() = context.getSystemService(AlarmManager::class.java)
     private val notificationManager: NotificationManager get() = context.getSystemService(NotificationManager::class.java)
@@ -82,7 +83,7 @@ class AndroidAlarmGateway(
     @SuppressLint("MissingPermission")
     override fun show(notification: PlannedNotification) {
         ensureChannel(context, notification.urgent, notification.soundName)
-        notificationManager.notify(notification.id, AlarmNotifications.build(context, notification, snoozeOrder()))
+        notificationManager.notify(notification.id, AlarmNotifications.build(context, notification, snoozeOrder(), fullScreen()))
     }
 
     override fun shownIds(): Set<Int> = runCatching { notificationManager.activeNotifications.map { it.id }.toSet() }
@@ -200,7 +201,12 @@ class AndroidAlarmGateway(
 }
 
 object AlarmNotifications {
-    fun build(context: Context, notification: PlannedNotification, snoozeOrder: List<String> = SnoozePresets.ids): Notification {
+    fun build(
+        context: Context,
+        notification: PlannedNotification,
+        snoozeOrder: List<String> = SnoozePresets.ids,
+        fullScreen: Boolean = true,
+    ): Notification {
         val urgent = notification.urgent
         val channelId = AlarmSounds.channelIdFor(urgent, notification.soundName)
         val builder = NotificationCompat.Builder(context, channelId)
@@ -222,7 +228,7 @@ object AlarmNotifications {
                 builder.setSound(uri, if (urgent) android.media.AudioManager.STREAM_ALARM else android.media.AudioManager.STREAM_NOTIFICATION)
             }
         }
-        if (urgent) builder.setFullScreenIntent(AndroidAlarmGateway.fullScreenIntent(context, notification), true)
+        if (urgent && fullScreen) builder.setFullScreenIntent(AndroidAlarmGateway.fullScreenIntent(context, notification), true)
         if (notification.payload != AlarmPlanner.TEST_PAYLOAD) {
             for (button in NotificationActions.buttonsFor(urgent, snoozeOrder)) {
                 builder.addAction(0, labelOf(context, button), AndroidAlarmGateway.actionIntent(context, notification, button.actionId))

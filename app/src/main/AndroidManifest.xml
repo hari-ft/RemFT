@@ -56,17 +56,21 @@
 
         <receiver
             android:name=".data.alarm.AlarmFireReceiver"
+            android:directBootAware="true"
             android:exported="false" />
 
         <receiver
             android:name=".data.alarm.AlarmActionReceiver"
+            android:directBootAware="true"
             android:exported="false" />
 
         <receiver
             android:name=".data.alarm.AlarmSystemReceiver"
+            android:directBootAware="true"
             android:exported="true"
             tools:ignore="ExportedReceiver">
             <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.TIME_SET" />

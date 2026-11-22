@@ -32,6 +32,7 @@ class AlarmStartup(private val env: AlarmEnvironment) {
         scheduler.launchWorker(env.scope)
         env.scope.launch {
             env.appLog.info("app.launch")
+            DirectBootAlarms.settle(env)
             scheduler.request()
         }
         observeData()

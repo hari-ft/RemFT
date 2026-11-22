@@ -6,6 +6,7 @@ import com.ftapps.remft.data.prefs.SettingsUnavailable
 import com.ftapps.remft.domain.alarm.AlarmBooking
 import com.ftapps.remft.domain.alarm.AlarmInput
 import com.ftapps.remft.domain.alarm.AlarmPlanner
+import com.ftapps.remft.domain.alarm.AlarmTexts
 import com.ftapps.remft.domain.alarm.HeldRing
 import com.ftapps.remft.domain.alarm.RebookPolicy
 import com.ftapps.remft.domain.alarm.SoundChoice
@@ -49,6 +50,8 @@ class AlarmScheduler(
     private val planner: AlarmPlanner,
     private val clock: Clock,
     private val ready: suspend () -> Unit = {},
+    private val mirror: DirectBootMirror? = null,
+    private val texts: AlarmTexts? = null,
 ) {
     val policy = RebookPolicy()
     private val mutex = Mutex()
@@ -224,6 +227,7 @@ class AlarmScheduler(
         runCatching { gateway.pruneChannels(resolved.alarm, resolved.reminder) }
             .onFailure { appLog.warn("alarms.prune_channels_failed", emptyMap(), it) }
         policy.endPass(rebookNow, failed)
+        syncMirror(config, now)
         if (cancelled + scheduled + rebooked + failed + dropped.size > 0 || rebookNow) {
             appLog.info(
                 "alarms.applied",
@@ -249,6 +253,7 @@ class AlarmScheduler(
             val notification = planner.testAlarm(clock.instant(), resolve(config.alarmSound))
             gateway.book(notification)
             pending.put(BookedAlarm.of(notification))
+            syncMirror(config, clock.instant())
             log.record(
                 AlarmLogEvent.TEST,
                 AlarmLogLane.NOTIFICATION,
@@ -263,6 +268,18 @@ class AlarmScheduler(
             log.record(AlarmLogEvent.DEGRADED, AlarmLogLane.NOTIFICATION, urgent = true, detail = "test alarm failed: ${e.javaClass.simpleName}")
             false
         }
+    }
+
+    private fun syncMirror(config: AlarmSettings, now: Instant) {
+        val target = mirror ?: return
+        val words = texts ?: return
+        runCatching {
+            val booked = pending.read()
+            val gone = target.replaceAlarms(booked.values, now, config.privacyMode, words, config.snoozeOrder)
+            for (id in gone) {
+                if (id !in booked) runCatching { gateway.cancel(id) }
+            }
+        }.onFailure { appLog.warn("alarms.mirror_failed", emptyMap(), it) }
     }
 
     companion object {

@@ -21,6 +21,7 @@ import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.AlarmLogEvent
 import com.ftapps.remft.data.alarm.AlarmLogLane
 import com.ftapps.remft.data.alarm.AndroidAlarmGateway
+import com.ftapps.remft.data.alarm.RingState
 import com.ftapps.remft.domain.alarm.AlarmPlanner
 import kotlinx.coroutines.launch
 
@@ -61,6 +62,33 @@ object AlarmActivitySupport {
                 reminderId = payload.reminderId,
             )
         }
+    }
+}
+
+class AlarmOverLock(private val apply: (Boolean) -> Unit) {
+    private var wasRinging = false
+    private var awaitingAfter: Long? = null
+
+    fun alarmLaunched(loaded: Long) {
+        awaitingAfter = loaded
+        apply(true)
+    }
+
+    fun onState(ring: RingState) {
+        if (!ring.decided) return
+        val waiting = awaitingAfter
+        val fresh = waiting == null || ring.loaded > waiting
+        if (ring.ringing != null) {
+            wasRinging = true
+            if (fresh) awaitingAfter = null
+            apply(true)
+            return
+        }
+        if (!fresh) return
+        val clear = wasRinging || waiting != null
+        wasRinging = false
+        awaitingAfter = null
+        if (clear) apply(false)
     }
 }
 
