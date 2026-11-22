@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +35,7 @@ import com.ftapps.remft.ui.search.GlobalSearchShortcut
 import com.ftapps.remft.ui.search.LocalSearchEnvironment
 import com.ftapps.remft.ui.search.SearchEnvironment
 import com.ftapps.remft.data.prefs.SettingsStore
+import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.ui.files.FilesEnvironment
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import com.ftapps.remft.ui.onboarding.LocalTourController
@@ -92,7 +94,8 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         setContent {
-            RemftTheme {
+            val dynamicColor by remember { settings.flow(SettingKeys.DynamicColor) }.collectAsStateWithLifecycle(SettingKeys.DynamicColor.default)
+            RemftTheme(dynamicColor = dynamicColor == "true") {
                 val state by startup.state.collectAsStateWithLifecycle()
                 Box(Modifier.fillMaxSize()) {
                     when (state) {
@@ -106,13 +109,13 @@ class MainActivity : ComponentActivity() {
                             AlarmRingHost(alarms, onOpenTask = { deepLink = "remft://task/$it" }) {
                                 AppShell(deepLink = deepLink, onDeepLinkHandled = { deepLink = null })
                             }
-                            NotificationPermissionRequest()
+                            NotificationPermissionRequest(ready = tour.settled)
                         }
                         is StartupState.Failed -> Box(
-                            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
+                            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                             contentAlignment = Alignment.Center,
                         ) { ErrorState(onRetry = startup::retry) }
-                        StartupState.Starting -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
+                        StartupState.Starting -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
                     }
                     BackupHost()
                 }

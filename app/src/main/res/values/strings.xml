@@ -54,6 +54,8 @@
     <string name="settings_privateNotificationsSub">Hide task titles in reminders and alarms</string>
     <string name="settings_appTour">App tour</string>
     <string name="settings_appTourSub">Replay the feature walkthrough</string>
+    <string name="settings_dynamicColor_title">Colours from your wallpaper</string>
+    <string name="settings_dynamicColor_sub">Use your phone’s Material You colours instead of Lapis and Marigold</string>
     <string name="settings_alarms_title">Urgent alarms</string>
     <string name="settings_alarms_checking">Checking…</string>
     <string name="settings_alarms_ready">Ready — alarms are allowed to ring on time.</string>
@@ -96,6 +98,17 @@
     <string name="home_quickAddForDay">Add for {date}</string>
     <string name="home_hideCalendar">Hide calendar</string>
     <string name="home_showCalendar">Show calendar</string>
+    <string name="home_showMonth">Show the whole month</string>
+    <string name="home_showWeek">Show this week only</string>
+    <string name="home_headlineNone">Nothing due today</string>
+    <plurals name="home_headlineCount">
+        <item quantity="one">One thing today</item>
+        <item quantity="other">%d things today</item>
+    </plurals>
+    <string name="home_urgentAlarm">Urgent alarm</string>
+    <string name="home_ringsIn">Rings in {time}</string>
+    <string name="home_ringsInHoursMinutes">{h} h {m} min</string>
+    <string name="home_ringsInMinutes">{m} min</string>
     <string name="home_bucket_selectedDay">Selected day</string>
     <string name="home_bucket_overdue">Overdue</string>
     <string name="home_bucket_noDate">No date</string>

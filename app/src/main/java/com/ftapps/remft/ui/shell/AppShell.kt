@@ -3,30 +3,12 @@ package com.ftapps.remft.ui.shell
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -35,8 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -46,8 +26,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.ftapps.remft.ui.components.AuroraBackground
-import com.ftapps.remft.ui.components.GlassSurface
+import com.ftapps.remft.ui.components.AppBackground
+import com.ftapps.remft.ui.components.RemftNavItem
+import com.ftapps.remft.ui.components.RemftNavRowItem
+import com.ftapps.remft.ui.components.RemftNavigationBar
+import com.ftapps.remft.ui.components.RemftNavigationRail
 import com.ftapps.remft.ui.components.LocalHazeState
 import com.ftapps.remft.ui.backup.BackupSettingsScreen
 import com.ftapps.remft.ui.onedrive.oneDriveDestinations
@@ -72,8 +55,6 @@ import com.ftapps.remft.ui.settings.openAlarmSettings
 import com.ftapps.remft.ui.settings.SettingsScreen
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.Motion
-import com.ftapps.remft.ui.theme.Radius
-import com.ftapps.remft.ui.theme.Space
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
@@ -108,7 +89,7 @@ fun AppShell(
         }
     }
     CompositionLocalProvider(LocalHazeState provides hazeState) {
-        AuroraBackground {
+        AppBackground {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val wide = maxWidth >= Breakpoints.rail
                 val extended = maxWidth >= Breakpoints.extendedRail
@@ -122,7 +103,7 @@ fun AppShell(
                 }
                 GlobalSearchHost(navController, wide = maxWidth >= Breakpoints.searchDialog)
                 if (!wide && current != null) {
-                    BottomBarCapsule(
+                    BottomBar(
                         current = current,
                         onSelect = navigate,
                         modifier = Modifier.align(Alignment.BottomCenter),
@@ -141,8 +122,8 @@ private fun RemftNavHost(navController: NavHostController, showBottomBar: Boolea
     NavHost(
         navController = navController,
         startDestination = HomeRoute,
-        enterTransition = { fadeIn(tween(Motion.MEDIUM)) },
-        exitTransition = { fadeOut(tween(Motion.SHORT)) },
+        enterTransition = { fadeIn(tween(Motion.MEDIUM, easing = Motion.Easing)) },
+        exitTransition = { fadeOut(tween(Motion.SHORT, easing = Motion.Easing)) },
     ) {
         composable<HomeRoute> {
             HomeScreen(bottomPadding, openSettings, onOpenTask = { navController.openTask(it) }, onOpenAutoBackup = { navController.openAutoBackup() })
@@ -176,91 +157,40 @@ private fun RemftNavHost(navController: NavHostController, showBottomBar: Boolea
 }
 
 @Composable
-private fun BottomBarCapsule(current: Section, onSelect: (Section) -> Unit, modifier: Modifier = Modifier) {
-    GlassSurface(
-        shape = RoundedCornerShape(Radius.capsule),
-        modifier = modifier
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(start = Space.x3, end = Space.x3, bottom = Space.x3)
-            .fillMaxWidth()
-            .height(68.dp)
-            .testTag("bottom-bar"),
-    ) {
-        Row(
-            Modifier.fillMaxSize().padding(horizontal = Space.x2),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Section.entries.forEach { section ->
-                NavItem(section, section == current, onSelect, Modifier.weight(1f))
-            }
+private fun BottomBar(current: Section, onSelect: (Section) -> Unit, modifier: Modifier = Modifier) {
+    RemftNavigationBar(modifier.testTag("bottom-bar")) {
+        Section.entries.forEach { section ->
+            NavItem(section, section == current, onSelect, Modifier.weight(1f))
         }
     }
 }
 
 @Composable
 private fun NavItem(section: Section, selected: Boolean, onSelect: (Section) -> Unit, modifier: Modifier = Modifier) {
-    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    Column(
-        modifier
-            .height(56.dp)
-            .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(section) })
-            .testTag(section.testTag)
-            .tourAnchor(LocalTourController.current, section),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        val pill = if (selected) Modifier.background(color.copy(alpha = 0.14f), CircleShape) else Modifier
-        Box(Modifier.size(width = 56.dp, height = 30.dp).then(pill), contentAlignment = Alignment.Center) {
-            Icon(section.icon, contentDescription = null, tint = color)
-        }
-        Spacer(Modifier.height(2.dp))
-        Text(
-            stringResource(section.label),
-            style = MaterialTheme.typography.labelMedium,
-            color = color,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+    RemftNavItem(
+        icon = section.icon,
+        label = stringResource(section.label),
+        selected = selected,
+        onClick = { onSelect(section) },
+        modifier = modifier.testTag(section.testTag).tourAnchor(LocalTourController.current, section),
+    )
 }
 
 @Composable
 private fun NavigationRailPanel(current: Section, onSelect: (Section) -> Unit, extended: Boolean) {
-    GlassSurface(
-        shape = RoundedCornerShape(Radius.sheet),
-        modifier = Modifier
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(Space.x3)
-            .width(if (extended) 220.dp else 88.dp)
-            .fillMaxHeight()
-            .testTag("nav-rail"),
-    ) {
-        Column(
-            Modifier.fillMaxSize().padding(vertical = Space.x6, horizontal = Space.x2),
-            verticalArrangement = Arrangement.spacedBy(Space.x2),
-        ) {
-            GlobalSearchRailEntry(extended)
-            Section.entries.forEach { section ->
-                if (extended) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .selectable(selected = section == current, role = Role.Tab, onClick = { onSelect(section) })
-                            .testTag(section.testTag)
-                            .tourAnchor(LocalTourController.current, section)
-                            .padding(horizontal = Space.x3),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        val color = if (section == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        Icon(section.icon, contentDescription = null, tint = color)
-                        Spacer(Modifier.width(Space.x3))
-                        Text(stringResource(section.label), color = color, style = MaterialTheme.typography.labelLarge)
-                    }
-                } else {
-                    NavItem(section, section == current, onSelect, Modifier.fillMaxWidth())
-                }
+    RemftNavigationRail(Modifier.testTag("nav-rail"), width = if (extended) 220.dp else 88.dp) {
+        GlobalSearchRailEntry(extended)
+        Section.entries.forEach { section ->
+            if (extended) {
+                RemftNavRowItem(
+                    icon = section.icon,
+                    label = stringResource(section.label),
+                    selected = section == current,
+                    onClick = { onSelect(section) },
+                    modifier = Modifier.testTag(section.testTag).tourAnchor(LocalTourController.current, section),
+                )
+            } else {
+                NavItem(section, section == current, onSelect, Modifier.fillMaxWidth())
             }
         }
     }

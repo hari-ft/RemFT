@@ -2,6 +2,7 @@ package com.ftapps.remft.ui.tasks
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -116,6 +117,30 @@ class HomeTasksScreenTest {
         compose.mainClock.autoAdvance = true
         waitFor { tasks.query("SELECT id FROM trash_items").size == 1 }
         assertEquals(0, tasks.query("SELECT id FROM tasks").size)
+    }
+
+    @Test
+    fun headerShowsTheDateAndTodaysCount() {
+        create(TaskDraft(title = "Late report", dueAt = Instant.parse("2026-11-18T04:30:00Z")))
+        create(TaskDraft(title = "Lunch", dueAt = Instant.parse("2026-11-20T08:00:00Z")))
+        create(TaskDraft(title = "Dentist", dueAt = Instant.parse("2026-11-21T05:00:00Z")))
+        show()
+        waitFor { compose.onAllNodesWithTextCount("2 things today") == 1 }
+        compose.onNodeWithTag("home-date").assertTextContains("Friday", substring = true)
+        compose.onNodeWithTag("name-mark").assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyDayHeadlineAndWeekStripExpandsToTheMonth() {
+        show()
+        waitFor { compose.onAllNodesWithTextCount("Nothing due today") == 1 }
+        compose.onNodeWithTag("week-strip").assertIsDisplayed()
+        compose.onNodeWithTag("month-calendar").assertDoesNotExist()
+        compose.onNodeWithTag("calendar-expand").performClick()
+        compose.onNodeWithTag("month-calendar").assertIsDisplayed()
+        compose.onNodeWithTag("week-strip").assertDoesNotExist()
+        compose.onNodeWithTag("calendar-expand").performClick()
+        compose.onNodeWithTag("week-strip").assertIsDisplayed()
     }
 
     @Test

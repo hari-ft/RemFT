@@ -32,6 +32,12 @@ The app has one identity: application ID `com.ftapps.remft`, label "RemFT". It s
 
 ## Design decisions
 
+### Look and feel (Lapis and Marigold)
+- **Tokens live in `ui/theme/`.** `Palette.kt` holds the light and dark colour schemes, the semantic colours (urgent, overdue, today, done, repeat, note, file, success, warning) and the four tonal levels; `Type.kt` the type scale; `Shapes.kt` the marked-corner shapes; `Motion.kt` the motion tokens; `Gradients.kt` the brand, today, urgent and alarm-ring gradients. Screens read them through `RemftTheme.colors`, `RemftTheme.tonal`, `RemftTheme.gradients`, `RemftTheme.motion` and `MarkedShapes`.
+- **Fonts are bundled** in `res/font`: Bricolage Grotesque (600, 700), Instrument Sans (400, 500, 600) and JetBrains Mono (400), static instances cut from the variable fonts in the google/fonts repository. All three are under the SIL Open Font Licence; the licence texts are in `app/src/main/assets/licenses/`.
+- **Wallpaper colours** (Material You) are off by default and only offered on Android 12 and later (Settings, General). The semantic colours and gradients stay on the brand palette either way. The choice is a device preference and is not backed up.
+- **Icon:** Orbit, an open ring with a marigold dot in the gap, as an adaptive icon with a monochrome layer, legacy PNGs, a 24 dp notification icon and an animated splash icon.
+
 ### Data and settings
 - **Room owns the schema.** The database (`remft.sqlite`) is Room version 1, created by Room from the entities; the exported schema is `app/schemas/com.ftapps.remft.data.db.RemftDatabase/1.json`. There are no migrations yet; a schema change becomes version 2 with a migration and a test.
 - **Dates are ISO-8601 UTC text** with milliseconds (`2026-11-02T10:00:00.000Z`), written by `UtcText`. JSON (backup manifest, settings, bin payloads, journals) is written with kotlinx.serialization.

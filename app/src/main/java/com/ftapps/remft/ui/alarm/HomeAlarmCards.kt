@@ -1,6 +1,26 @@
 package com.ftapps.remft.ui.alarm
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.sp
+import com.ftapps.remft.domain.alarm.AlarmInput
+import com.ftapps.remft.domain.alarm.AlarmPlanner
+import com.ftapps.remft.domain.alarm.ReminderProfile
+import com.ftapps.remft.ui.components.GradientCard
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
+import java.time.Duration
+import java.time.Instant
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -14,7 +34,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.NotificationsPaused
@@ -35,7 +54,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -56,7 +74,6 @@ import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.ui.theme.Breakpoints
-import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
@@ -94,11 +111,41 @@ fun rememberPermissionStatus(env: AlarmEnvironment): PermissionStatus? {
     return status
 }
 
+data class UpcomingUrgent(val alarm: AlarmInput, val at: Instant)
+
+object UrgentLookAhead {
+    val Window: Duration = Duration.ofHours(24)
+
+    fun next(feed: List<AlarmInput>, now: Instant, profile: ReminderProfile, window: Duration = Window): UpcomingUrgent? {
+        val times = AlarmPlanner.plannedRingTimes(feed, profile)
+        var best: UpcomingUrgent? = null
+        for ((alarm, slots) in times) {
+            if (!alarm.urgent) continue
+            val at = slots.firstOrNull { it.isAfter(now) } ?: continue
+            if (at.isAfter(now.plus(window))) continue
+            if (best == null || at.isBefore(best.at)) best = UpcomingUrgent(alarm, at)
+        }
+        return best
+    }
+
+    fun hoursAndMinutes(now: Instant, at: Instant): Pair<Long, Long> {
+        val minutes = maxOf(1L, (Duration.between(now, at).seconds + 59) / 60)
+        return minutes / 60 to minutes % 60
+    }
+}
+
 @Composable
-fun HomeAlarmCards(modifier: Modifier = Modifier) {
+fun HomeAlarmCards(modifier: Modifier = Modifier, onOpenTask: (String) -> Unit = {}) {
     val env = LocalAlarmEnvironment.current ?: return
     val ring by env.ring.state.collectAsStateWithLifecycle()
     val status = rememberPermissionStatus(env)
+    val now by produceState(env.clock.instant(), env) {
+        while (true) {
+            value = env.clock.instant()
+            delay(UPCOMING_REFRESH_MS)
+        }
+    }
+    val upcoming = remember(ring.feed, ring.profile, now) { UrgentLookAhead.next(ring.feed, now, ring.profile) }
     Column(modifier) {
         status?.let { current ->
             val volumeOff = current.alarmVolumeOff == true &&
@@ -106,16 +153,93 @@ fun HomeAlarmCards(modifier: Modifier = Modifier) {
             current.support.worstProblem(volumeOff)?.let { AlarmProblemBanner(env, it) }
         }
         if (ring.missed.isNotEmpty()) MissedAlarmCard(env, ring.missed)
+        if (upcoming != null) UpcomingUrgentCard(env, upcoming, now, onOpenTask)
     }
+}
+
+private const val UPCOMING_REFRESH_MS = 30_000L
+
+@Composable
+private fun UpcomingUrgentCard(env: AlarmEnvironment, upcoming: UpcomingUrgent, now: Instant, onOpenTask: (String) -> Unit) {
+    val format by remember(env) { env.settings.flow(SettingKeys.DateFormat).map { DateFormatId.parse(it) } }
+        .collectAsStateWithLifecycle(DateFormatId.System)
+    val (hours, minutes) = UrgentLookAhead.hoursAndMinutes(now, upcoming.at)
+    val span = if (hours > 0) {
+        stringResource(R.string.home_ringsInHoursMinutes).fill("h" to hours, "m" to minutes)
+    } else {
+        stringResource(R.string.home_ringsInMinutes).fill("m" to minutes)
+    }
+    val time = DateFormats.time(upcoming.at.atZone(env.clock.zone).toLocalDateTime(), format)
+    UrgentAlarmCardContent(
+        title = upcoming.alarm.taskTitle,
+        time = time,
+        ringsIn = stringResource(R.string.home_ringsIn).fill("time" to span),
+        onClick = { onOpenTask(upcoming.alarm.taskId) },
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun UrgentAlarmCardContent(title: String, time: String, ringsIn: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val urgent = RemftTheme.colors.urgent
+    val titleStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.W700, fontSize = 24.sp, lineHeight = 30.sp)
+    GradientCard(
+        brush = RemftTheme.gradients.urgent.diagonal,
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth().padding(vertical = Space.x2).testTag("urgent-alarm-card"),
+    ) {
+        Column(Modifier.padding(start = Space.x5, end = Space.x5, top = Space.x4, bottom = Space.x5)) {
+            FlowRow(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(Space.x2),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(Modifier.heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.NotificationsNone, contentDescription = null, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(Space.x3))
+                    Text(stringResource(R.string.home_urgentAlarm), style = MaterialTheme.typography.titleMedium)
+                }
+                Text(
+                    ringsIn,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.W500),
+                    color = if (dark) urgent.container else urgent.onContainer,
+                    modifier = Modifier
+                        .background(if (dark) urgent.onContainer else Color.White, MarkedShapes.pill)
+                        .padding(horizontal = Space.x4, vertical = Space.x2)
+                        .testTag("urgent-alarm-rings-in"),
+                )
+            }
+            Spacer(Modifier.height(Space.x3))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = titleStyle, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(Space.x3))
+                Text(time, style = titleStyle, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Preview(name = "Urgent alarm card light")
+@Composable
+private fun UrgentAlarmCardLightPreview() {
+    RemftTheme(darkTheme = false) { PreviewSurface { UrgentAlarmCardContent("Call the electrician", "6:30 pm", "Rings in 2 h 10 min", onClick = {}) } }
+}
+
+@Preview(name = "Urgent alarm card dark")
+@Composable
+private fun UrgentAlarmCardDarkPreview() {
+    RemftTheme(darkTheme = true) { PreviewSurface { UrgentAlarmCardContent("Call the electrician", "6:30 pm", "Rings in 2 h 10 min", onClick = {}) } }
 }
 
 @Composable
 private fun AlarmProblemBanner(env: AlarmEnvironment, problem: AlarmProblem) {
     var sheet by remember { mutableStateOf(false) }
     Surface(
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        shape = RoundedCornerShape(16.dp),
+        color = RemftTheme.colors.warning.container,
+        contentColor = RemftTheme.colors.warning.onContainer,
+        shape = MarkedShapes.medium,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = Space.x2)
@@ -141,6 +265,7 @@ fun AlarmFixSheet(env: AlarmEnvironment, problem: AlarmProblem, onDismiss: () ->
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MarkedShapes.sheet,
         modifier = Modifier.widthIn(max = Breakpoints.sheetMaxWidth).testTag("alarm-fix-sheet"),
     ) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = Space.x6, vertical = Space.x2)) {
@@ -153,6 +278,7 @@ fun AlarmFixSheet(env: AlarmEnvironment, problem: AlarmProblem, onDismiss: () ->
                     env.health.open(context, permissionFor(problem))
                     onDismiss()
                 },
+                shape = MarkedShapes.pill,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("alarm-fix-open"),
             ) { Text(stringResource(R.string.alarm_fix_open)) }
             Spacer(Modifier.height(Space.x4))
@@ -166,12 +292,13 @@ private fun MissedAlarmCard(env: AlarmEnvironment, missed: List<com.ftapps.remft
     val first = summary.first
     val format by remember(env) { env.settings.flow(SettingKeys.DateFormat).map { DateFormatId.parse(it) } }
         .collectAsStateWithLifecycle(DateFormatId.System)
-    val urgent = RemftThemeExtras.colors.priority.urgent
+    val urgent = RemftTheme.colors.urgent
     val now = env.clock.instant()
     val time = DateFormats.time(first.fireAt.atZone(env.clock.zone).toLocalDateTime(), format)
     Surface(
-        color = urgent.copy(alpha = 0.12f).compositeOver(MaterialTheme.colorScheme.surfaceContainerHigh),
-        shape = RoundedCornerShape(16.dp),
+        color = urgent.container,
+        contentColor = urgent.onContainer,
+        shape = MarkedShapes.medium,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = Space.x2)
@@ -179,19 +306,17 @@ private fun MissedAlarmCard(env: AlarmEnvironment, missed: List<com.ftapps.remft
             .testTag("missed-alarm-card"),
     ) {
         Row(Modifier.padding(Space.x3), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.NotificationsPaused, contentDescription = null, tint = urgent, modifier = Modifier.size(20.dp))
+            Icon(Icons.Outlined.NotificationsPaused, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(Space.x2))
             Column(Modifier.weight(1f)) {
                 Text(
                     stringResource(R.string.alarm_missed_cardTitle),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.labelLarge,
                 )
                 Text(first.taskTitle, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     stringResource(R.string.alarm_missed_ago).fill("time" to time, "ago" to relativePastText(first.fireAt, now)),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("missed-alarm-when"),
                 )
             }
@@ -200,11 +325,10 @@ private fun MissedAlarmCard(env: AlarmEnvironment, missed: List<com.ftapps.remft
                 Text(
                     stringResource(R.string.alarm_missed_cardMore).fill("n" to summary.moreCount),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("missed-alarm-more"),
                 )
             }
-            Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Outlined.ChevronRight, contentDescription = null)
         }
     }
 }

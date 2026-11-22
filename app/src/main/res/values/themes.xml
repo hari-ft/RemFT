@@ -7,8 +7,9 @@
     </style>
 
     <style name="Theme.Remft.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/remft_surface</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="windowSplashScreenBackground">@color/remft_brand</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_orbit</item>
+        <item name="windowSplashScreenAnimationDuration">760</item>
         <item name="postSplashScreenTheme">@style/Theme.Remft</item>
     </style>
 </resources>

@@ -1,6 +1,5 @@
 package com.ftapps.remft.ui.search
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,8 +7,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
@@ -44,14 +41,14 @@ import com.ftapps.remft.domain.search.GlobalSearchKind
 import com.ftapps.remft.domain.search.PaletteEntry
 import com.ftapps.remft.domain.search.SearchRecent
 import com.ftapps.remft.domain.text.fill
-import com.ftapps.remft.ui.components.GlassSurface
+import com.ftapps.remft.ui.components.RoundIconButton
+import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.shell.FilesRoute
 import com.ftapps.remft.ui.shell.NoteRoute
 import com.ftapps.remft.ui.shell.TaskRoute
 import com.ftapps.remft.ui.shell.openTask
 import com.ftapps.remft.ui.tasks.TaskCreateSheet
 import com.ftapps.remft.ui.theme.Breakpoints
-import com.ftapps.remft.ui.theme.Radius
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
 
@@ -122,11 +119,12 @@ fun GlobalSearchButton(modifier: Modifier = Modifier) {
     val search = LocalSearchEnvironment.current ?: return
     val windowWidth = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }
     if (windowWidth >= Breakpoints.rail) return
-    GlassSurface(shape = CircleShape, floating = false, modifier = modifier.padding(horizontal = Space.x1).size(40.dp)) {
-        IconButton(onClick = search.palette::open, modifier = Modifier.size(40.dp).testTag("global-search-button")) {
-            Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.search_global_open))
-        }
-    }
+    RoundIconButton(
+        icon = Icons.Outlined.Search,
+        contentDescription = stringResource(R.string.search_global_open),
+        onClick = search.palette::open,
+        modifier = modifier.testTag("global-search-button"),
+    )
 }
 
 @Composable
@@ -143,9 +141,8 @@ fun GlobalSearchRailEntry(extended: Boolean, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     Surface(
         onClick = search.palette::open,
-        shape = RoundedCornerShape(Radius.chip),
-        color = scheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, scheme.outlineVariant),
+        shape = MarkedShapes.pill,
+        color = scheme.surfaceContainer,
         modifier = modifier.fillMaxWidth().height(48.dp).testTag("global-search-rail"),
     ) {
         Row(Modifier.padding(horizontal = Space.x3), verticalAlignment = Alignment.CenterVertically) {

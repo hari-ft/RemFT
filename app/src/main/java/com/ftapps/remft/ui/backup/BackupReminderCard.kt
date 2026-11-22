@@ -8,14 +8,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Backup
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material.icons.outlined.CloudQueue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -26,7 +22,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ftapps.remft.R
 import com.ftapps.remft.ui.notes.rememberHiltAvailable
+import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
 fun HomeBackupReminder() {
@@ -41,25 +42,42 @@ fun BackupReminderCard(modifier: Modifier = Modifier, viewModel: BackupReminderV
 
 @Composable
 fun BackupReminderCardContent(onLater: () -> Unit, onBackUpNow: () -> Unit, modifier: Modifier = Modifier) {
-    val scheme = MaterialTheme.colorScheme
-    Card(
+    MarkedCard(
         modifier = modifier.fillMaxWidth().testTag("backup-reminder"),
-        colors = CardDefaults.cardColors(containerColor = scheme.secondaryContainer, contentColor = scheme.onSecondaryContainer),
+        color = RemftTheme.tonal.level2,
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
-        Column(Modifier.padding(start = Space.x4, top = Space.x3, end = Space.x2, bottom = Space.x1)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Backup, contentDescription = null)
-                Spacer(Modifier.width(Space.x3))
-                Text(stringResource(R.string.backup_reminderBody), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Column(Modifier.padding(start = Space.x4, top = Space.x4, end = Space.x2, bottom = Space.x1)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = Space.x2)) {
+                Icon(Icons.Outlined.CloudQueue, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(Space.x4))
+                Text(stringResource(R.string.backup_reminderBody), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.x2, Alignment.End)) {
-                TextButton(onClick = onLater, modifier = Modifier.testTag("backup-reminder-later")) {
-                    Text(stringResource(R.string.backup_later))
-                }
-                FilledTonalButton(onClick = onBackUpNow, modifier = Modifier.testTag("backup-reminder-now")) {
-                    Text(stringResource(R.string.backup_backUpNow))
-                }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.x1, Alignment.End)) {
+                RemftTextButton(
+                    stringResource(R.string.backup_later),
+                    onClick = onLater,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("backup-reminder-later"),
+                )
+                RemftTextButton(
+                    stringResource(R.string.backup_backUpNow),
+                    onClick = onBackUpNow,
+                    modifier = Modifier.testTag("backup-reminder-now"),
+                )
             }
         }
     }
+}
+
+@Preview(name = "Backup reminder light")
+@Composable
+private fun BackupReminderLightPreview() {
+    RemftTheme(darkTheme = false) { PreviewSurface { BackupReminderCardContent(onLater = {}, onBackUpNow = {}) } }
+}
+
+@Preview(name = "Backup reminder dark")
+@Composable
+private fun BackupReminderDarkPreview() {
+    RemftTheme(darkTheme = true) { PreviewSurface { BackupReminderCardContent(onLater = {}, onBackUpNow = {}) } }
 }

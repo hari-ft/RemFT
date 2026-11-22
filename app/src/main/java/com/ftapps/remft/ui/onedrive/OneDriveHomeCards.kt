@@ -44,6 +44,8 @@ import com.ftapps.remft.data.onedrive.AutoBackupHealth
 import com.ftapps.remft.data.onedrive.AutoBackupTrouble
 import com.ftapps.remft.data.onedrive.OneDriveAuth
 import com.ftapps.remft.data.prefs.SettingsStore
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -83,10 +85,10 @@ fun BackupPausedCard(onOpen: () -> Unit, modifier: Modifier = Modifier, viewMode
 
 @Composable
 fun BackupPausedCardContent(onOpen: () -> Unit, modifier: Modifier = Modifier) {
-    val scheme = MaterialTheme.colorScheme
     Card(
         modifier = modifier.fillMaxWidth().testTag("backup-paused-card"),
-        colors = CardDefaults.cardColors(containerColor = scheme.errorContainer, contentColor = scheme.onErrorContainer),
+        shape = MarkedShapes.medium,
+        colors = CardDefaults.cardColors(containerColor = RemftTheme.colors.warning.container, contentColor = RemftTheme.colors.warning.onContainer),
     ) {
         Column(Modifier.padding(start = Space.x4, top = Space.x3, end = Space.x2, bottom = Space.x1)) {
             Row(verticalAlignment = Alignment.Top) {
@@ -96,7 +98,7 @@ fun BackupPausedCardContent(onOpen: () -> Unit, modifier: Modifier = Modifier) {
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = onOpen, modifier = Modifier.testTag("backup-paused-open")) {
-                    Text(stringResource(R.string.home_backupPausedOpen), color = scheme.onErrorContainer)
+                    Text(stringResource(R.string.home_backupPausedOpen), color = RemftTheme.colors.warning.onContainer)
                 }
             }
         }
@@ -112,10 +114,10 @@ fun BackupTroubleCard(onFix: () -> Unit, modifier: Modifier = Modifier, viewMode
 
 @Composable
 fun BackupTroubleCardContent(trouble: AutoBackupTrouble, onFix: () -> Unit, modifier: Modifier = Modifier) {
-    val scheme = MaterialTheme.colorScheme
     Card(
         modifier = modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onFix).testTag("backup-trouble-banner"),
-        colors = CardDefaults.cardColors(containerColor = scheme.errorContainer, contentColor = scheme.onErrorContainer),
+        shape = MarkedShapes.medium,
+        colors = CardDefaults.cardColors(containerColor = RemftTheme.colors.warning.container, contentColor = RemftTheme.colors.warning.onContainer),
     ) {
         Row(Modifier.padding(horizontal = Space.x3, vertical = Space.x3), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.CloudOff, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -152,7 +154,8 @@ fun MirrorDownloadsCardContent(state: MirrorDownloadState, onConnect: () -> Unit
     val scheme = MaterialTheme.colorScheme
     Card(
         modifier = modifier.fillMaxWidth().testTag("mirror-download-card"),
-        colors = CardDefaults.cardColors(containerColor = scheme.secondaryContainer, contentColor = scheme.onSecondaryContainer),
+        shape = MarkedShapes.medium,
+        colors = CardDefaults.cardColors(containerColor = RemftTheme.tonal.level2, contentColor = scheme.onSurface),
     ) {
         Column(Modifier.padding(start = Space.x4, top = Space.x3, end = Space.x2, bottom = Space.x1)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

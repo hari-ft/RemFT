@@ -41,6 +41,7 @@ object SettingKeys {
     val RestoreRolledBackAt = SettingKey("remft_restore_rolled_back_at", null, false)
     val ExternalRecents = SettingKey("remft_external_recents", null, false)
     val SearchRecent = SettingKey("search.recent", null, false)
+    val DynamicColor = SettingKey("remft_dynamic_color", "false", false)
 
     val all: List<SettingKey> = listOf(
         AlarmSound, ReminderSound, ReminderProfile, SnoozePresets, NotificationPrivacy, DateFormat,
@@ -50,6 +51,7 @@ object SettingKeys {
         OneDriveReconnect, AutoBackupLastOk, AutoBackupLastSize, AutoBackupPaused, AutoBackupDropAccepted,
         AutoBackupUnavailable, AutoBackupStatusOneDrive, AutoBackupWakeSlots, MirrorDownloadsPending,
         MirrorReviewSweptAt, RestorePendingSettings, RestoreRolledBackAt, ExternalRecents, SearchRecent,
+        DynamicColor,
     )
 
     val backedUp: Set<String> = all.filter { it.inBackup }.map { it.name }.toSet()

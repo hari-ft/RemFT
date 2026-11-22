@@ -65,15 +65,23 @@ object AlarmActivitySupport {
 }
 
 @Composable
-fun NotificationPermissionRequest() {
+fun NotificationPermissionRequest(ready: Boolean) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
     val context = LocalContext.current
-    var asked by rememberSaveable { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    LaunchedEffect(Unit) {
-        if (asked) return@LaunchedEffect
+    PermissionPromptGate(
+        ready = ready,
+        needed = { ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED },
+        onRequest = { runCatching { launcher.launch(Manifest.permission.POST_NOTIFICATIONS) } },
+    )
+}
+
+@Composable
+fun PermissionPromptGate(ready: Boolean, needed: () -> Boolean, onRequest: () -> Unit) {
+    var asked by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(ready) {
+        if (!ready || asked) return@LaunchedEffect
         asked = true
-        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        if (!granted) runCatching { launcher.launch(Manifest.permission.POST_NOTIFICATIONS) }
+        if (needed()) onRequest()
     }
 }

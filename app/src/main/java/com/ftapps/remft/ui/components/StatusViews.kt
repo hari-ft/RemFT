@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -57,6 +56,6 @@ fun ErrorState(onRetry: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         Text(stringResource(R.string.state_somethingWrong), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(Space.x4))
-        Button(onClick = onRetry) { Text(stringResource(R.string.common_retry)) }
+        RemftFilledButton(stringResource(R.string.common_retry), onClick = onRetry)
     }
 }

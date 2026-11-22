@@ -11,13 +11,9 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,7 +24,6 @@ import androidx.compose.ui.unit.Dp
 import com.ftapps.remft.R
 import com.ftapps.remft.ui.theme.Space
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SectionScaffold(
     title: String,
@@ -40,8 +35,8 @@ fun SectionScaffold(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(title) },
+            RemftTopBar(
+                title = title,
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
@@ -56,7 +51,6 @@ fun SectionScaffold(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
             )
         },
         floatingActionButton = floatingActionButton,

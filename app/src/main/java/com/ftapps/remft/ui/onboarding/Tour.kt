@@ -39,6 +39,8 @@ class TourController(
         private set
     var step by mutableIntStateOf(0)
         private set
+    var settled by mutableStateOf(false)
+        private set
     val anchors = mutableStateMapOf<Section, Rect>()
     private var autoAttempted = false
 
@@ -50,7 +52,10 @@ class TourController(
         if (autoAttempted) return
         autoAttempted = true
         autoStartGate.first { it }
-        if (settings.get(SettingKeys.OnboardingSeen.name) == "true") return
+        if (settings.get(SettingKeys.OnboardingSeen.name) == "true") {
+            settled = true
+            return
+        }
         start()
     }
 
@@ -67,6 +72,7 @@ class TourController(
 
     private fun finish() {
         running = false
+        settled = true
         step = 0
         scope.launch { settings.set(SettingKeys.OnboardingSeen.name, "true") }
     }

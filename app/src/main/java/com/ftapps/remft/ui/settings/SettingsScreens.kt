@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.outlined.EventNote
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Tune
@@ -32,6 +33,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,6 +67,7 @@ import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.MonoStyle
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
+import com.ftapps.remft.ui.theme.dynamicColorAvailable
 
 @Composable
 fun SettingsCard(content: @Composable () -> Unit) {
@@ -140,6 +143,7 @@ fun SettingsScreen(
 fun SettingsGeneralScreen(onBack: () -> Unit, onReplayTour: (() -> Unit)? = null, viewModel: SettingsViewModel = settingsViewModel()) {
     val dateFormat by viewModel.dateFormat.collectAsStateWithLifecycle()
     val styling by viewModel.noteSourceStyling.collectAsStateWithLifecycle()
+    val dynamicColor by viewModel.dynamicColor.collectAsStateWithLifecycle()
     var sheet by remember { mutableStateOf<GeneralSheet?>(null) }
     SectionScaffold(title = stringResource(R.string.settings_group_general), onBack = onBack) { padding ->
         CenteredList(padding, Breakpoints.settingsMaxWidth) {
@@ -159,6 +163,22 @@ fun SettingsGeneralScreen(onBack: () -> Unit, onReplayTour: (() -> Unit)? = null
                         "settings-note-source-styling",
                         onClick = { sheet = GeneralSheet.Styling },
                     )
+                    if (dynamicColorAvailable()) {
+                        SettingsRow(
+                            Icons.Outlined.Palette,
+                            stringResource(R.string.settings_dynamicColor_title),
+                            stringResource(R.string.settings_dynamicColor_sub),
+                            "settings-dynamic-color",
+                            trailing = {
+                                Switch(
+                                    checked = dynamicColor,
+                                    onCheckedChange = viewModel::setDynamicColor,
+                                    modifier = Modifier.testTag("settings-dynamic-color-switch"),
+                                )
+                            },
+                            onClick = { viewModel.setDynamicColor(!dynamicColor) },
+                        )
+                    }
                     SettingsRow(
                         Icons.AutoMirrored.Outlined.HelpOutline,
                         stringResource(R.string.settings_appTour),

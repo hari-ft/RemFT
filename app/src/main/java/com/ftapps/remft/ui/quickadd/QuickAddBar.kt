@@ -6,14 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Event
@@ -61,7 +60,7 @@ import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.tasks.priorityColor
 import com.ftapps.remft.ui.tasks.priorityLabel
 import com.ftapps.remft.ui.tasks.rememberDateFormat
-import com.ftapps.remft.ui.theme.Radius
+import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
 
@@ -117,10 +116,10 @@ fun QuickAddBar(
             placeholder = { Text(hint, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             singleLine = true,
             visualTransformation = highlight,
-            shape = RoundedCornerShape(Radius.input),
+            shape = MarkedShapes.pill,
+            textStyle = MaterialTheme.typography.bodyLarge,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { submit() }),
-            leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
             trailingIcon = {
                 if (text.isEmpty()) {
                     IconButton(onClick = { helpOpen = true }, modifier = Modifier.testTag("$tag-help")) {
@@ -135,8 +134,11 @@ fun QuickAddBar(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
-            modifier = Modifier.fillMaxWidth().testTag(tag),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(tag),
         )
         if (parsed.chips.isNotEmpty()) {
             QuickAddChips(
@@ -204,7 +206,7 @@ private fun QuickAddChips(
                 label = { Text(label) },
                 avatar = { Icon(icon, contentDescription = null, tint = tint ?: scheme.onSurfaceVariant, modifier = Modifier.size(18.dp)) },
                 trailingIcon = { Icon(Icons.Outlined.Close, contentDescription = keepAsText, modifier = Modifier.size(18.dp)) },
-                shape = RoundedCornerShape(Radius.chip),
+                shape = MarkedShapes.pill,
                 colors = InputChipDefaults.inputChipColors(containerColor = scheme.surface, trailingIconColor = scheme.onSurfaceVariant),
                 border = InputChipDefaults.inputChipBorder(enabled = true, selected = false, borderColor = scheme.outlineVariant),
                 modifier = Modifier.testTag("$tag-token-${chip.kind.id}"),

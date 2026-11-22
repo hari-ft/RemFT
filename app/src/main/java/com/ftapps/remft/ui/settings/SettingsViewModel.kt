@@ -24,6 +24,14 @@ class SettingsViewModel @Inject constructor(private val store: SettingsStore) : 
         .map { NoteSourceStyling.parse(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NoteSourceStyling.MarkersOnly)
 
+    val dynamicColor: StateFlow<Boolean> = store.flow(SettingKeys.DynamicColor)
+        .map { it == "true" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setDynamicColor(on: Boolean) {
+        viewModelScope.launch { store.set(SettingKeys.DynamicColor.name, on.toString()) }
+    }
+
     fun setDateFormat(id: DateFormatId) {
         viewModelScope.launch { store.set(SettingKeys.DateFormat.name, id.id) }
     }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="remft_surface">#FFFFFFFF</color>
+    <color name="remft_surface">#FFF5F6FB</color>
+    <color name="remft_brand">#FF2B3FD9</color>
     <color name="remft_shortcut_disc">#FFFFFFFF</color>
-    <color name="remft_shortcut_glyph">#FF0A5CFF</color>
+    <color name="remft_shortcut_glyph">#FF2B3FD9</color>
 </resources>

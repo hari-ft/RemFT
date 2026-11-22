@@ -1,49 +1,92 @@
 package com.ftapps.remft.ui.theme
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
-import androidx.compose.material3.Typography
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 
-private val base = Typography()
+val LocalSemanticColors = staticCompositionLocalOf { LightSemantic }
+val LocalTonalLevels = staticCompositionLocalOf { LightTonal }
+val LocalGradients = staticCompositionLocalOf { LightGradients }
 
-val RemftTypography = base.copy(
-    headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.W700, letterSpacing = (-0.5).sp),
-    headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.W700, letterSpacing = (-0.4).sp),
-    titleLarge = base.titleLarge.copy(fontWeight = FontWeight.W700),
-    titleMedium = base.titleMedium.copy(fontWeight = FontWeight.W600),
-    titleSmall = base.titleSmall.copy(fontWeight = FontWeight.W600),
-    bodyLarge = base.bodyLarge.copy(lineHeight = (base.bodyLarge.fontSize.value * 1.5f).sp),
-)
-
-val RemftShapes = Shapes(
-    extraSmall = RoundedCornerShape(Radius.chip),
-    small = RoundedCornerShape(Radius.chip),
-    medium = RoundedCornerShape(Radius.input),
-    large = RoundedCornerShape(Radius.card),
-    extraLarge = RoundedCornerShape(Radius.sheet),
-)
-
-val MonoStyle = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+fun dynamicColorAvailable(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
 @Composable
-fun RemftTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
-    val extras = if (darkTheme) DarkExtras else LightExtras
-    CompositionLocalProvider(LocalRemftColors provides extras) {
+fun RemftTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    val context = LocalContext.current
+    val brand = if (darkTheme) DarkColors else LightColors
+    val scheme: ColorScheme = if (dynamicColor && dynamicColorAvailable()) {
+        remember(context, darkTheme) {
+            val system = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            system.copy(background = system.surfaceContainerLowest, surface = system.surfaceContainerLow)
+        }
+    } else {
+        brand
+    }
+    val reduced = rememberReducedMotion()
+    val motion = remember(reduced) { RemftMotion(reduced) }
+    val tonal = if (dynamicColor && dynamicColorAvailable()) {
+        TonalLevels(scheme.background, scheme.surface, scheme.surfaceContainer, scheme.surfaceContainerHigh)
+    } else if (darkTheme) {
+        DarkTonal
+    } else {
+        LightTonal
+    }
+    CompositionLocalProvider(
+        LocalRemftColors provides if (darkTheme) DarkExtras else LightExtras,
+        LocalSemanticColors provides if (darkTheme) DarkSemantic else LightSemantic,
+        LocalTonalLevels provides tonal,
+        LocalGradients provides if (darkTheme) DarkGradients else LightGradients,
+        LocalRemftMotion provides motion,
+    ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkColors else LightColors,
+            colorScheme = scheme,
             typography = RemftTypography,
             shapes = RemftShapes,
             content = content,
         )
     }
+}
+
+object RemftTheme {
+    val colors: RemftSemanticColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalSemanticColors.current
+
+    val tonal: TonalLevels
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalTonalLevels.current
+
+    val gradients: RemftGradients
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalGradients.current
+
+    val motion: RemftMotion
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalRemftMotion.current
+
+    val extras: RemftExtraColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalRemftColors.current
+
+    val shapes: MarkedShapes get() = MarkedShapes
 }
 
 object RemftThemeExtras {

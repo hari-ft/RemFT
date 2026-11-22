@@ -40,7 +40,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -73,6 +72,8 @@ import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.tasks.TaskPriority
 import com.ftapps.remft.domain.tasks.TaskStatus
+import com.ftapps.remft.ui.components.CircleCheckbox
+import com.ftapps.remft.ui.components.RemftSnackbar
 import com.ftapps.remft.ui.theme.Radius
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
@@ -161,21 +162,7 @@ fun StatusLabel(status: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun CircularCheck(checked: Boolean, description: String, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    val success = RemftThemeExtras.colors.success
-    Box(
-        modifier
-            .size(48.dp)
-            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
-            .semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            if (checked) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
-            contentDescription = null,
-            tint = if (checked) success else MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(26.dp),
-        )
-    }
+    CircleCheckbox(checked, description, onToggle, modifier)
 }
 
 @Composable
@@ -309,6 +296,6 @@ fun UndoSnackbarHost(modifier: Modifier = Modifier) {
         }
     }
     SnackbarHost(host, modifier.testTag("undo-snackbar")) { data ->
-        Snackbar(data, shape = RoundedCornerShape(Radius.input))
+        RemftSnackbar(data)
     }
 }
