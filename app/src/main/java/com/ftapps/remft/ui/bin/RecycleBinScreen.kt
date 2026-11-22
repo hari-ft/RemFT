@@ -55,7 +55,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -99,6 +98,7 @@ import kotlin.math.ceil
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.pluralStringResource
 
 object BinCountdown {
     fun daysLeft(deletedAt: Instant, days: Int, now: Instant): Int {
@@ -282,7 +282,7 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
         null -> Unit
         BinDialog.Empty -> ConfirmDeleteDialog(
             title = stringResource(R.string.bin_emptyTitle),
-            body = pluralStringResource(R.plurals.lowdt_binEmptyBody, list.size, list.size),
+            body = pluralStringResource(R.plurals.lowui_binEmptyBody, list.size, list.size),
             confirm = stringResource(R.string.bin_empty),
             confirmTag = "bin-empty-confirm",
             onDismiss = { dialog = null },
@@ -292,7 +292,7 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
         }
         BinDialog.TurnOff -> ConfirmDeleteDialog(
             title = stringResource(R.string.bin_turnOffTitle),
-            body = pluralStringResource(R.plurals.lowdt_binTurnOffBody, list.size, list.size),
+            body = pluralStringResource(R.plurals.lowui_binTurnOffBody, list.size, list.size),
             confirm = stringResource(R.string.bin_turnOff),
             confirmTag = "bin-turn-off-confirm",
             onDismiss = { dialog = null },

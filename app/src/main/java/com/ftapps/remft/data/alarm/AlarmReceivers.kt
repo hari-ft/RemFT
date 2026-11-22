@@ -3,6 +3,8 @@ package com.ftapps.remft.data.alarm
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.ftapps.remft.domain.alarm.AlarmBooking
+import com.ftapps.remft.domain.alarm.PlannedNotification
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
@@ -40,6 +42,19 @@ class AlarmFireReceiver : BroadcastReceiver() {
                         reminderId = notification.reminderId,
                         detail = if (failure == null) "id=${notification.id}" else "post id=${notification.id} failed: ${failure.javaClass.simpleName}",
                     )
+                    if (failure == null) {
+                        for (id in replaceEarlierRings(gateway, notification)) {
+                            env.log.record(
+                                AlarmLogEvent.CANCELLED,
+                                AlarmLogLane.NOTIFICATION,
+                                kind = notification.kind,
+                                urgent = notification.urgent,
+                                taskId = notification.taskId,
+                                reminderId = notification.reminderId,
+                                detail = "shown id=$id (replaced by id=${notification.id})",
+                            )
+                        }
+                    }
                     env.scheduler.pass(reason = "fired")
                 }
             } finally {
@@ -50,6 +65,11 @@ class AlarmFireReceiver : BroadcastReceiver() {
 
     companion object {
         const val RECEIVER_BUDGET_MS = 8_000L
+
+        fun replaceEarlierRings(gateway: AlarmGateway, posted: PlannedNotification): List<Int> {
+            val earlier = AlarmBooking.supersededRings(gateway.shownPayloads(), posted)
+            return earlier.filter { runCatching { gateway.cancelShown(it) }.isSuccess }
+        }
     }
 }
 

@@ -32,7 +32,7 @@ class NoteEditorViewModelTest {
     private fun handle(id: String?) = SavedStateHandle(mapOf("id" to id, "external" to false))
 
     private fun open(id: String?, repository: NotesRepository = env.repository, saved: SavedStateHandle = handle(id)) =
-        NoteEditorViewModel(saved, repository, env.external, env.settings)
+        NoteEditorViewModel(saved, repository, env.external, env.settings, env.tasks.environment)
 
     private fun idleUntil(condition: () -> Boolean) {
         val end = System.currentTimeMillis() + 10_000

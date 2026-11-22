@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.lifecycle.SavedStateHandle
@@ -42,7 +44,7 @@ class NoteEditorLayoutTest {
     private var density = 1f
 
     private fun show(id: String?, fontScale: Float) {
-        val viewModel = NoteEditorViewModel(SavedStateHandle(mapOf("id" to id, "external" to false)), env.repository, env.external, env.settings)
+        val viewModel = NoteEditorViewModel(SavedStateHandle(mapOf("id" to id, "external" to false)), env.repository, env.external, env.settings, env.tasks.environment)
         val export = env.exportViewModel()
         compose.setContent {
             density = LocalDensity.current.density
@@ -95,7 +97,30 @@ class NoteEditorLayoutTest {
         }
     }
 
+    @Test
+    fun findKeepsAFullTouchTargetAndTheSavedStateStaysVisibleAtDoubleFontScale() {
+        show(null, 2f)
+        compose.onNodeWithTag("note-title").performTextInput("Plan")
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Saved").fetchSemanticsNodes().isNotEmpty() }
+        val screen = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val outline = compose.onNodeWithTag("open-outline").fetchSemanticsNode().boundsInRoot
+        val find = compose.onNodeWithTag("open-find").fetchSemanticsNode().boundsInRoot
+        listOf(outline, find).forEach { bounds ->
+            assertTrue("$bounds", bounds.width >= ICON_BUTTON_DP * density - 0.5f)
+            assertTrue("$bounds", bounds.height >= ICON_BUTTON_DP * density - 0.5f)
+        }
+        assertTrue("$outline $find", find.center.x - outline.center.x >= TOUCH_TARGET_DP * density - 0.5f)
+        assertTrue("$find", find.right + (TOUCH_TARGET_DP - ICON_BUTTON_DP) / 2 * density <= screen.right + 0.5f)
+        assertLabelInFull("Saved")
+        val saved = compose.onNodeWithText("Saved", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue(saved.width > 0f && saved.right <= screen.right + 0.5f)
+        assertLabelInFull("Source")
+        assertLabelInFull("Reading")
+    }
+
     private companion object {
+        const val TOUCH_TARGET_DP = 48f
         const val ICON_BUTTON_DP = 40f
     }
 }

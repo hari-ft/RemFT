@@ -8,6 +8,7 @@ import com.ftapps.remft.data.notes.ExternalDocumentStore
 import com.ftapps.remft.data.notes.NotesRepository
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.testing.TestDatabases
+import com.ftapps.remft.testing.TestTasks
 import com.ftapps.remft.ui.notes.export.NoteExportViewModel
 import com.ftapps.remft.ui.notes.export.NoteExporter
 import kotlinx.coroutines.CoroutineScope
@@ -40,9 +41,12 @@ class NotesTestEnvironment {
 
     val external = ExternalDocumentStore(context, settings)
 
+    val tasks = TestTasks()
+
     fun exportViewModel() = NoteExportViewModel(NoteExporter(context, repository), repository, settings)
 
     fun close() {
+        tasks.close()
         holder.close()
         scope.cancel()
         dir.deleteRecursively()

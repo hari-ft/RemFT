@@ -33,6 +33,11 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.io.File
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w411dp-h1800dp")
@@ -160,6 +165,52 @@ class FilesScreenTest {
         compose.onNodeWithTag("files-sort").performClick()
         compose.onNodeWithTag("files-sort-name").performClick()
         waitFor { runBlocking { rig.settings.get("remft_files_sort") } == "name:asc" }
+    }
+
+    private fun textShown(text: String): Boolean = compose.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+
+    @Test
+    fun theSortMenuMarksOnlyTheChosenOptionAsSelected() {
+        runBlocking { rig.settings.set("remft_files_sort", "name:asc") }
+        showFiles()
+        compose.onNodeWithTag("files-sort").performClick()
+        waitFor { exists("files-sort-name") }
+        waitFor { compose.onNodeWithTag("files-sort-name").fetchSemanticsNode().config.getOrNull(SemanticsProperties.Selected) == true }
+        compose.onNodeWithTag("files-sort-name").assertIsSelected()
+        compose.onNodeWithTag("files-sort-date").assertIsNotSelected()
+        compose.onNodeWithTag("files-sort-size").assertIsNotSelected()
+    }
+
+    @Test
+    fun folderCountsUseRealPlurals() {
+        val solo = runBlocking { rig.files.createFolder("Solo", null) }
+        rig.add("only.txt", folderId = solo)
+        val pair = runBlocking { rig.files.createFolder("Pair", null) }
+        rig.add("a.txt", folderId = pair)
+        rig.add("b.txt", folderId = pair)
+        showFiles()
+        waitFor { exists("folder-row-$solo") && exists("folder-row-$pair") }
+        waitFor { textShown("1 item") && textShown("2 items") }
+        assertFalse(compose.onAllNodesWithText("item(s)", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty())
+    }
+
+    @Test
+    fun deletingAFolderNamesTheRealRecycleBinPathAndCountsProperly() {
+        val empty = runBlocking { rig.files.createFolder("Empty", null) }
+        val full = runBlocking { rig.files.createFolder("Full", null) }
+        rig.add("one.txt", folderId = full)
+        showFiles()
+        waitFor { exists("folder-row-$empty") && exists("folder-row-$full") }
+        compose.onNodeWithTag("folder-menu-$empty").performClick()
+        waitFor { exists("folder-action-delete") }
+        compose.onNodeWithTag("folder-action-delete").performClick()
+        waitFor { textShown("It goes to the recycle bin — you can restore it from Settings → Your data → Recycle bin.") }
+        compose.onNodeWithText("Cancel").performClick()
+        waitFor { !textShown("It goes to the recycle bin — you can restore it from Settings → Your data → Recycle bin.") }
+        compose.onNodeWithTag("folder-menu-$full").performClick()
+        waitFor { exists("folder-action-delete") }
+        compose.onNodeWithTag("folder-action-delete").performClick()
+        waitFor { textShown("1 folder and 1 file go to the recycle bin.") }
     }
 
     @Test

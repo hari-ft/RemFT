@@ -874,32 +874,34 @@
     <string name="noteLeave_discard">Discard</string>
     <string name="dfx_restore_db_in_use">The app was still using its data, so nothing was replaced. Try again in a minute.</string>
     <string name="almed_missed_subtext">Missed while the phone was off</string>
-    <string name="lowdt_folderCouldNotDelete">Could not delete the folder</string>
-    <plurals name="lowdt_folderItems">
+    <string name="lowui_filter">Filter tasks</string>
+    <plurals name="lowui_folderItems">
         <item quantity="one">%d item</item>
         <item quantity="other">%d items</item>
     </plurals>
-    <plurals name="lowdt_folderCount">
-        <item quantity="one">%d folder</item>
-        <item quantity="other">%d folders</item>
-    </plurals>
-    <plurals name="lowdt_fileCount">
-        <item quantity="one">%d file</item>
-        <item quantity="other">%d files</item>
-    </plurals>
-    <string name="lowdt_deleteFolderBody">{folders} and {files} will be deleted. This cannot be undone.</string>
-    <string name="lowdt_deleteFolderBodyBin">{folders} and {files} go to the recycle bin.</string>
-    <plurals name="lowdt_binEmptyBody">
+    <plurals name="lowui_binEmptyBody">
         <item quantity="one">%d item and its attachments will be deleted for good. This cannot be undone.</item>
         <item quantity="other">%d items and their attachments will be deleted for good. This cannot be undone.</item>
     </plurals>
-    <plurals name="lowdt_binTurnOffBody">
+    <plurals name="lowui_binTurnOffBody">
         <item quantity="one">The %d item in it will be deleted for good, and later deletes will be permanent. This cannot be undone.</item>
         <item quantity="other">The %d items in it will be deleted for good, and later deletes will be permanent. This cannot be undone.</item>
     </plurals>
-    <string name="lowdt_appLogNoWarnings">No warnings or errors</string>
-    <string name="lowdt_appLogNoErrors">No errors</string>
-    <string name="lowdt_appLogFilteredBody">Nothing at this level. Choose All to see every entry.</string>
+    <string name="lowui_appLogFilterEmptyTitle">Nothing at this level</string>
+    <string name="lowui_appLogFilterEmptyBody">No warnings or errors match this filter. Choose All to see every entry.</string>
+    <plurals name="lowui_folderCount">
+        <item quantity="one">%d folder</item>
+        <item quantity="other">%d folders</item>
+    </plurals>
+    <plurals name="lowui_fileCount">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
+    <string name="lowui_deleteFolderBody">{folders} and {files} will be deleted. This cannot be undone.</string>
+    <string name="lowui_deleteFolderBodyBin">{folders} and {files} go to the recycle bin.</string>
+    <string name="lownt_sectionCollapse">Collapse section</string>
+    <string name="lownt_sectionExpand">Expand section</string>
+    <string name="lowdt_folderCouldNotDelete">Could not delete the folder</string>
     <string name="lowdt_weekSelectedDay">Showing {date}</string>
     <string name="lowdt_weekClearDay">Show all days</string>
 </resources>

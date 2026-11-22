@@ -225,6 +225,25 @@ class MermaidLayoutTest {
     }
 
     @Test
+    fun longMessageTextFitsBetweenItsLifelinesAndInsideTheDiagram() {
+        val text = "a rather long message that is much wider than one column"
+        val l = seq("sequenceDiagram\n A->>B: $text\n B->>C: ok\n")
+        val m = l.messages.first()
+        val half = measure.measure(text).width / 2
+        assertTrue(m.textAnchor.x - half >= l.byId("A")!!.lifelineX)
+        assertTrue(m.textAnchor.x + half <= l.byId("B")!!.lifelineX)
+        assertTrue(m.textAnchor.x + half <= l.size.width)
+    }
+
+    @Test
+    fun selfMessageOnTheLastColumnStaysInsideTheDiagram() {
+        val text = "checks its own cache"
+        val l = seq("sequenceDiagram\n A->>B: hi\n B->>B: $text\n")
+        val m = l.messages.last()
+        assertTrue(m.textAnchor.x + measure.measure(text).width <= l.size.width)
+    }
+
+    @Test
     fun lifelinesRunPastLastMessage() {
         val l = seq("sequenceDiagram\n A->>B: one\n")
         assertTrue(l.participants.first().lifelineBottom > l.messages.single().points.first().y)

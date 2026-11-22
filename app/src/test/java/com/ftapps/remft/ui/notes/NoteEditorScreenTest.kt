@@ -38,7 +38,7 @@ class NoteEditorScreenTest {
     fun tearDown() = env.close()
 
     private fun show(id: String?): NoteEditorViewModel {
-        val viewModel = NoteEditorViewModel(SavedStateHandle(mapOf("id" to id, "external" to false)), env.repository, env.external, env.settings)
+        val viewModel = NoteEditorViewModel(SavedStateHandle(mapOf("id" to id, "external" to false)), env.repository, env.external, env.settings, env.tasks.environment)
         val export = env.exportViewModel()
         compose.setContent { RemftTheme { NoteEditorScreen(viewModel, export, onBack = {}) } }
         return viewModel

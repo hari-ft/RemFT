@@ -4,6 +4,7 @@ import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.alarm.AlarmBooking
 import com.ftapps.remft.domain.alarm.AlarmInput
 import com.ftapps.remft.domain.alarm.AlarmPlanner
+import kotlinx.coroutines.CancellationException
 
 class AlarmSilencer(
     private val settings: SettingsStore,
@@ -48,6 +49,8 @@ class AlarmSilencer(
             )
         }
         targets.size
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         log.record(
             AlarmLogEvent.DEGRADED,

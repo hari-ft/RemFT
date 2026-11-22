@@ -9,6 +9,8 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ftapps.remft.R
 import kotlinx.serialization.Serializable
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 
 @Serializable data object HomeRoute
 @Serializable data object InboxRoute
@@ -23,4 +25,13 @@ enum class Section(val route: Any, @param:StringRes val label: Int, val icon: Im
     Inbox(InboxRoute, R.string.nav_inbox, Icons.Outlined.Inbox, "nav-inbox"),
     Notes(NotesRoute, R.string.nav_notes, Icons.Outlined.Description, "nav-notes"),
     Files(FilesRoute, R.string.nav_files, Icons.Outlined.Folder, "nav-files"),
+}
+
+fun NavHostController.switchSection(route: Any) {
+    popBackStack<SettingsRoute>(inclusive = true)
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
 }

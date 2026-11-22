@@ -30,7 +30,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
@@ -51,14 +50,9 @@ import com.ftapps.remft.ui.tasks.TaskCreateSheet
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
+import com.ftapps.remft.ui.shell.switchSection
 
-fun NavHostController.openSectionFromSearch(route: Any) {
-    navigate(route) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
-    }
-}
+fun NavHostController.openSectionFromSearch(route: Any) = switchSection(route)
 
 fun NavHostController.openNoteFromSearch(id: String) {
     navigate(NoteRoute(id = id)) { launchSingleTop = true }

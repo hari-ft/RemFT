@@ -8,6 +8,7 @@ import com.ftapps.remft.domain.alarm.AlarmInput
 import com.ftapps.remft.domain.alarm.AlarmPlanner
 import com.ftapps.remft.domain.alarm.AlarmTexts
 import com.ftapps.remft.domain.alarm.HeldRing
+import com.ftapps.remft.domain.alarm.PlannedNotification
 import com.ftapps.remft.domain.alarm.RebookPolicy
 import com.ftapps.remft.domain.alarm.SoundChoice
 import kotlinx.coroutines.CoroutineScope
@@ -90,6 +91,23 @@ class AlarmScheduler(
 
     suspend fun resolveSounds(config: AlarmSettings): ResolvedSounds =
         ResolvedSounds(resolve(config.alarmSound), resolve(config.reminderSound))
+
+    suspend fun ringingNotification(shown: AlarmInput): PlannedNotification? {
+        val config = AlarmSettings.from(settings.snapshot())
+        val who = identity.resolve()
+        val feed = if (who.reliable) store.feed(who.workspaceId) else emptyList()
+        val resolved = resolveSounds(config)
+        return planner.currentRing(
+            alarms = feed,
+            shown = shown,
+            now = clock.instant(),
+            privacyMode = config.privacyMode,
+            profile = config.profile,
+            alarmSoundName = resolved.alarm,
+            reminderSoundName = resolved.reminder,
+            held = held.value,
+        )
+    }
 
     private suspend fun resolve(choice: SoundChoice): String? {
         if (choice is SoundChoice.File) runCatching { sounds.ensureInstalled(choice.fileId) }

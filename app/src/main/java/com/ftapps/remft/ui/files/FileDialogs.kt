@@ -217,14 +217,14 @@ fun FileDialogsHost(
         is FileDialog.DeleteFolder -> {
             val empty = dialog.counts.files == 0 && dialog.counts.folders == 1
             val counts = arrayOf(
-                "folders" to pluralStringResource(R.plurals.lowdt_folderCount, dialog.counts.folders, dialog.counts.folders),
-                "files" to pluralStringResource(R.plurals.lowdt_fileCount, dialog.counts.files, dialog.counts.files),
+                "folders" to pluralStringResource(R.plurals.lowui_folderCount, dialog.counts.folders, dialog.counts.folders),
+                "files" to pluralStringResource(R.plurals.lowui_fileCount, dialog.counts.files, dialog.counts.files),
             )
             val body = when {
                 dialog.toBin && empty -> stringResource(R.string.bin_toBin)
-                dialog.toBin -> stringResource(R.string.lowdt_deleteFolderBodyBin).fill(*counts)
+                dialog.toBin -> stringResource(R.string.lowui_deleteFolderBodyBin).fill(*counts)
                 empty -> stringResource(R.string.files_deleteFolderEmpty)
-                else -> stringResource(R.string.lowdt_deleteFolderBody).fill(*counts)
+                else -> stringResource(R.string.lowui_deleteFolderBody).fill(*counts)
             }
             ConfirmDeleteDialog(
                 title = stringResource(R.string.files_deleteFolderTitle).fill("name" to dialog.folder.name),

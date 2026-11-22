@@ -21,6 +21,7 @@ object NoteText {
     private val task = Regex("^\\s*[-*+]\\s+\\[[ xX]\\]\\s+", RegexOption.MULTILINE)
     private val bullet = Regex("^\\s*[-*+]\\s+", RegexOption.MULTILINE)
     private val ordered = Regex("^\\s*\\d+[.)]\\s+", RegexOption.MULTILINE)
+    private val tableDivider = Regex("^[ \\t]*\\|?(?:[ \\t]*:?-+:?[ \\t]*\\|)+(?:[ \\t]*:?-+:?[ \\t]*)?$", RegexOption.MULTILINE)
     private val rule = Regex("^\\s{0,3}([-*_])\\s*(?:\\1\\s*){2,}$", RegexOption.MULTILINE)
     private val strong = Regex("(\\*\\*|__|~~|==)(.*?)\\1")
     private val emphasis = Regex("(^|[^\\w])[*_]([^*_\\n]+)[*_]([^\\w]|$)")
@@ -41,6 +42,7 @@ object NoteText {
         text = task.replace(text, "")
         text = bullet.replace(text, "")
         text = ordered.replace(text, "")
+        text = tableDivider.replace(text, " ")
         text = rule.replace(text, " ")
         text = text.replace("|", " ")
         text = strong.replace(text) { it.groupValues[2] }

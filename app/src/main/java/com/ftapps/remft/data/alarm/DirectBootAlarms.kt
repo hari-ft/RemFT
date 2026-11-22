@@ -166,6 +166,7 @@ object DirectBootAlarms {
         val order = state.snoozeOrder.ifEmpty { SnoozePresets.ids }
         val gateway = AndroidAlarmGateway(context, snoozeOrder = { order }, fullScreen = { canOpenFullScreen(context) })
         val shown = runCatching { gateway.show(notification) }
+        if (shown.isSuccess) runCatching { AlarmFireReceiver.replaceEarlierRings(gateway, notification) }
         runCatching { mirror.recordDelivered(notification.id) }
         return shown
     }

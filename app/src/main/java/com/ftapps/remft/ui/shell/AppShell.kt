@@ -29,7 +29,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -84,13 +83,7 @@ fun AppShell(
     val current = Section.entries.firstOrNull { section ->
         destination?.hierarchy?.any { it.hasRoute(section.route::class) } == true
     }
-    val navigate: (Section) -> Unit = { section ->
-        navController.navigate(section.route) {
-            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
-        }
-    }
+    val navigate: (Section) -> Unit = { section -> navController.switchSection(section.route) }
     val hazeState = rememberHazeState()
     val tour = LocalTourController.current
     if (tour != null) LaunchedEffect(tour) { tour.maybeAutoStart() }

@@ -45,10 +45,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -58,7 +56,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -95,43 +92,11 @@ import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import java.time.ZoneId
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
-
-const val UNDO_WINDOW_MS = 3_000L
+import com.ftapps.remft.ui.components.menuChoice
 
 fun formatNoteDate(text: String?, format: DateFormatId): String {
     val instant = UtcText.parse(text) ?: return "—"
     return DateFormats.date(instant.atZone(ZoneId.systemDefault()).toLocalDateTime(), format)
-}
-
-suspend fun SnackbarHostState.showUndo(message: String, actionLabel: String): Boolean {
-    val result = withTimeoutOrNull(UNDO_WINDOW_MS) {
-        showSnackbar(message, actionLabel = actionLabel, withDismissAction = false, duration = SnackbarDuration.Indefinite)
-    }
-    if (result == null) currentSnackbarData?.dismiss()
-    return result == SnackbarResult.ActionPerformed
-}
-
-fun deleteWithUndo(
-    scope: CoroutineScope,
-    snackbar: SnackbarHostState,
-    message: String,
-    undoLabel: String,
-    hide: () -> Unit,
-    undo: () -> Unit,
-    commit: () -> Unit,
-) {
-    hide()
-    scope.launch {
-        var undone = false
-        try {
-            undone = snackbar.showUndo(message, undoLabel)
-        } finally {
-            if (undone) undo() else commit()
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -159,18 +124,9 @@ fun NotesScreen(
         viewModel.setSearch("")
     }
     BackHandler(enabled = searching, onBack = closeSearch)
-    val scope = rememberCoroutineScope()
-    val undoLabel = stringResource(R.string.common_undo)
     val deletedTemplate = stringResource(R.string.note_deleted)
 
-    val delete: (NoteRow) -> Unit = { note ->
-        deleteWithUndo(
-            scope, snackbar, deletedTemplate.fill("title" to note.title), undoLabel,
-            hide = { viewModel.hide(note.id) },
-            undo = { viewModel.undoDelete(note.id) },
-            commit = { viewModel.commitDelete(note.id) },
-        )
-    }
+    val delete: (NoteRow) -> Unit = { note -> viewModel.delete(note, deletedTemplate.fill("title" to note.title)) }
     val actions = NoteRowActions(
         open = { onOpenNote(it.id) },
         togglePin = viewModel::togglePinned,
@@ -501,7 +457,7 @@ private fun SortMenu(
                         open = false
                         onSelect(field)
                     },
-                    modifier = Modifier.testTag("sort-${field.id}"),
+                    modifier = Modifier.menuChoice(field == sortField).testTag("sort-${field.id}"),
                 )
             }
             DropdownMenuItem(
@@ -523,7 +479,7 @@ private fun SortMenu(
                         open = false
                         onViewMode(mode)
                     },
-                    modifier = Modifier.testTag("view-$mode"),
+                    modifier = Modifier.menuChoice(mode == viewMode).testTag("view-$mode"),
                 )
             }
         }

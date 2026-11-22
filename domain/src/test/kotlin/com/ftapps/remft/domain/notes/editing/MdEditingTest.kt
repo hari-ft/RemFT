@@ -123,4 +123,13 @@ class MdEditingTest {
         assertTrue(md.contains("**bold** & [e](https://e.com)"))
         assertTrue(md.contains("- one"))
     }
+
+    @Test
+    fun browserClipboardHtmlLeavesNoRawTags() {
+        val html = "<html><head><style>p { color: red; }</style></head><body><!--StartFragment--><meta charset='utf-8'>" +
+            "<span style=\"color: rgb(0,0,0)\">Hello <b>world</b></span> <img src=\"x.png\"><i>it</i> &amp;lt;tag&amp;gt;" +
+            "<pre>code</pre><!--EndFragment--></body></html>"
+        val md = MdEditing.htmlToMarkdown(html)
+        assertEquals("Hello **world** *it* &lt;tag&gt;code", md)
+    }
 }

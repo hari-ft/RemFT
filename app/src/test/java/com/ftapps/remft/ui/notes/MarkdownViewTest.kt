@@ -9,6 +9,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.testing.TestDatabases
 import com.ftapps.remft.ui.notes.markdown.MarkdownView
@@ -19,12 +24,17 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.RuntimeEnvironment
 import android.app.Application
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.state.ToggleableState
 
 @RunWith(AndroidJUnit4::class)
 class MarkdownViewTest {
@@ -46,6 +56,15 @@ class MarkdownViewTest {
         val source = TestDatabases.fixturesDir.resolve("markdown_conformance.md").readText()
         render(source)
         compose.onNodeWithTag("markdown-view").assertExists()
+    }
+
+    @Test
+    fun readingModeChecklistMarksReportTheirStateAndAreNotButtons() {
+        render("- [x] Jacket\n- [ ] Tent")
+        val marks = compose.onAllNodesWithTag("markdown-check", useUnmergedTree = true).fetchSemanticsNodes()
+        assertEquals(2, marks.size)
+        assertEquals(listOf(ToggleableState.On, ToggleableState.Off), marks.map { it.config.getOrNull(SemanticsProperties.ToggleableState) })
+        assertEquals(listOf(null, null), marks.map { it.config.getOrNull(SemanticsActions.OnClick) })
     }
 
     @Test
@@ -107,5 +126,25 @@ class MarkdownViewTest {
         render("```mermaid\ngraph TD\nA[Start] --> B[End]\n```\n\n```python\nprint('hi')\n```\n\n\$\$\nE = mc^2\n\$\$")
         compose.onNodeWithTag("markdown-view").performScrollToNode(hasTestTag("math-block"))
         compose.onNodeWithTag("math-block").assertExists()
+    }
+
+    @Test
+    fun theFoldButtonNamesWhatItDoes() {
+        render("# A\n\nbody\n\n# B\n\nmore", collapsed = setOf(2))
+        compose.onNodeWithTag("fold-0").assert(hasContentDescription("Collapse section"))
+        compose.onNodeWithTag("fold-2").assert(hasContentDescription("Expand section"))
+        compose.onAllNodesWithContentDescription("Outline").assertCountEquals(0)
+    }
+
+    @Test
+    fun copiedStateResetsAfterAMoment() {
+        render("```kotlin\nval x = 1\n```")
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Copy code").performClick()
+        compose.mainClock.advanceTimeBy(100)
+        compose.onNodeWithContentDescription("Copied").assertExists()
+        compose.mainClock.advanceTimeBy(3_000)
+        compose.onNodeWithContentDescription("Copy code").assertExists()
+        compose.onNodeWithContentDescription("Copied").assertDoesNotExist()
     }
 }

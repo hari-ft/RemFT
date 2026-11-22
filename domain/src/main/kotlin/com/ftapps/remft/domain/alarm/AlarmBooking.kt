@@ -114,4 +114,20 @@ object AlarmBooking {
         shownIds.filterTo(targets) { it in candidates }
         return targets
     }
+
+    fun supersededRings(shownPayloads: Map<Int, String?>, posted: PlannedNotification): List<Int> {
+        val reminderId = posted.reminderId ?: return emptyList()
+        val taskId = posted.taskId ?: return emptyList()
+        val postedAt = posted.fireAt.toEpochMilli()
+        return shownPayloads.mapNotNull { (id, payload) ->
+            val shown = AlarmPlanner.parsePayload(payload)
+            val earlier = shown != null &&
+                id != posted.id &&
+                NotificationIds.isRing(id) &&
+                shown.taskId == taskId &&
+                shown.reminderId == reminderId &&
+                (shown.fireAt ?: Long.MIN_VALUE) <= postedAt
+            if (earlier) id else null
+        }
+    }
 }

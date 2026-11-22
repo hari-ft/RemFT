@@ -152,19 +152,12 @@ private fun AppLogContent(
         item { AppLogHeader(min, onFilter, onOpenAlarmLog) }
         when {
             rows == null -> Unit
-            rows.isEmpty() && entries.isNotEmpty() -> item {
-                EmptyState(
-                    Icons.AutoMirrored.Outlined.ReceiptLong,
-                    stringResource(if (min == AppLogLevel.ERROR) R.string.lowdt_appLogNoErrors else R.string.lowdt_appLogNoWarnings),
-                    stringResource(R.string.lowdt_appLogFilteredBody),
-                    Modifier.testTag("app-log-filtered-empty"),
-                )
-            }
             rows.isEmpty() -> item {
+                val filtered = entries.isNotEmpty()
                 EmptyState(
                     Icons.AutoMirrored.Outlined.ReceiptLong,
-                    stringResource(R.string.appLog_emptyTitle),
-                    stringResource(R.string.appLog_emptyBody),
+                    stringResource(if (filtered) R.string.lowui_appLogFilterEmptyTitle else R.string.appLog_emptyTitle),
+                    stringResource(if (filtered) R.string.lowui_appLogFilterEmptyBody else R.string.appLog_emptyBody),
                     Modifier.testTag("app-log-empty"),
                 )
             }

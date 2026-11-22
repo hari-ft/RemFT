@@ -74,32 +74,55 @@ class AlarmPlanner(private val texts: AlarmTexts) {
             .sortedWith(compareBy<Pair<Ring, String>> { it.first.fireAt }.thenBy { it.second })
             .take(maxPending)
         val ids = NotificationIds.assign(upcoming.map { it.second })
-        return upcoming.mapIndexed { position, (ring, _) ->
-            val fireAt = ring.fireAt
-            val alarm = ring.alarm
-            PlannedNotification(
-                id = ids[position],
-                title = ring.title,
-                body = ring.body,
-                fireAt = fireAt,
-                urgent = alarm.urgent,
-                payload = encodePayload(
-                    taskId = alarm.taskId,
-                    reminderId = alarm.reminderId,
-                    kind = alarm.kind,
-                    atMillis = alarm.remindAt.toEpochMilli(),
-                    chainIndex = ring.index,
-                    plannedMillis = ring.originalFireAt.toEpochMilli(),
-                    fireAtMillis = fireAt.toEpochMilli(),
-                    baseMillis = alarm.fireAt.toEpochMilli(),
-                ),
-                kind = alarm.kind,
-                slotIndex = ring.index,
+        return upcoming.mapIndexed { position, (ring, _) -> notificationOf(ring, ids[position]) }
+    }
+
+    fun currentRing(
+        alarms: List<AlarmInput>,
+        shown: AlarmInput,
+        now: Instant,
+        privacyMode: Boolean,
+        profile: ReminderProfile = ReminderProfile.Factory,
+        alarmSoundName: String? = null,
+        reminderSoundName: String? = null,
+        held: Map<HeldRing, Instant> = emptyMap(),
+    ): PlannedNotification? {
+        val feed = if (alarms.any { it.reminderId == shown.reminderId }) alarms else alarms + shown
+        val rings = ringsOf(feed, privacyMode, profile, alarmSoundName, reminderSoundName, texts)
+        spaceCollidingRings(rings)
+        applyHeld(rings, held)
+        val ring = rings
+            .filter { it.alarm.taskId == shown.taskId && it.alarm.urgent && !it.fireAt.isAfter(now) }
+            .maxWithOrNull(compareBy<Ring> { it.fireAt }.thenBy { if (it.alarm.reminderId == shown.reminderId) 1 else 0 })
+            ?: return null
+        return notificationOf(ring, NotificationIds.ring(ringKey(ring, ring.fireAt)))
+    }
+
+    private fun notificationOf(ring: Ring, id: Int): PlannedNotification {
+        val fireAt = ring.fireAt
+        val alarm = ring.alarm
+        return PlannedNotification(
+            id = id,
+            title = ring.title,
+            body = ring.body,
+            fireAt = fireAt,
+            urgent = alarm.urgent,
+            payload = encodePayload(
                 taskId = alarm.taskId,
                 reminderId = alarm.reminderId,
-                soundName = ring.soundName,
-            )
-        }
+                kind = alarm.kind,
+                atMillis = alarm.remindAt.toEpochMilli(),
+                chainIndex = ring.index,
+                plannedMillis = ring.originalFireAt.toEpochMilli(),
+                fireAtMillis = fireAt.toEpochMilli(),
+                baseMillis = alarm.fireAt.toEpochMilli(),
+            ),
+            kind = alarm.kind,
+            slotIndex = ring.index,
+            taskId = alarm.taskId,
+            reminderId = alarm.reminderId,
+            soundName = ring.soundName,
+        )
     }
 
     fun notificationIdsForAlarm(

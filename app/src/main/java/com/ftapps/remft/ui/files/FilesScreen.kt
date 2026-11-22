@@ -65,7 +65,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -97,6 +96,8 @@ import com.ftapps.remft.ui.theme.Space
 import com.ftapps.remft.ui.theme.groupPosition
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import com.ftapps.remft.ui.components.menuChoice
+import androidx.compose.ui.res.pluralStringResource
 
 object FileSort {
     val choices: List<SortChoice> = listOf(
@@ -353,7 +354,7 @@ private fun SortMenu(sort: SortState, onChange: (SortState) -> Unit) {
                         open = false
                         onChange(sort.select(choice))
                     },
-                    modifier = Modifier.testTag("files-sort-${choice.id}"),
+                    modifier = Modifier.menuChoice(choice.id == sort.id).testTag("files-sort-${choice.id}"),
                 )
             }
             HorizontalDivider()
@@ -505,7 +506,7 @@ private fun FoldersLayer(
 @Composable
 private fun FolderRowCard(folder: FolderEntity, count: Int, position: GroupPosition, onOpen: () -> Unit, onMore: () -> Unit) {
     FileCardContainer(position, "folder-row-${folder.id}") {
-        FolderRowContent(folder.name, pluralStringResource(R.plurals.lowdt_folderItems, count, count), folder.id, onOpen, onMore)
+        FolderRowContent(folder.name, pluralStringResource(R.plurals.lowui_folderItems, count, count), folder.id, onOpen, onMore)
     }
 }
 

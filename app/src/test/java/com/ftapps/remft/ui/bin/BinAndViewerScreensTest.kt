@@ -91,7 +91,7 @@ class BinAndViewerScreensTest {
         waitFor { exists("bin-item-${trashId(a)}") }
         compose.onNodeWithTag("bin-empty").performClick()
         waitFor { exists("bin-empty-confirm") }
-        assertEquals(1, compose.onAllNodesWithText("2 items and their attachments will be deleted for good. This cannot be undone.").fetchSemanticsNodes().size)
+        compose.onNodeWithText("2 items and their attachments will be deleted for good. This cannot be undone.").assertExists()
         assertEquals(2, rig.query("SELECT id FROM trash_items").size)
         compose.onNodeWithTag("bin-empty-confirm").performClick()
         waitFor { rig.query("SELECT id FROM trash_items").isEmpty() }

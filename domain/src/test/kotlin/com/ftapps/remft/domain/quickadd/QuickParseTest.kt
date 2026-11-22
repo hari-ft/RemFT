@@ -46,6 +46,35 @@ class QuickParseTest {
     }
 
     @Test
+    fun forBeforeADateGoesWithTheDate() {
+        val weekend = parse("Sample idea for weekend")
+        assertEquals("Sample idea", weekend.title)
+        assertEquals("2026-10-17", day(weekend.dueAt))
+        assertEquals(listOf("for weekend"), weekend.tokens.map { it.text })
+        val friday = parse("Gift for Friday")
+        assertEquals("Gift", friday.title)
+        assertEquals("2026-10-16", day(friday.dueAt))
+        val tomorrow = parse("Slides for tomorrow 9am")
+        assertEquals("Slides", tomorrow.title)
+        assertEquals("2026-10-17T09:00", wall(tomorrow.dueAt))
+    }
+
+    @Test
+    fun forWithoutADateStaysInTheTitle() {
+        val p = parse("Look for keys")
+        assertEquals("Look for keys", p.title)
+        assertNull(p.dueAt)
+    }
+
+    @Test
+    fun keepingForADateAsTextKeepsTheWholePhrase() {
+        val first = parse("Sample idea for weekend")
+        val kept = parse("Sample idea for weekend", ignored = first.tokens.map { it.key }.toSet())
+        assertEquals("Sample idea for weekend", kept.title)
+        assertNull(kept.dueAt)
+    }
+
+    @Test
     fun aTimeAloneIsTheDeadlineChip() {
         val p = parse("9am breakfast")
         assertEquals(QuickTokenKind.Due, p.chips.single().kind)

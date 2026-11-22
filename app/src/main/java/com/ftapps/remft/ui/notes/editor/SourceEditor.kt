@@ -53,21 +53,22 @@ class SourceStylingTransformation(
     private val styling: NoteSourceStyling,
     private val palette: SourcePalette,
     private val caretLine: Int,
+    private val caret: Int = 0,
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText =
-        TransformedText(styled(text.text, styling, palette, caretLine), OffsetMapping.Identity)
+        TransformedText(styled(text.text, styling, palette, caretLine, SourceTokens.window(text.length, caret)), OffsetMapping.Identity)
 
     override fun equals(other: Any?): Boolean =
-        other is SourceStylingTransformation && other.styling == styling && other.palette == palette && other.caretLine == caretLine
+        other is SourceStylingTransformation && other.styling == styling && other.palette == palette && other.caretLine == caretLine && other.caret == caret
 
-    override fun hashCode(): Int = (styling.hashCode() * 31 + palette.hashCode()) * 31 + caretLine
+    override fun hashCode(): Int = ((styling.hashCode() * 31 + palette.hashCode()) * 31 + caretLine) * 31 + caret
 }
 
-fun styled(text: String, styling: NoteSourceStyling, palette: SourcePalette, caretLine: Int): AnnotatedString {
+fun styled(text: String, styling: NoteSourceStyling, palette: SourcePalette, caretLine: Int, window: IntRange? = null): AnnotatedString {
     if (styling == NoteSourceStyling.Plain || text.isEmpty()) return AnnotatedString(text)
     val quiet = styling == NoteSourceStyling.MarkersOnly
     val builder = AnnotatedString.Builder(text)
-    SourceTokens.scan(text).forEach { token ->
+    SourceTokens.scan(text, window).forEach { token ->
         val style = styleFor(token.kind, token.line == caretLine, quiet, palette) ?: return@forEach
         builder.addStyle(style, token.start, token.end)
     }
@@ -163,7 +164,8 @@ fun SourceEditor(
 ) {
     val palette = sourcePalette()
     val caretLine = remember(value.text, value.selection.start) { SourceTokens.lineOf(value.text, value.selection.start) }
-    val transformation = remember(styling, palette, caretLine) { SourceStylingTransformation(styling, palette, caretLine) }
+    val windowCaret = if (value.text.length > SourceTokens.LARGE_TEXT) value.selection.start / CARET_STEP * CARET_STEP else 0
+    val transformation = remember(styling, palette, caretLine, windowCaret) { SourceStylingTransformation(styling, palette, caretLine, windowCaret) }
     val label = stringResource(R.string.note_bodyLabel)
     val style = TextStyle(fontFamily = JetBrainsMono, fontSize = MaterialTheme.typography.bodyLarge.fontSize, lineHeight = 1.5.em, color = palette.body)
     Box(modifier.verticalScroll(rememberScrollState())) {
@@ -191,3 +193,5 @@ fun SourceEditor(
         )
     }
 }
+
+private const val CARET_STEP = 8_192
