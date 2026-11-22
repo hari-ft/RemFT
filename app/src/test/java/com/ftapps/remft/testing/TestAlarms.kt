@@ -7,6 +7,7 @@ import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.AlarmGateway
 import com.ftapps.remft.data.alarm.AlarmHealth
 import com.ftapps.remft.data.alarm.AndroidAlarmGateway
+import com.ftapps.remft.data.alarm.snoozeOrderNow
 import com.ftapps.remft.data.alarm.PermissionKind
 import com.ftapps.remft.data.alarm.PermissionStatus
 import java.time.Clock
@@ -69,7 +70,7 @@ class TestAlarms(
         settings = tasks.settings,
         tasks = tasks.repository,
         clock = clock,
-        gateway = gateway ?: AndroidAlarmGateway(context),
+        gateway = gateway ?: AndroidAlarmGateway(context) { tasks.settings.snoozeOrderNow() },
         filesDir = tasks.dir,
         scope = tasks.scope,
         health = health,

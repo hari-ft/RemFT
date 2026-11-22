@@ -20,7 +20,9 @@ import com.ftapps.remft.domain.alarm.AlarmPlanner
 import com.ftapps.remft.domain.alarm.AlarmSounds
 import com.ftapps.remft.domain.alarm.ButtonLabel
 import com.ftapps.remft.domain.alarm.NotificationActions
+import com.ftapps.remft.domain.alarm.NotificationButton
 import com.ftapps.remft.domain.alarm.PlannedNotification
+import com.ftapps.remft.domain.alarm.SnoozePresets
 import com.ftapps.remft.domain.tasks.DeepLinks
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -41,7 +43,10 @@ interface AlarmGateway {
 
 enum class BookResult { EXACT, INEXACT }
 
-class AndroidAlarmGateway(private val context: Context) : AlarmGateway {
+class AndroidAlarmGateway(
+    private val context: Context,
+    private val snoozeOrder: () -> List<String> = { SnoozePresets.ids },
+) : AlarmGateway {
     private val alarmManager: AlarmManager get() = context.getSystemService(AlarmManager::class.java)
     private val notificationManager: NotificationManager get() = context.getSystemService(NotificationManager::class.java)
 
@@ -77,7 +82,7 @@ class AndroidAlarmGateway(private val context: Context) : AlarmGateway {
     @SuppressLint("MissingPermission")
     override fun show(notification: PlannedNotification) {
         ensureChannel(context, notification.urgent, notification.soundName)
-        notificationManager.notify(notification.id, AlarmNotifications.build(context, notification))
+        notificationManager.notify(notification.id, AlarmNotifications.build(context, notification, snoozeOrder()))
     }
 
     override fun shownIds(): Set<Int> = runCatching { notificationManager.activeNotifications.map { it.id }.toSet() }
@@ -195,7 +200,7 @@ class AndroidAlarmGateway(private val context: Context) : AlarmGateway {
 }
 
 object AlarmNotifications {
-    fun build(context: Context, notification: PlannedNotification): Notification {
+    fun build(context: Context, notification: PlannedNotification, snoozeOrder: List<String> = SnoozePresets.ids): Notification {
         val urgent = notification.urgent
         val channelId = AlarmSounds.channelIdFor(urgent, notification.soundName)
         val builder = NotificationCompat.Builder(context, channelId)
@@ -219,8 +224,8 @@ object AlarmNotifications {
         }
         if (urgent) builder.setFullScreenIntent(AndroidAlarmGateway.fullScreenIntent(context, notification), true)
         if (notification.payload != AlarmPlanner.TEST_PAYLOAD) {
-            for (button in NotificationActions.buttonsFor(urgent)) {
-                builder.addAction(0, context.getString(labelOf(button.label)), AndroidAlarmGateway.actionIntent(context, notification, button.actionId))
+            for (button in NotificationActions.buttonsFor(urgent, snoozeOrder)) {
+                builder.addAction(0, labelOf(context, button), AndroidAlarmGateway.actionIntent(context, notification, button.actionId))
             }
         }
         val built = builder.build()
@@ -228,11 +233,9 @@ object AlarmNotifications {
         return built
     }
 
-    fun labelOf(label: ButtonLabel): Int = when (label) {
-        ButtonLabel.ACKNOWLEDGE -> R.string.notif_action_acknowledge
-        ButtonLabel.SNOOZE_5_MIN -> R.string.notif_action_snooze5m
-        ButtonLabel.COMPLETE -> R.string.notif_action_complete
-        ButtonLabel.SNOOZE_30_MIN -> R.string.notif_action_snooze30m
-        ButtonLabel.SNOOZE_1_HOUR -> R.string.notif_action_snooze1h
+    fun labelOf(context: Context, button: NotificationButton): String = when (button.label) {
+        ButtonLabel.ACKNOWLEDGE -> context.getString(R.string.notif_action_acknowledge)
+        ButtonLabel.COMPLETE -> context.getString(R.string.notif_action_complete)
+        ButtonLabel.SNOOZE -> SnoozeLabels.of(context.resources, button.preset ?: SnoozePresets.DEFAULT)
     }
 }

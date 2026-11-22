@@ -4,9 +4,9 @@ import java.time.Instant
 
 data class NotificationEvent(val id: Int? = null, val actionId: String? = null, val payload: String? = null)
 
-data class NotificationButton(val actionId: String, val label: ButtonLabel)
+data class NotificationButton(val actionId: String, val label: ButtonLabel, val preset: String? = null)
 
-enum class ButtonLabel { ACKNOWLEDGE, SNOOZE_5_MIN, COMPLETE, SNOOZE_30_MIN, SNOOZE_1_HOUR }
+enum class ButtonLabel { ACKNOWLEDGE, COMPLETE, SNOOZE }
 
 sealed interface NotificationDecision {
     data object Ignore : NotificationDecision
@@ -53,17 +53,15 @@ object NotificationActions {
 
     fun snooze(preset: String): String = "$SNOOZE_PREFIX$preset"
 
-    fun buttonsFor(urgent: Boolean): List<NotificationButton> = if (urgent) {
-        listOf(
-            NotificationButton(ACKNOWLEDGE, ButtonLabel.ACKNOWLEDGE),
-            NotificationButton(snooze(SnoozePresets.FIVE_MIN), ButtonLabel.SNOOZE_5_MIN),
-        )
-    } else {
-        listOf(
-            NotificationButton(COMPLETE, ButtonLabel.COMPLETE),
-            NotificationButton(snooze(SnoozePresets.THIRTY_MIN), ButtonLabel.SNOOZE_30_MIN),
-            NotificationButton(snooze(SnoozePresets.ONE_HOUR), ButtonLabel.SNOOZE_1_HOUR),
-        )
+    const val MAX_BUTTONS = 3
+    const val URGENT_SNOOZE_BUTTONS = 1
+
+    fun buttonsFor(urgent: Boolean, snoozeOrder: List<String> = SnoozePresets.ids): List<NotificationButton> {
+        val lead = if (urgent) NotificationButton(ACKNOWLEDGE, ButtonLabel.ACKNOWLEDGE) else NotificationButton(COMPLETE, ButtonLabel.COMPLETE)
+        val slots = if (urgent) URGENT_SNOOZE_BUTTONS else MAX_BUTTONS - 1
+        val snoozes = SnoozePresets.parseOrder(snoozeOrder.joinToString(",")).take(slots)
+            .map { NotificationButton(snooze(it), ButtonLabel.SNOOZE, it) }
+        return listOf(lead) + snoozes
     }
 
     fun notAppliedDetail(action: String, reason: String): String = "$action not applied: $reason; notification dismissed"

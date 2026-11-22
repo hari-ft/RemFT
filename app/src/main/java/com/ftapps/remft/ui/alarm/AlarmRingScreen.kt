@@ -114,13 +114,6 @@ interface AlarmRingActions {
     fun dismissMissed()
 }
 
-fun snoozePresetLabel(preset: String): Int = when (preset) {
-    SnoozePresets.FIVE_MIN -> R.string.notif_action_snooze5m
-    SnoozePresets.THIRTY_MIN -> R.string.notif_action_snooze30m
-    SnoozePresets.ONE_HOUR -> R.string.notif_action_snooze1h
-    else -> R.string.notif_action_snoozeTomorrow
-}
-
 fun snoozeTimeLabel(until: Instant, now: Instant, zone: ZoneId, format: DateFormatId): String {
     val at = until.atZone(zone).toLocalDateTime()
     val sameDay = at.toLocalDate() == now.atZone(zone).toLocalDate()
@@ -393,7 +386,7 @@ private fun RingActions(buttons: RingButtons, snoozeOrder: List<String>, now: In
                 modifier = Modifier.testTag("alarm-snooze-$preset"),
             ) {
                 AlarmPillLabel(null) {
-                    Text(stringResource(snoozePresetLabel(preset)), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+                    Text(snoozeLabel(preset), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
                     Text(
                         ringsAt.fill("time" to snoozeTimeLabel(until, now, zone, dateFormat)),
                         style = MaterialTheme.typography.labelMedium,
