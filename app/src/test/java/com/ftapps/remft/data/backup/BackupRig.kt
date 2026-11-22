@@ -35,7 +35,7 @@ class BackupRig {
         holder = holder,
         store = store,
         locks = { WorkLocks(paths.locksDir, 4242L) },
-        appVersion = "3.1.1",
+        appVersion = "1.1.1",
         clock = { now },
         preferVacuumInto = preferVacuumInto,
     )

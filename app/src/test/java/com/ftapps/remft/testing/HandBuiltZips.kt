@@ -14,7 +14,7 @@ object HandBuiltZips {
         val manifest = "{\n" +
             "  \"app\": \"remft\",\n" +
             "  \"format\": 1,\n" +
-            "  \"appVersion\": \"3.1.1\",\n" +
+            "  \"appVersion\": \"1.1.1\",\n" +
             "  \"schemaVersion\": 1,\n" +
             "  \"createdAt\": \"$createdAt\",\n" +
             "  \"dbSha256\": \"${FileOps.sha256Hex(db)}\",\n" +

@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-val appMajor = 3
+val appMajor = 1
 val appMinor = 1
 val appBugfix = 1
 require(appMajor in 1..99 && appMinor in 1..9 && appBugfix in 1..9) {

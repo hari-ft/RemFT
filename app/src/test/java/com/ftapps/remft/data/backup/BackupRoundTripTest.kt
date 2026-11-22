@@ -51,7 +51,7 @@ class BackupRoundTripTest {
         assertEquals("remft-backup-2026-11-02.zip", built.zip.name)
         assertEquals(File(rig.paths.cacheDir, "backup-share"), built.zip.parentFile)
         assertEquals(DatabaseSchema.VERSION, built.manifest.schemaVersion)
-        assertEquals("3.1.1", built.manifest.appVersion)
+        assertEquals("1.1.1", built.manifest.appVersion)
         assertEquals(BackupKind.COMPLETE, built.manifest.kind)
         assertEquals(3, built.manifest.fileCount)
         assertTrue(built.unavailable.isEmpty())
@@ -131,7 +131,7 @@ class BackupRoundTripTest {
         val zip = BackupZipWriter.build(
             dbSnapshot = snapshot,
             out = File(rig.root, "no-settings.zip"),
-            appVersion = "3.1.1",
+            appVersion = "1.1.1",
             schemaVersion = DatabaseSchema.VERSION,
             referenced = emptySet(),
             filesDir = rig.paths.filesDir,
@@ -156,7 +156,7 @@ class BackupRoundTripTest {
             holder = rig.holder,
             store = rig.store,
             locks = { locks },
-            appVersion = "3.1.1",
+            appVersion = "1.1.1",
             restoreLockWait = java.time.Duration.ofMillis(300),
         )
         try {

@@ -60,7 +60,7 @@ class AutoBackupRunnerTest {
             out.writeBytes(ByteArray(16))
             BuiltBackup(
                 out,
-                BackupManifest(BackupFormat.CURRENT, "3.1.1", 3, now, "00", 0, 0, unavailable = unavailable),
+                BackupManifest(BackupFormat.CURRENT, "1.1.1", 3, now, "00", 0, 0, unavailable = unavailable),
             )
         },
         scratch = File(rig.root, "auto-backup"),
