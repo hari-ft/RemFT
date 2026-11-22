@@ -279,28 +279,6 @@ object BackupRestore {
             FileOps.rename(paths.filesPrevious, File(paths.filesPrevious.path + ".kept-$stamp"))
             log.warn("backup.leftover_bak_kept")
         }
-        pruneOlderKept(paths, log, stamp)
-    }
-
-    private const val KEPT_PRUNE_AFTER_MICROS: Long = 30L * 24 * 60 * 60 * 1_000_000
-    private val keptSuffix = Regex("""\.kept-(\d+)$""")
-
-    private fun pruneOlderKept(paths: RestorePaths, log: BackupLog, nowStamp: Long) {
-        val owners = listOf(paths.dbFile.absoluteFile, paths.filesDir.absoluteFile)
-        val kept = owners.mapNotNull { it.parentFile }.distinct()
-            .flatMap { dir -> dir.listFiles().orEmpty().toList() }
-            .filter { entry -> owners.any { entry.name.startsWith(it.name) } }
-            .mapNotNull { entry -> keptSuffix.find(entry.name)?.groupValues?.get(1)?.toLongOrNull()?.let { entry to it } }
-        val newest = kept.maxOfOrNull { it.second } ?: return
-        for ((entry, stamp) in kept) {
-            if (stamp == newest || nowStamp - stamp < KEPT_PRUNE_AFTER_MICROS) continue
-            try {
-                FileOps.deleteTree(entry)
-                log.info("backup.leftover_kept_pruned")
-            } catch (e: Exception) {
-                log.warn("backup.leftover_kept_prune_failed", e)
-            }
-        }
     }
 
     private fun writeJournal(paths: RestorePaths, journal: RestoreJournal) {

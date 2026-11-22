@@ -241,7 +241,7 @@ class RestoreJournalTest {
     }
 
     @Test
-    fun keptLeftoversDoNotPileUpButTheNewestAndRecentOnesStay() {
+    fun oldKeptLeftoversAreNeverDeletedByARestore() {
         val now = Instant.parse("2026-11-22T10:00:00Z")
         fun stamp(at: Instant) = ChronoUnit.MICROS.between(Instant.EPOCH, at)
         val ancient = stamp(now.minus(Duration.ofDays(90)))
@@ -256,8 +256,8 @@ class RestoreJournalTest {
         BackupRestore.restore(validated(), dbFile, filesDir, clock = { now })
         expectNewData()
 
-        assertFalse(ancientDb.exists())
-        assertFalse(ancientFiles.exists())
+        assertTrue(ancientDb.exists())
+        assertTrue(ancientFiles.exists())
         assertTrue(recentDb.exists())
         assertTrue(File(dbFile.path + ".bak.kept-${stamp(now)}").exists())
         assertTrue(unrelated.exists())
