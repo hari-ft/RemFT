@@ -133,17 +133,10 @@ object UrgentLookAhead {
 }
 
 @Composable
-fun HomeAlarmCards(modifier: Modifier = Modifier, onOpenTask: (String) -> Unit = {}) {
+fun HomeAlarmWarnings(modifier: Modifier = Modifier) {
     val env = LocalAlarmEnvironment.current ?: return
     val ring by env.ring.state.collectAsStateWithLifecycle()
     val status = rememberPermissionStatus(env)
-    val now by produceState(env.clock.instant(), env) {
-        while (true) {
-            value = env.clock.instant()
-            delay(UPCOMING_REFRESH_MS)
-        }
-    }
-    val upcoming = remember(ring.feed, ring.profile, now) { UrgentLookAhead.next(ring.feed, now, ring.profile) }
     Column(modifier) {
         status?.let { current ->
             val volumeOff = current.alarmVolumeOff == true &&
@@ -151,8 +144,21 @@ fun HomeAlarmCards(modifier: Modifier = Modifier, onOpenTask: (String) -> Unit =
             current.support.worstProblem(volumeOff)?.let { AlarmProblemBanner(env, it) }
         }
         if (ring.missed.isNotEmpty()) MissedAlarmCard(env, ring.missed)
-        if (upcoming != null) UpcomingUrgentCard(env, upcoming, now, onOpenTask)
     }
+}
+
+@Composable
+fun HomeUrgentAlarm(onOpenTask: (String) -> Unit = {}) {
+    val env = LocalAlarmEnvironment.current ?: return
+    val ring by env.ring.state.collectAsStateWithLifecycle()
+    val now by produceState(env.clock.instant(), env) {
+        while (true) {
+            value = env.clock.instant()
+            delay(UPCOMING_REFRESH_MS)
+        }
+    }
+    val upcoming = remember(ring.feed, ring.profile, now) { UrgentLookAhead.next(ring.feed, now, ring.profile) }
+    if (upcoming != null) UpcomingUrgentCard(env, upcoming, now, onOpenTask)
 }
 
 private const val UPCOMING_REFRESH_MS = 30_000L

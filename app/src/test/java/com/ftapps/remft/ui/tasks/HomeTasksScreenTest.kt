@@ -3,6 +3,7 @@ package com.ftapps.remft.ui.tasks
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -14,17 +15,22 @@ import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.performImeAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.domain.tasks.TaskDraft
+import com.ftapps.remft.testing.FakeHealth
+import com.ftapps.remft.testing.TestAlarms
 import com.ftapps.remft.testing.TestTasks
+import com.ftapps.remft.ui.alarm.LocalAlarmEnvironment
 import com.ftapps.remft.ui.theme.RemftTheme
 import kotlinx.coroutines.runBlocking
 import android.os.Looper
 import org.junit.After
 import org.robolectric.Shadows.shadowOf
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import java.time.Duration
 import java.time.Instant
 
 @RunWith(AndroidJUnit4::class)
@@ -188,5 +194,53 @@ class HomeTasksScreenTest {
         tasks.environment.homeRequests.post(HomeRequest.Create)
         show()
         waitFor { compose.onAllNodesWithTagCount("task-sheet-title") == 1 }
+    }
+
+    @Test
+    fun quickAddComesFirstThenWarningsThenTheUrgentCardAndTasks() = runBlocking {
+        val alarms = TestAlarms(health = FakeHealth(FakeHealth.AllAllowed.copy(notifications = false)))
+        try {
+            val now = alarms.clock.instant()
+            alarms.tasks.repository.create(TaskDraft(title = "Call the plumber", remindAt = now.minus(Duration.ofHours(2)), isUrgent = true))
+            alarms.tasks.repository.create(TaskDraft(title = "Pay the rent", remindAt = now.plus(Duration.ofHours(1)), isUrgent = true))
+            alarms.env.ring.reload()
+            compose.setContent {
+                RemftTheme {
+                    CompositionLocalProvider(
+                        LocalTasksEnvironment provides alarms.tasks.environment,
+                        LocalAlarmEnvironment provides alarms.env,
+                    ) {
+                        HomeTasksScreen(bottomPadding = androidx.compose.ui.unit.Dp(0f), onOpenSettings = {}, onOpenTask = {})
+                    }
+                }
+            }
+            waitFor {
+                listOf("alarm-banner", "missed-alarm-card", "urgent-alarm-card", "group-header-NoDate-null")
+                    .all { compose.onAllNodesWithTagCount(it) == 1 }
+            }
+            val order = listOf(
+                "home-header",
+                "home-quick-add",
+                "home-fab",
+                "alarm-banner",
+                "missed-alarm-card",
+                "urgent-alarm-card",
+                "week-strip",
+                "group-header-NoDate-null",
+            ).map { it to compose.onNodeWithTag(it).getBoundsInRoot() }
+            order.zipWithNext().forEach { (above, below) ->
+                if (above.first == "home-quick-add") {
+                    assertTrue("home-fab sits beside the quick add", below.second.top < above.second.bottom)
+                } else {
+                    assertTrue("${above.first} should sit above ${below.first}", above.second.bottom <= below.second.top)
+                }
+            }
+            val fab = compose.onNodeWithTag("home-fab").getBoundsInRoot()
+            val quickAdd = compose.onNodeWithTag("home-quick-add").getBoundsInRoot()
+            assertTrue(fab.left >= quickAdd.right)
+            assertTrue(quickAdd.bottom <= compose.onNodeWithTag("alarm-banner").getBoundsInRoot().top)
+        } finally {
+            alarms.close()
+        }
     }
 }

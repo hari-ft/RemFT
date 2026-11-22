@@ -1,6 +1,7 @@
 package com.ftapps.remft.ui.alarm
 
 import android.os.Looper
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
@@ -43,7 +44,12 @@ class HomeAlarmCardsTest {
     private fun show(t: TestAlarms, dark: Boolean = false) {
         compose.setContent {
             RemftTheme(darkTheme = dark) {
-                CompositionLocalProvider(LocalAlarmEnvironment provides t.env) { HomeAlarmCards() }
+                CompositionLocalProvider(LocalAlarmEnvironment provides t.env) {
+                    Column {
+                        HomeAlarmWarnings()
+                        HomeUrgentAlarm()
+                    }
+                }
             }
         }
     }
