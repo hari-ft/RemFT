@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.ftapps.remft.domain.settings.SettingKey
 import com.ftapps.remft.domain.settings.SettingKeys
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -22,6 +24,10 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
         withTimeout(READ_TIMEOUT_MS) {
             dataStore.data.first().asMap().mapNotNull { (k, v) -> (v as? String)?.let { k.name to it } }.toMap()
         }
+    } catch (e: TimeoutCancellationException) {
+        throw SettingsUnavailable(e)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         throw SettingsUnavailable(e)
     }

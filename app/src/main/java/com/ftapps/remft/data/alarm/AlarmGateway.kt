@@ -35,6 +35,8 @@ interface AlarmGateway {
 
     fun show(notification: PlannedNotification)
 
+    fun showRinging(notification: PlannedNotification)
+
     fun shownIds(): Set<Int>
 
     fun shownPayloads(): Map<Int, String?>
@@ -89,6 +91,12 @@ class AndroidAlarmGateway(
     override fun show(notification: PlannedNotification) {
         ensureChannel(context, notification.urgent, notification.soundName)
         notificationManager.notify(notification.id, AlarmNotifications.build(context, notification, snoozeOrder(), fullScreen()))
+    }
+
+    @SuppressLint("MissingPermission")
+    override fun showRinging(notification: PlannedNotification) {
+        ensureChannel(context, notification.urgent, notification.soundName)
+        notificationManager.notify(notification.id, AlarmNotifications.build(context, notification, snoozeOrder(), fullScreen = false))
     }
 
     override fun shownIds(): Set<Int> = runCatching { notificationManager.activeNotifications.map { it.id }.toSet() }
@@ -178,7 +186,7 @@ class AndroidAlarmGateway(
         fun soundUri(context: Context, soundName: String?): Uri? = when {
             soundName == null -> null
             soundName.startsWith("content://") -> soundName.toUri()
-            else -> AlarmSoundStore.rawId(soundName)?.let { "android.resource://${context.packageName}/$it".toUri() }
+            else -> AlarmSoundStore.rawId(soundName)?.let { "android.resource://${context.packageName}/raw/$soundName".toUri() }
         }
 
         fun audioAttributes(urgent: Boolean): AudioAttributes = AudioAttributes.Builder()

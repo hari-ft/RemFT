@@ -55,6 +55,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -153,6 +154,7 @@ fun AlarmRingScreen(
     actions: AlarmRingActions,
     modifier: Modifier = Modifier,
     currentTime: () -> Instant = { now },
+    inputReady: Boolean = true,
 ) {
     val colors = alarmRingColors()
     val motion = RemftTheme.motion
@@ -174,8 +176,15 @@ fun AlarmRingScreen(
     }
     LightSystemBarsOff()
 
+    val entered = remember { MutableTransitionState(false) }
+    LaunchedEffect(inputReady) { if (inputReady) entered.targetState = true }
+
+    fun settled(): Boolean = entered.currentState && entered.isIdle
+
+    fun guarded(action: () -> Unit): () -> Unit = { if (settled()) action() }
+
     fun run(action: suspend () -> RingAnswer, onApplied: () -> String? = { null }) {
-        if (busy) return
+        if (busy || !settled()) return
         busy = true
         scope.launch {
             val answer = runCatching { action() }.getOrDefault(RingAnswer.FAILED)
@@ -204,12 +213,11 @@ fun AlarmRingScreen(
         busy = busy,
         acknowledge = { run({ actions.acknowledge() }) },
         snooze = { preset -> snoozeTo(SnoozePresets.untilFor(preset, currentTime(), zone)) },
-        custom = { pickingDate = true },
+        custom = guarded { pickingDate = true },
         silence = { run({ actions.silence() }) { texts.muted } },
         complete = { run({ actions.complete() }) },
-        open = actions::open,
+        open = guarded(actions::open),
     )
-    val entered = remember { MutableTransitionState(false).apply { targetState = true } }
     val enter = if (motion.reduced) {
         motion.fadeEnter(MotionSpeed.Emphasised)
     } else {
