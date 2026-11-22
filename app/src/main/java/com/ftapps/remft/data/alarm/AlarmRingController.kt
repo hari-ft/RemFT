@@ -27,6 +27,7 @@ data class RingState(
     val feed: List<AlarmInput> = emptyList(),
     val profile: ReminderProfile = ReminderProfile.Factory,
     val decided: Boolean = false,
+    val loaded: Long = 0,
 )
 
 class AlarmRingController(private val env: AlarmEnvironment) {
@@ -50,6 +51,7 @@ class AlarmRingController(private val env: AlarmEnvironment) {
     private var profile: ReminderProfile = ReminderProfile.Factory
     private var held: Map<HeldRing, Instant> = emptyMap()
     private var timer: Job? = null
+    private var loads = 0L
     private var started = false
 
     fun start() {
@@ -75,14 +77,23 @@ class AlarmRingController(private val env: AlarmEnvironment) {
     }
 
     suspend fun reload() {
-        val alarms = env.workspaceFeed()
-        val raw = env.settings.get(SettingKeys.ReminderProfile.name)
-        synchronized(lock) {
-            feed = alarms
-            profile = ReminderProfile.parse(raw)
-            held = env.scheduler.held.value
+        try {
+            val alarms = env.workspaceFeed()
+            val raw = env.settings.get(SettingKeys.ReminderProfile.name)
+            synchronized(lock) {
+                feed = alarms
+                profile = ReminderProfile.parse(raw)
+                held = env.scheduler.held.value
+            }
+        } finally {
+            synchronized(lock) { loads++ }
+            evaluate()
         }
-        evaluate()
+    }
+
+    fun refresh() {
+        if (mutable.value.decided) evaluate()
+        env.scope.launch { runCatching { reload() } }
     }
 
     fun reconsider() {
@@ -134,7 +145,7 @@ class AlarmRingController(private val env: AlarmEnvironment) {
             if (nextRealert != null && (wake == null || nextRealert.isBefore(wake))) wake = nextRealert
             AlarmRinging.liveWindowEnds(feed, now, times)?.let { ends -> if (wake == null || ends.isBefore(wake)) wake = ends }
             val missed = AlarmRinging.missedAlarms(feed, now, profile = profile, held = held)
-            next = RingState(ringing, missed, feed, profile, decided = true)
+            next = RingState(ringing, missed, feed, profile, decided = true, loaded = loads)
             mutable.value = next
             val at = wake
             if (at != null) {

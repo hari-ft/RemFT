@@ -25,23 +25,25 @@ class AlarmEnvironment(
     val tasks: TasksRepository,
     val clock: Clock,
     val snoozeOrder: SnoozeOrderSnapshot = SnoozeOrderSnapshot.of(settings),
-    val gateway: AlarmGateway = AndroidAlarmGateway(context) { snoozeOrder.current() },
+    val gateway: AlarmGateway = AndroidAlarmGateway(context, snoozeOrder = { snoozeOrder.current() }),
     filesDir: File = context.filesDir,
     val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     val health: AlarmHealth = AndroidAlarmHealth(context),
     ready: suspend () -> Unit = {},
+    val mirror: DirectBootMirror = DirectBootMirror.of(context),
 ) {
     init {
         snoozeOrder.start(scope)
     }
 
-    val planner = AlarmPlanner(AlarmTextsFactory.from(context))
+    val texts = AlarmTextsFactory.from(context)
+    val planner = AlarmPlanner(texts)
     val appLog = AppLog(File(filesDir, "logs"), clock)
     val log = AlarmEventLog(database, clock)
     val store = AlarmStore(database, tasks, clock)
     val pending = PendingAlarms(File(File(filesDir, PendingAlarms.DIRECTORY), PendingAlarms.FILE_NAME))
     val sounds = AlarmSoundStore(context, database, clock, filesDir)
-    val scheduler = AlarmScheduler(identity, settings, store, gateway, pending, log, appLog, sounds, planner, clock, ready)
+    val scheduler = AlarmScheduler(identity, settings, store, gateway, pending, log, appLog, sounds, planner, clock, ready, mirror, texts)
     val silencer = AlarmSilencer(settings, store, gateway, planner, { scheduler }, log)
     val actions = AlarmActionHandler(settings, store, scheduler, silencer, gateway, planner, log, appLog, clock)
     val ring = AlarmRingController(this)

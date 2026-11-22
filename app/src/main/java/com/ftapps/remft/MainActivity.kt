@@ -26,6 +26,7 @@ import com.ftapps.remft.app.StartupState
 import com.ftapps.remft.ui.backup.BackupHost
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.ui.alarm.AlarmActivitySupport
+import com.ftapps.remft.ui.alarm.AlarmOverLock
 import com.ftapps.remft.ui.alarm.AlarmRingHost
 import com.ftapps.remft.ui.alarm.LocalAlarmEnvironment
 import com.ftapps.remft.ui.alarm.NotificationPermissionRequest
@@ -68,6 +69,8 @@ class MainActivity : ComponentActivity() {
 
     private var deepLink by mutableStateOf<String?>(null)
 
+    private val overLock = AlarmOverLock { AlarmActivitySupport.setOverLock(this, it) }
+
     private val tour by lazy {
         TourController(
             settings,
@@ -87,9 +90,7 @@ class MainActivity : ComponentActivity() {
         }
         handleAlarmIntent(intent)
         lifecycleScope.launch {
-            alarms.ring.state.collect { ring ->
-                if (ring.decided && ring.ringing == null) AlarmActivitySupport.setOverLock(this@MainActivity, false)
-            }
+            alarms.ring.state.collect(overLock::onState)
         }
         enableEdgeToEdge()
         setContent {
@@ -132,7 +133,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleAlarmIntent(intent: Intent?) {
-        if (AlarmActivitySupport.isActiveFullScreenAlarm(this, intent)) AlarmActivitySupport.setOverLock(this, true)
+        if (AlarmActivitySupport.isActiveFullScreenAlarm(this, intent)) {
+            overLock.alarmLaunched(alarms.ring.state.value.loaded)
+            alarms.ring.refresh()
+        }
         AlarmActivitySupport.logTap(alarms, intent)
     }
 }

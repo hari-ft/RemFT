@@ -5,11 +5,16 @@ import android.content.Context
 import android.content.Intent
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.Instant
 
 class AlarmFireReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != AndroidAlarmGateway.ACTION_FIRE) return
         val notification = AndroidAlarmGateway.decode(intent.getStringExtra(AndroidAlarmGateway.EXTRA_ALARM)) ?: return
+        if (!DirectBoot.isUnlocked(context)) {
+            DirectBootAlarms.fire(context, notification)
+            return
+        }
         val env = runCatching { AlarmRuntime.get(context) }.getOrNull()
         val gateway = env?.gateway ?: AndroidAlarmGateway(context)
         val shownEarly = if (env == null || env.snoozeOrder.ready) runCatching { gateway.show(notification) } else null
@@ -54,6 +59,10 @@ class AlarmActionReceiver : BroadcastReceiver() {
         val actionId = intent.getStringExtra(AndroidAlarmGateway.EXTRA_ACTION) ?: return
         val id = if (intent.hasExtra(AndroidAlarmGateway.EXTRA_ID)) intent.getIntExtra(AndroidAlarmGateway.EXTRA_ID, 0) else null
         val payload = intent.getStringExtra(AndroidAlarmGateway.EXTRA_PAYLOAD)
+        if (!DirectBoot.isUnlocked(context)) {
+            DirectBootAlarms.answer(context, id, actionId, payload, Instant.now())
+            return
+        }
         val env = runCatching { AlarmRuntime.get(context) }.getOrNull() ?: return
         val result: PendingResult? = goAsync()
         env.scope.launch {
@@ -70,6 +79,10 @@ class AlarmSystemReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
         if (action !in HANDLED) return
+        if (action == Intent.ACTION_LOCKED_BOOT_COMPLETED || !DirectBoot.isUnlocked(context)) {
+            DirectBootAlarms.rebook(context, Instant.now())
+            return
+        }
         val env = runCatching { AlarmRuntime.get(context) }.getOrNull() ?: return
         val result: PendingResult? = goAsync()
         env.scope.launch {
@@ -87,6 +100,7 @@ class AlarmSystemReceiver : BroadcastReceiver() {
 
     companion object {
         val HANDLED = setOf(
+            Intent.ACTION_LOCKED_BOOT_COMPLETED,
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
             Intent.ACTION_TIME_CHANGED,
