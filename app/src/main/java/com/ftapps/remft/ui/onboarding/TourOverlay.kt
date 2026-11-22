@@ -64,9 +64,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.text.fill
+import com.ftapps.remft.ui.components.BellMark
 import com.ftapps.remft.ui.components.GradientCard
 import com.ftapps.remft.ui.components.MarkedCard
-import com.ftapps.remft.ui.components.OrbitMark
 import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.shell.Section
 import com.ftapps.remft.ui.theme.Brand
@@ -220,7 +220,7 @@ private fun TourCard(step: TourStep, steps: Int, isLast: Boolean, onNext: () -> 
                     button = onBrand,
                     onButton = Brand.Lapis,
                 ),
-                header = { OrbitMark(size = 48.dp, ring = onBrand, dot = Brand.MarigoldLight) },
+                header = { BellMark(size = 48.dp, bell = onBrand, check = Brand.Lapis, dot = Brand.MarigoldLight) },
             )
         }
     } else {

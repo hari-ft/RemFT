@@ -36,7 +36,7 @@ The app has one identity: application ID `com.ftapps.remft`, label "RemFT". It s
 - **Tokens live in `ui/theme/`.** `Palette.kt` holds the light and dark colour schemes, the semantic colours (urgent, overdue, today, done, repeat, note, file, success, warning) and the four tonal levels; `Type.kt` the type scale; `Shapes.kt` the marked-corner shapes; `Motion.kt` the motion tokens; `Gradients.kt` the brand, today, urgent and alarm-ring gradients. Screens read them through `RemftTheme.colors`, `RemftTheme.tonal`, `RemftTheme.gradients`, `RemftTheme.motion` and `MarkedShapes`.
 - **Fonts are bundled** in `res/font`: Bricolage Grotesque (600, 700), Instrument Sans (400, 500, 600) and JetBrains Mono (400), static instances cut from the variable fonts in the google/fonts repository. All three are under the SIL Open Font Licence; the licence texts are in `app/src/main/assets/licenses/`.
 - **Wallpaper colours** (Material You) are off by default and only offered on Android 12 and later (Settings, General). The semantic colours and gradients stay on the brand palette either way. The choice is a device preference and is not backed up.
-- **Icon:** Orbit, an open ring with a marigold dot in the gap, as an adaptive icon with a monochrome layer, legacy PNGs, a 24 dp notification icon and an animated splash icon.
+- **Icon:** the RemFT bell, a white bell with a lapis check mark and a marigold notification dot on a lapis gradient, drawn as vectors: an adaptive icon with a monochrome layer for themed icons, legacy PNGs, a 24 dp bell notification icon, and the same bell as the name-mark in the Home top bar.
 
 ### Data and settings
 - **Room owns the schema.** The database (`remft.sqlite`) is Room version 1, created by Room from the entities; the exported schema is `app/schemas/com.ftapps.remft.data.db.RemftDatabase/1.json`. There are no migrations yet; a schema change becomes version 2 with a migration and a test.
@@ -47,7 +47,7 @@ The app has one identity: application ID `com.ftapps.remft`, label "RemFT". It s
 ### Startup
 - **Order:** restore recovery, then the database open, then identity, then (in the background) files maintenance, series roll and the OneDrive triggers.
 - **Startup** finishes or rolls back an interrupted restore before the database opens. If recovery itself fails while a journal is still there, startup stops on the error screen instead of opening (or creating) a database.
-- **Splash** shows the brand mark without a spinner; startup is fast, and a cold start for a ringing alarm keeps the splash until the alarm screen is decided.
+- **Splash** shows the launcher bell on the lapis brand colour, and on Android 12 and later the bell swings like it is ringing (about 0.8 s) while the dot pops. The animation never holds the app back: the splash stays only while startup needs it, so on a fast start the swing is cut short. Older Android versions show the still bell. A cold start for a ringing alarm keeps the splash until the alarm screen is decided.
 
 ### Alarms
 - **Notification channels use importance HIGH** (Android treats max as high for channels).
