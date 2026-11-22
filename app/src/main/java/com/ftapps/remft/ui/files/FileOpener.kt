@@ -41,6 +41,9 @@ object FileOpener {
         OpenOutcome.FetchFailed -> R.string.mirror_fetchFailed
     }
 
+    @StringRes
+    fun fetchMessageOf(problem: FetchProblem): Int = messageOf(outcomeOf(problem)) ?: R.string.mirror_fetchFailed
+
     private fun outcomeOf(problem: FetchProblem): OpenOutcome = when (problem) {
         FetchProblem.NeedsOneDrive -> OpenOutcome.NeedsOneDrive
         FetchProblem.Offline -> OpenOutcome.Offline

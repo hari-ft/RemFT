@@ -100,6 +100,7 @@ import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import com.ftapps.remft.ui.files.NoteAttachments
 import com.ftapps.remft.ui.files.NoteAttachmentsSheet
 import com.ftapps.remft.ui.files.NoteMediaButtons
+import com.ftapps.remft.ui.files.PendingNoteLinks
 import com.ftapps.remft.ui.notes.ExportMenuItems
 import com.ftapps.remft.ui.notes.NotesDropdownMenu
 import com.ftapps.remft.ui.notes.export.NoteExportHost
@@ -431,6 +432,9 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
         if (viewModel.source.selection.collapsed) MdActions.slashTokenAt(viewModel.source.text, viewModel.source.selection.start) else null
     }
     val slashMatches = remember(slashToken) { slashToken?.let(MdActions::matchSlash).orEmpty() }
+    if (!viewModel.isExternal) {
+        PendingNoteLinks(viewModel.noteId) { link -> viewModel.applyEdit(NoteAttachments.appendLink(viewModel.source.text, link)) }
+    }
 
     val shortcuts = EditorShortcuts(
         onPalette = { palette = true },

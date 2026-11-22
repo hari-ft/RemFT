@@ -1,8 +1,12 @@
 package com.ftapps.remft.ui.files
 
 import android.os.Looper
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -16,14 +20,18 @@ import com.ftapps.remft.domain.tasks.TaskDraft
 import com.ftapps.remft.testing.TestFiles
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.theme.RemftTheme
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w411dp-h1800dp")
@@ -31,7 +39,8 @@ class FilesScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val rig = TestFiles()
+    private val downloads = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    private val rig = TestFiles(downloaded = downloads)
 
     @After
     fun tearDown() {
@@ -150,5 +159,98 @@ class FilesScreenTest {
         compose.onNodeWithTag("files-sort").performClick()
         compose.onNodeWithTag("files-sort-name").performClick()
         waitFor { runBlocking { rig.settings.get("remft_files_sort") } == "name:asc" }
+    }
+
+    @Test
+    fun anOpenFolderSurvivesStateRestoration() {
+        val bills = runBlocking { rig.files.createFolder("Bills", null) }
+        val year = runBlocking { rig.files.createFolder("2026", bills) }
+        val restorer = StateRestorationTester(compose)
+        restorer.setContent {
+            RemftTheme {
+                CompositionLocalProvider(LocalTasksEnvironment provides rig.tasks.environment, LocalFilesEnvironment provides rig.environment) {
+                    FilesScreen(rig.environment, 0.dp, {}, {}, {})
+                }
+            }
+        }
+        waitFor { exists("folder-row-$bills") }
+        compose.onNodeWithTag("folder-row-$bills").performClick()
+        waitFor { exists("folder-row-$year") }
+        compose.onNodeWithTag("folder-row-$year").performClick()
+        waitFor { exists("crumb-$year") }
+
+        restorer.emulateSavedInstanceStateRestore()
+
+        waitFor { exists("crumb-$year") }
+        compose.onNodeWithTag("crumb-$bills").assertExists()
+    }
+
+    @Test
+    fun aSavedFolderThatIsGoneFallsBackToTheRoot() {
+        val gone = runBlocking { rig.files.createFolder("Gone", null) }
+        val restorer = StateRestorationTester(compose)
+        restorer.setContent {
+            RemftTheme {
+                CompositionLocalProvider(LocalTasksEnvironment provides rig.tasks.environment, LocalFilesEnvironment provides rig.environment) {
+                    FilesScreen(rig.environment, 0.dp, {}, {}, {})
+                }
+            }
+        }
+        waitFor { exists("folder-row-$gone") }
+        compose.onNodeWithTag("folder-row-$gone").performClick()
+        waitFor { exists("crumb-$gone") }
+        rig.exec("DELETE FROM folders WHERE id = '$gone'")
+        restorer.emulateSavedInstanceStateRestore()
+        waitFor { !exists("crumb-$gone") && exists("files-empty") }
+    }
+
+    @Test
+    fun backClosesSearchThenGoesUpOneFolderAtATimeThenLeaves() {
+        val bills = runBlocking { rig.files.createFolder("Bills", null) }
+        val year = runBlocking { rig.files.createFolder("2026", bills) }
+        var left = 0
+        var dispatcher: OnBackPressedDispatcher? = null
+        show {
+            dispatcher = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
+            BackHandler { left++ }
+            FilesScreen(rig.environment, 0.dp, {}, {}, {})
+        }
+        waitFor { exists("folder-row-$bills") }
+        compose.onNodeWithTag("folder-row-$bills").performClick()
+        waitFor { exists("folder-row-$year") }
+        compose.onNodeWithTag("folder-row-$year").performClick()
+        waitFor { exists("crumb-$year") }
+        compose.onNodeWithTag("files-search-open").performClick()
+        waitFor { exists("files-search") }
+
+        val back = { compose.runOnUiThread { dispatcher!!.onBackPressed() } }
+        back()
+        waitFor { !exists("files-search") }
+        assertTrue(exists("crumb-$year"))
+        back()
+        waitFor { !exists("crumb-$year") && exists("crumb-$bills") }
+        back()
+        waitFor { !exists("crumb-$bills") && exists("folder-row-$bills") }
+        assertEquals(0, left)
+        back()
+        waitFor { left == 1 }
+    }
+
+    private fun thumb(id: String): Boolean = compose.onAllNodesWithTag("file-thumb-$id", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+
+    @Test
+    fun aThumbnailAppearsWhenTheBackgroundDownloadLands() {
+        val image = rig.add("photo.png", mime = "image/png")
+        val stored = rig.query("SELECT local_path FROM file_rows WHERE id = '$image'").single()["local_path"]!!
+        val bytes = File(rig.dir, stored).readBytes()
+        File(rig.dir, stored).delete()
+        showFiles()
+        waitFor { exists("file-row-$image") }
+        assertFalse(thumb(image))
+        File(rig.dir, stored).writeBytes(bytes)
+        compose.waitForIdle()
+        assertFalse(thumb(image))
+        runBlocking { downloads.emit(stored) }
+        waitFor { thumb(image) }
     }
 }

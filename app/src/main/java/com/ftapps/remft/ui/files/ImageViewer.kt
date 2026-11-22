@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -55,13 +56,16 @@ import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.ftapps.remft.R
 import com.ftapps.remft.data.db.entity.FileRowEntity
+import com.ftapps.remft.data.files.AttachmentFetchFailed
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RoundIconButton
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.io.File
 
 object ViewerZoom {
     const val MAX_SCALE = 6f
@@ -198,8 +202,38 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
 @Composable
 private fun ViewerPage(id: String, env: FilesEnvironment, active: Boolean, onZoomChanged: (Boolean) -> Unit) {
     val row by remember(id) { env.files.watchFile(id) }.collectAsState(null)
-    val file = remember(row?.id, row?.localPath) { row?.let { env.attachments.fileOf(it) } }
+    val local = rememberLocalFile(env, row)
+    var fetched by remember(id) { mutableStateOf<File?>(null) }
+    var fetching by remember(id) { mutableStateOf(false) }
+    var settled by remember(id) { mutableStateOf(false) }
+    var fetchProblem by remember(id) { mutableStateOf<Int?>(null) }
+    val file = local ?: fetched?.takeIf { it.isFile }
     var failed by remember(file) { mutableStateOf(false) }
+    LaunchedEffect(row?.id, row?.localPath, file == null, active) {
+        val current = row ?: return@LaunchedEffect
+        if (file != null) {
+            settled = true
+            return@LaunchedEffect
+        }
+        if (!active || fetchProblem != null) return@LaunchedEffect
+        if (!env.attachments.needsFetch(current)) {
+            settled = true
+            return@LaunchedEffect
+        }
+        fetching = true
+        try {
+            fetched = env.attachments.ensureLocal(current)
+        } catch (e: AttachmentFetchFailed) {
+            fetchProblem = FileOpener.fetchMessageOf(e.problem)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            fetchProblem = R.string.mirror_fetchFailed
+        } finally {
+            fetching = false
+        }
+        settled = true
+    }
     var scale by remember(id) { mutableFloatStateOf(1f) }
     var offset by remember(id) { mutableStateOf(Offset.Zero) }
     LaunchedEffect(active) {
@@ -228,7 +262,12 @@ private fun ViewerPage(id: String, env: FilesEnvironment, active: Boolean, onZoo
         contentAlignment = Alignment.Center,
     ) {
         if (file == null) {
-            ViewerProblem(R.string.file_viewerMissing, "viewer-missing")
+            val problem = fetchProblem
+            when {
+                fetching -> ViewerFetching()
+                problem != null -> ViewerProblem(problem, "viewer-fetch-failed")
+                row == null || settled -> ViewerProblem(R.string.file_viewerMissing, "viewer-missing")
+            }
         } else if (failed) {
             ViewerProblem(R.string.file_viewerImageFailed, "viewer-image-failed")
         } else {
@@ -239,6 +278,7 @@ private fun ViewerPage(id: String, env: FilesEnvironment, active: Boolean, onZoo
                 onError = { failed = true },
                 modifier = Modifier
                     .fillMaxSize()
+                    .testTag("viewer-image-$id")
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
@@ -247,6 +287,20 @@ private fun ViewerPage(id: String, env: FilesEnvironment, active: Boolean, onZoo
                     },
             )
         }
+    }
+}
+
+@Composable
+private fun ViewerFetching() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(Space.x6).testTag("viewer-fetching")) {
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        Text(
+            stringResource(R.string.mirror_fetching),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(Space.x4),
+        )
     }
 }
 

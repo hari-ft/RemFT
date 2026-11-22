@@ -15,11 +15,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.ftapps.remft.R
+import com.ftapps.remft.domain.notes.editing.MdEdit
 import com.ftapps.remft.ui.components.RemftBottomSheet
 import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.theme.Space
@@ -28,8 +32,17 @@ import kotlinx.coroutines.launch
 object NoteAttachments {
     suspend fun store(env: FilesEnvironment, noteId: String, pick: PickedFile): String? {
         val target = UploadTarget(env.files.workspace(), "note", noteId)
-        val id = env.uploads.upload(target, pick) ?: return null
+        val id = env.uploads.upload(target, pick, wantsLink = true) ?: return null
         return FileLinks.markdown(id, pick.name, pick.resolvedMime)
+    }
+
+    fun appendLink(text: String, link: String): MdEdit {
+        val joined = when {
+            text.isEmpty() -> link
+            text.endsWith('\n') -> text + link
+            else -> text + '\n' + link
+        }
+        return MdEdit(joined, joined.length)
     }
 
     fun clipboardImage(context: Context): PickedFile? {
@@ -79,6 +92,20 @@ fun NoteMediaButtons(ensureNote: suspend () -> String?, onInsert: (String) -> Un
     )
     RemftIconButton(icon = Icons.Outlined.Image, label = stringResource(R.string.file_insertImage), onClick = { launcher.launch(AttachSource.Images) }, modifier = Modifier.testTag("note-insert-image"))
     RemftIconButton(icon = Icons.Outlined.Movie, label = stringResource(R.string.file_insertVideo), onClick = { launcher.launch(AttachSource.Videos) }, modifier = Modifier.testTag("note-insert-video"))
+}
+
+@Composable
+fun PendingNoteLinks(noteId: String?, onLink: (String) -> Unit) {
+    val env = LocalFilesEnvironment.current ?: return
+    val deliver by rememberUpdatedState(onLink)
+    LaunchedEffect(env, noteId) {
+        val id = noteId ?: return@LaunchedEffect
+        env.uploads.unclaimedLinks("note", id).collect { done ->
+            done.forEach { upload ->
+                env.uploads.claim(upload.localId)?.let { deliver(FileLinks.markdown(it.fileId, it.name, it.mime)) }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

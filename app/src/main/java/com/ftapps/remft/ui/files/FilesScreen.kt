@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.files
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -177,7 +178,8 @@ fun FilesScreen(
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var highlighted by rememberSaveable { mutableStateOf<String?>(null) }
-    val folders by remember(env) { env.files.watchFolders() }.collectAsState(emptyList())
+    val loadedFolders by remember(env) { env.files.watchFolders() }.collectAsState(null)
+    val folders = loadedFolders.orEmpty()
     val workspaceFiles by remember(env) { env.files.watchWorkspaceFiles() }.collectAsState(emptyList())
     val sources by remember(env) { env.files.watchSources() }.collectAsState(emptyList())
     val jobs by env.uploads.jobs.collectAsState()
@@ -188,10 +190,17 @@ fun FilesScreen(
     val trail = path.mapNotNull { byId[it] }
     val message: (String) -> Unit = { text -> scope.launch { snackbar.showSnackbar(text) } }
 
-    LaunchedEffect(folders, path) {
-        if (folders.isNotEmpty() || path.isNotEmpty()) {
-            val valid = path.takeWhile { it in byId }
-            if (valid.size != path.size) path = valid
+    LaunchedEffect(loadedFolders, path) {
+        if (loadedFolders == null) return@LaunchedEffect
+        val valid = path.takeWhile { it in byId }
+        if (valid.size != path.size) path = valid
+    }
+    BackHandler(enabled = searching || (!showSources && path.isNotEmpty())) {
+        if (searching) {
+            searching = false
+            query = ""
+        } else {
+            path = path.dropLast(1)
         }
     }
     LaunchedEffect(request) {
