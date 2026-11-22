@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import androidx.core.net.toUri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -95,6 +96,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.exifinterface.media.ExifInterface
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.notes.highlight.CodeHighlighter
 import com.ftapps.remft.domain.notes.highlight.CodeTokenKind
@@ -840,7 +842,35 @@ fun decodeSampled(file: File, maxSide: Int): android.graphics.Bitmap? {
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
     var sample = 1
     while (bounds.outWidth / sample > maxSide || bounds.outHeight / sample > maxSide) sample *= 2
-    return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+    val decoded = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+    return applyExifOrientation(decoded, exifOrientation(file))
+}
+
+fun exifOrientation(file: File): Int =
+    runCatching { ExifInterface(file.path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
+        .getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+
+fun applyExifOrientation(bitmap: android.graphics.Bitmap, orientation: Int): android.graphics.Bitmap {
+    val matrix = Matrix()
+    when (orientation) {
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.setScale(-1f, 1f)
+        ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.setScale(1f, -1f)
+        ExifInterface.ORIENTATION_TRANSPOSE -> {
+            matrix.setRotate(90f)
+            matrix.postScale(-1f, 1f)
+        }
+        ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
+        ExifInterface.ORIENTATION_TRANSVERSE -> {
+            matrix.setRotate(-90f)
+            matrix.postScale(-1f, 1f)
+        }
+        ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(-90f)
+        else -> return bitmap
+    }
+    val turned = android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    if (turned !== bitmap) bitmap.recycle()
+    return turned
 }
 
 private val PreviewMarkdown = """

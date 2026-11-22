@@ -1,11 +1,13 @@
 package com.ftapps.remft.ui.notes.editor
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -61,14 +64,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.notes.editing.FindReplace
@@ -109,35 +121,66 @@ fun lookOf(id: MdActionId): ActionLook = when (id) {
 
 @Composable
 fun FormattingToolbar(onAction: (MdActionId) -> Unit, counts: String, modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
-    Row(
+    BoxWithConstraints(
         modifier
             .fillMaxWidth()
             .padding(horizontal = Space.x3, vertical = Space.x1)
             .clip(MarkedShapes.pill)
             .background(RemftTheme.tonal.level2)
             .testTag("note-toolbar"),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
-            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(horizontal = Space.x1)) {
-                MdActionId.entries.forEach { id ->
-                    val look = lookOf(id)
-                    RemftIconButton(label = stringResource(look.label), onClick = { onAction(id) }, modifier = Modifier.testTag("action-${id.name.lowercase()}")) {
-                        Icon(look.icon, contentDescription = stringResource(look.label))
+        val countsMax = maxWidth * COUNTS_SHARE
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+                val scroll = rememberScrollState()
+                Row(Modifier.weight(1f).edgeFade(scroll, Space.x6).horizontalScroll(scroll).padding(horizontal = Space.x1)) {
+                    MdActionId.entries.forEach { id ->
+                        val look = lookOf(id)
+                        RemftIconButton(label = stringResource(look.label), onClick = { onAction(id) }, modifier = Modifier.testTag("action-${id.name.lowercase()}")) {
+                            Icon(look.icon, contentDescription = stringResource(look.label))
+                        }
                     }
+                    trailing()
                 }
-                trailing()
             }
+            Text(
+                counts,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = countsMax).padding(start = Space.x2, end = Space.x4).testTag("note-counts"),
+            )
         }
-        Text(
-            counts,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            modifier = Modifier.padding(start = Space.x2, end = Space.x4).testTag("note-counts"),
-        )
     }
 }
+
+private const val COUNTS_SHARE = 0.3f
+
+private fun Modifier.edgeFade(state: ScrollState, length: Dp): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        val fade = length.toPx().coerceAtMost(size.width / 2)
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        val fadeLeft = if (rtl) state.canScrollForward else state.canScrollBackward
+        val fadeRight = if (rtl) state.canScrollBackward else state.canScrollForward
+        if (fadeLeft) {
+            drawRect(
+                Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = 0f, endX = fade),
+                size = Size(fade, size.height),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+        if (fadeRight) {
+            drawRect(
+                Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - fade, endX = size.width),
+                topLeft = Offset(size.width - fade, 0f),
+                size = Size(fade, size.height),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+    }
 
 @Composable
 fun SlashSuggestions(matches: List<MdActionId>, onPick: (MdActionId) -> Unit) {

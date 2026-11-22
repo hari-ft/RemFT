@@ -146,6 +146,35 @@ class NoteDocxTest {
         assertEquals(null, NoteDocx.pictureSize(byteArrayOf(0, 1, 2)))
     }
 
+    private fun exifJpeg(orientation: Int, littleEndian: Boolean): ByteArray {
+        fun b(vararg v: Int) = v.map { it.toByte() }.toByteArray()
+        val order = if (littleEndian) b(0x49, 0x49, 42, 0, 8, 0, 0, 0) else b(0x4D, 0x4D, 0, 42, 0, 0, 0, 8)
+        val entry = if (littleEndian) {
+            b(1, 0, 0x12, 0x01, 3, 0, 1, 0, 0, 0, orientation, 0, 0, 0, 0, 0)
+        } else {
+            b(0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, orientation, 0, 0, 0, 0)
+        }
+        val exif = "Exif".toByteArray(Charsets.ISO_8859_1) + b(0, 0) + order + entry
+        val app1 = b(0xFF, 0xE1, 0, exif.size + 2) + exif
+        val frame = b(0xFF, 0xC0, 0, 11, 8, 0, 30, 0, 60, 3, 0, 0, 0)
+        return b(0xFF, 0xD8) + app1 + frame
+    }
+
+    @Test
+    fun jpegSizeFollowsTheExifOrientation() {
+        assertEquals(NoteDocx.PictureSize(30, 60, "jpeg"), NoteDocx.pictureSize(exifJpeg(6, littleEndian = true)))
+        assertEquals(NoteDocx.PictureSize(30, 60, "jpeg"), NoteDocx.pictureSize(exifJpeg(8, littleEndian = false)))
+        assertEquals(NoteDocx.PictureSize(60, 30, "jpeg"), NoteDocx.pictureSize(exifJpeg(3, littleEndian = true)))
+        assertEquals(NoteDocx.PictureSize(60, 30, "jpeg"), NoteDocx.pictureSize(exifJpeg(1, littleEndian = false)))
+    }
+
+    @Test
+    fun aRotatedPhotoGetsPortraitExtentsInTheDocument() {
+        val xml = documentXml(build("![p](remft://file/$fileId)", image = { exifJpeg(6, littleEndian = true) }))
+        val extent = Regex("<wp:extent cx=\"(\\d+)\" cy=\"(\\d+)\"/>").find(xml)!!
+        assertTrue(extent.groupValues[2].toLong() > extent.groupValues[1].toLong())
+    }
+
     @Test
     fun figuresPrintSourceWithoutRaster() {
         val xml = documentXml(build("```mermaid\ngraph TD\n```"))

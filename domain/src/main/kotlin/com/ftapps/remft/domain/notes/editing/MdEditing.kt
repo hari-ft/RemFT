@@ -50,6 +50,9 @@ object MdEditing {
             val after = text.substring(start + line.length)
             return MdEdit("$before\n$after", start + 1)
         }
+        if (caret - start <= contentStart(line)) {
+            return MdEdit(text.substring(0, start) + "\n" + text.substring(start), caret + 1)
+        }
         val marker = if (item.ordered) "${item.number + 1}${item.marker.last()}" else item.marker
         val box = if (item.checkbox == null) "" else "[ ] "
         val inserted = "\n${item.indent}$marker $box"
@@ -75,28 +78,104 @@ object MdEditing {
         return MdEdit(updated, (caret + shift).coerceIn(start, updated.length))
     }
 
-    fun renumberOrderedLists(text: String): String {
-        val lines = text.split('\n').toMutableList()
-        val counters = HashMap<Int, Int>()
-        for (i in lines.indices) {
-            val item = parseListItem(lines[i])
-            if (item == null || !item.ordered) {
-                if (lines[i].isBlank()) continue
-                counters.clear()
+    private fun contentStart(line: String): Int {
+        val match = listLine.find(line) ?: return 0
+        return match.groups[4]?.range?.first ?: line.length
+    }
+
+    private val fenceOpen = Regex("^(\\s*)(`{3,}|~{3,})")
+
+    private fun indentWidth(line: String): Int {
+        var width = 0
+        for (c in line) {
+            when (c) {
+                ' ' -> width++
+                '\t' -> width += 4 - width % 4
+                else -> return width
+            }
+        }
+        return width
+    }
+
+    private enum class LineKind { Item, Continuation, Blank, Fenced, Outside }
+
+    private fun classify(lines: List<String>): List<LineKind> {
+        val kinds = ArrayList<LineKind>(lines.size)
+        var fence: String? = null
+        var fenceIndented = false
+        for (line in lines) {
+            val open = fenceOpen.find(line)
+            if (fence != null) {
+                kinds += if (fenceIndented) LineKind.Fenced else LineKind.Outside
+                if (open != null && open.groupValues[2].first() == fence.first() && open.groupValues[2].length >= fence.length &&
+                    line.substring(open.range.last + 1).isBlank()
+                ) {
+                    fence = null
+                }
                 continue
             }
-            val level = item.indent.length / 2
-            counters.keys.removeAll { it > level }
-            val next = (counters[level] ?: 0) + 1
-            counters[level] = next
-            lines[i] = orderedMarker.replaceFirst(item.render(item.content), "$next${item.marker.last()}")
+            if (open != null) {
+                fence = open.groupValues[2]
+                fenceIndented = open.groupValues[1].isNotEmpty()
+                kinds += if (fenceIndented) LineKind.Fenced else LineKind.Outside
+                continue
+            }
+            kinds += when {
+                line.isBlank() -> LineKind.Blank
+                parseListItem(line) != null -> LineKind.Item
+                line.first().isWhitespace() -> LineKind.Continuation
+                else -> LineKind.Outside
+            }
         }
-        return lines.joinToString("\n")
+        return kinds
+    }
+
+    private class ListLevel(val indent: Int, val ordered: Boolean, val delimiter: Char, var next: Int)
+
+    fun renumberOrderedListAt(text: String, caret: Int): MdEdit {
+        val at = caret.coerceIn(0, text.length)
+        val lines = text.split('\n').toMutableList()
+        val offsets = IntArray(lines.size)
+        for (i in 1 until lines.size) offsets[i] = offsets[i - 1] + lines[i - 1].length + 1
+        val kinds = classify(lines)
+        val target = text.substring(0, at).count { it == '\n' }
+        if (kinds[target] == LineKind.Outside) return MdEdit(text, at)
+        var from = target
+        while (from > 0 && kinds[from - 1] != LineKind.Outside) from--
+        var to = target
+        while (to < lines.lastIndex && kinds[to + 1] != LineKind.Outside) to++
+        val levels = ArrayList<ListLevel>()
+        var shift = 0
+        for (i in from..to) {
+            if (kinds[i] != LineKind.Item) continue
+            val line = lines[i]
+            val item = parseListItem(line) ?: continue
+            val indent = indentWidth(line)
+            while (levels.isNotEmpty() && levels.last().indent > indent) levels.removeAt(levels.lastIndex)
+            val delimiter = item.marker.last()
+            val top = levels.lastOrNull()
+            val number = if (top != null && top.indent == indent && top.ordered && item.ordered && top.delimiter == delimiter) {
+                top.next
+            } else {
+                if (top != null && top.indent == indent) levels.removeAt(levels.lastIndex)
+                levels += ListLevel(indent, item.ordered, delimiter, item.number)
+                item.number
+            }
+            levels.last().next = number + 1
+            if (!item.ordered || number == item.number) continue
+            val digitsStart = item.indent.length
+            val digitsEnd = digitsStart + item.marker.length - 1
+            val updated = line.replaceRange(digitsStart, digitsEnd, number.toString())
+            if (i < target || (i == target && at - offsets[i] >= digitsEnd)) shift += updated.length - line.length
+            lines[i] = updated
+        }
+        val result = lines.joinToString("\n")
+        return MdEdit(result, (at + shift).coerceIn(0, result.length))
     }
 
     fun enterPressed(text: String, caret: Int): MdEdit? {
         val edit = continueList(text, caret) ?: return null
-        return MdEdit(renumberOrderedLists(edit.text), edit.selection)
+        return renumberOrderedListAt(edit.text, edit.selection)
     }
 
     fun newlineTyped(before: String, after: String, caretAfter: Int): MdEdit? {

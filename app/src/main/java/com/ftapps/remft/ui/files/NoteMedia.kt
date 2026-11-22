@@ -110,11 +110,11 @@ fun PendingNoteLinks(noteId: String?, onLink: (String) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NoteAttachmentsSheet(noteId: String, onDismiss: () -> Unit, onMessage: (String) -> Unit) {
+fun NoteAttachmentsSheet(noteId: String, onDismiss: () -> Unit, launcher: AttachLauncher? = null, onMessage: (String) -> Unit) {
     RemftBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("note-attachments-sheet")) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = Space.x4, vertical = Space.x2)) {
             Text(stringResource(R.string.task_attachments), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = Space.x3))
-            AttachmentsSection("note", noteId, onMessage)
+            AttachmentsSection("note", noteId, onMessage, launcher = launcher)
         }
     }
 }

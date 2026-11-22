@@ -57,9 +57,7 @@ object NotePdfWriter {
             }
         }
 
-        val dry = Pager(null, title, 0)
-        Renderer(dry, title, subtitle, labels, resolveImage).render(blocks)
-        val total = dry.finish()
+        val total = measure(title, subtitle, blocks, labels, resolveImage).pages
 
         val document = PdfDocument()
         try {
@@ -70,6 +68,22 @@ object NotePdfWriter {
         } finally {
             document.close()
         }
+    }
+
+    internal data class Measured(val pages: Int, val overflow: Float, val repeatedHeaders: Int)
+
+    internal fun measure(
+        title: String,
+        subtitle: String?,
+        blocks: List<NoteBlock>,
+        labels: NoteExportLabels,
+        image: (String) -> Bitmap?,
+    ): Measured {
+        val dry = Pager(null, title, 0)
+        val renderer = Renderer(dry, title, subtitle, labels, image)
+        renderer.render(blocks)
+        val pages = dry.finish()
+        return Measured(pages, dry.overflow, renderer.repeatedHeaders)
     }
 
     private fun f(value: Double): Float = value.toFloat()
@@ -94,12 +108,19 @@ object NotePdfWriter {
             private set
         var number = 0
             private set
+        var overflow = 0f
+            private set
         var y = 0f
+            set(value) {
+                field = value
+                overflow = max(overflow, value - bottom)
+            }
         val x: Float get() = left
         val width: Float get() = f(M.contentWidth)
         val bottom: Float get() = PAGE_HEIGHT - marginBottom - metaHeight - f(M.HEADER_GAP)
         val top: Float get() = if (number <= 1) marginTop else marginTop + metaHeight + f(M.HEADER_GAP)
         val atTop: Boolean get() = y <= top + 0.5f
+        val pageHeight: Float get() = bottom - (marginTop + metaHeight + f(M.HEADER_GAP))
         val remaining: Float get() = bottom - y
 
         fun start() {
@@ -161,6 +182,8 @@ object NotePdfWriter {
         private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
         private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         private val italic: Typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+        var repeatedHeaders = 0
+            private set
 
         fun render(blocks: List<NoteBlock>) {
             pager.start()
@@ -351,24 +374,58 @@ object NotePdfWriter {
             }
             val border = f(M.TABLE_BORDER)
             fun rowHeight(cells: List<StaticLayout>): Float = cells.maxOf { it.height }.toFloat() + 2 * pad
-            fun drawRow(cells: List<StaticLayout>) {
-                val h = rowHeight(cells)
+            val header = laid[0]
+            val repeatHeader = rowHeight(header) <= pager.pageHeight / 3
+            fun drawRow(cells: List<StaticLayout>, from: IntArray, to: IntArray) {
+                val h = cells.indices.maxOf { c -> cells[c].getLineTop(to[c]) - cells[c].getLineTop(from[c]) }.toFloat() + 2 * pad
                 val top = pager.y
                 var cx = pager.x
                 cells.forEachIndexed { c, cell ->
-                    pager.canvas?.withTranslation(cx + pad, top + pad) { cell.draw(this) }
+                    if (to[c] > from[c]) {
+                        val startTop = cell.getLineTop(from[c]).toFloat()
+                        val chunk = cell.getLineTop(to[c]) - startTop
+                        pager.canvas?.withClip(cx + pad, top + pad, cx + pad + cell.width, top + pad + chunk) {
+                            withTranslation(cx + pad, top + pad - startTop) { cell.draw(this) }
+                        }
+                    }
                     outline(cx, top, cx + widths[c], top + h, C.TABLE_RULE, border)
                     cx += widths[c]
                 }
                 pager.y += h
             }
+            fun newPage(index: Int) {
+                pager.start()
+                if (index > 0 && repeatHeader) {
+                    drawRow(header, IntArray(columns), IntArray(columns) { header[it].lineCount })
+                    repeatedHeaders += 1
+                }
+            }
             laid.forEachIndexed { index, cells ->
                 val h = rowHeight(cells)
-                if (pager.y + h > pager.bottom && !pager.atTop) {
-                    pager.start()
-                    if (index > 0) drawRow(laid[0])
+                val headerOnNewPage = if (index > 0 && repeatHeader) rowHeight(header) else 0f
+                if (pager.y + h > pager.bottom && !pager.atTop && h <= pager.pageHeight - headerOnNewPage) newPage(index)
+                val from = IntArray(columns)
+                while (cells.indices.any { from[it] < cells[it].lineCount }) {
+                    val available = pager.bottom - pager.y - 2 * pad
+                    val to = IntArray(columns) { c ->
+                        val cell = cells[c]
+                        val startTop = cell.getLineTop(from[c])
+                        var end = from[c]
+                        while (end < cell.lineCount && cell.getLineBottom(end) - startTop <= available) end += 1
+                        end
+                    }
+                    val stuck = cells.indices.none { to[it] > from[it] }
+                    if (stuck) {
+                        if (!pager.atTop) {
+                            newPage(index)
+                            continue
+                        }
+                        cells.indices.forEach { if (from[it] < cells[it].lineCount) to[it] = from[it] + 1 }
+                    }
+                    drawRow(cells, from, to)
+                    to.copyInto(from)
+                    if (cells.indices.any { from[it] < cells[it].lineCount }) newPage(index)
                 }
-                drawRow(cells)
             }
             pager.space(f(M.BLOCK_AFTER))
         }

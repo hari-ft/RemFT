@@ -1,5 +1,8 @@
 package com.ftapps.remft.ui.notes
 
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -9,6 +12,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
@@ -184,6 +188,43 @@ class NotesScreenTest {
         show(dark = true)
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("notes-grid").fetchSemanticsNodes().isNotEmpty() }
         waitForText("Card")
+    }
+
+    @Test
+    fun systemBackClosesTheOpenSearchBeforeLeavingTheTab() {
+        val viewModel = NotesViewModel(env.repository, env.settings)
+        var leftTab = 0
+        lateinit var dispatcher: OnBackPressedDispatcher
+        compose.setContent {
+            dispatcher = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
+            BackHandler { leftTab++ }
+            RemftTheme {
+                NotesScreen(
+                    viewModel = viewModel,
+                    bottomPadding = 0.dp,
+                    onOpenSettings = {},
+                    onOpenNote = {},
+                    onExport = { _, _ -> },
+                    onEditExternal = {},
+                    onImport = {},
+                    onOpenRecent = {},
+                    recents = emptyList<ExternalDocHandle>(),
+                )
+            }
+        }
+        compose.onNodeWithTag("notes-search-open").performClick()
+        compose.onNodeWithTag("notes-search").performTextInput("alp")
+        compose.waitForIdle()
+        assertEquals("alp", viewModel.query.value.search)
+        compose.runOnIdle { dispatcher.onBackPressed() }
+        compose.waitForIdle()
+        assertEquals(0, leftTab)
+        assertEquals("", viewModel.query.value.search)
+        assertEquals(0, compose.onAllNodesWithTag("notes-search").fetchSemanticsNodes().size)
+        compose.onNodeWithTag("notes-search-open").assertIsDisplayed()
+        compose.runOnIdle { dispatcher.onBackPressed() }
+        compose.waitForIdle()
+        assertEquals(1, leftTab)
     }
 }
 

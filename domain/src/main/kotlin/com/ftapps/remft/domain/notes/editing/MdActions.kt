@@ -43,7 +43,7 @@ object MdActions {
             MdActionId.Bullet -> prefixLines(text, s, e, "- ")
             MdActionId.Numbered -> {
                 val prefixed = prefixLines(text, s, e, "1. ").text
-                val renumbered = MdEditing.renumberOrderedLists(prefixed)
+                val renumbered = MdEditing.renumberOrderedListAt(prefixed, s).text
                 MdEdit(renumbered, (e + 3).coerceAtMost(renumbered.length))
             }
             MdActionId.Todo -> prefixLines(text, s, e, "- [ ] ")

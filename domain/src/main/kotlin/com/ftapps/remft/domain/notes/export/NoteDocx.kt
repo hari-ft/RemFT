@@ -67,6 +67,7 @@ object NoteDocx {
     private fun jpegSize(b: ByteArray): PictureSize? {
         if (b.size < 4 || u8(b, 0) != 0xFF || u8(b, 1) != 0xD8) return null
         var i = 2
+        var orientation = 1
         while (i + 3 < b.size) {
             if (u8(b, i) != 0xFF) return null
             val marker = u8(b, i + 1)
@@ -79,15 +80,45 @@ object NoteDocx {
                 continue
             }
             val length = be16(b, i + 2)
+            if (marker == 0xE1 && orientation == 1) orientation = exifOrientation(b, i + 4, i + 2 + length)
             val frame = marker in 0xC0..0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC
             if (frame) {
                 if (i + 8 >= b.size) return null
-                return sized(be16(b, i + 7).toLong(), be16(b, i + 5).toLong(), "jpeg")
+                val width = be16(b, i + 7).toLong()
+                val height = be16(b, i + 5).toLong()
+                return if (orientation in 5..8) sized(height, width, "jpeg") else sized(width, height, "jpeg")
             }
             if (length < 2) return null
             i += 2 + length
         }
         return null
+    }
+
+    private fun exifOrientation(b: ByteArray, start: Int, end: Int): Int {
+        val limit = min(end, b.size)
+        if (start + 14 > limit) return 1
+        if (String(b, start, 6, Charsets.ISO_8859_1) != "Exif\u0000\u0000") return 1
+        val tiff = start + 6
+        val little = when (String(b, tiff, 2, Charsets.ISO_8859_1)) {
+            "II" -> true
+            "MM" -> false
+            else -> return 1
+        }
+        fun r16(at: Int): Int = if (little) le16(b, at) else be16(b, at)
+        fun r32(at: Int): Long = if (little) (le16(b, at).toLong() or (le16(b, at + 2).toLong() shl 16)) else be32(b, at)
+        if (r16(tiff + 2) != 42) return 1
+        val ifd = tiff + r32(tiff + 4)
+        if (ifd < tiff || ifd + 2 > limit) return 1
+        val entries = r16(ifd.toInt())
+        for (n in 0 until entries) {
+            val entry = ifd.toInt() + 2 + n * 12
+            if (entry + 12 > limit) return 1
+            if (r16(entry) == 0x0112) {
+                val value = r16(entry + 8)
+                return if (value in 1..8) value else 1
+            }
+        }
+        return 1
     }
 
     private fun gifSize(b: ByteArray): PictureSize? {

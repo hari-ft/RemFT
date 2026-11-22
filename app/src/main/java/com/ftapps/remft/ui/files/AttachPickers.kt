@@ -213,9 +213,11 @@ fun AttachButton(
     modifier: Modifier = Modifier,
     outlined: Boolean = true,
     icon: ImageVector = Icons.Outlined.AttachFile,
+    hoisted: AttachLauncher? = null,
 ) {
     var sheet by remember { mutableStateOf(false) }
-    val launcher = rememberAttachLauncher(onPicked, onFailed)
+    val own = rememberAttachLauncher(onPicked, onFailed)
+    val launcher = hoisted ?: own
     val label = stringResource(R.string.file_add)
     if (outlined) {
         OutlinedButton(
