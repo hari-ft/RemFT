@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -158,6 +159,24 @@ class HomeTasksScreenTest {
         waitFor { compose.onAllNodesWithTextCount("2 things today") == 1 }
         compose.onNodeWithTag("home-date").assertTextContains("Friday", substring = true)
         compose.onNodeWithTag("name-mark").assertIsDisplayed()
+    }
+
+    @Test
+    fun headlineCountsOnlyOpenDueTasksAndIgnoresTheSelectedDay() {
+        create(TaskDraft(title = "Late report", dueAt = Instant.parse("2026-11-18T04:30:00Z")))
+        create(TaskDraft(title = "Lunch", dueAt = Instant.parse("2026-11-20T08:00:00Z")))
+        val done = create(TaskDraft(title = "Gym", dueAt = Instant.parse("2026-11-20T02:00:00Z")))
+        create(TaskDraft(title = "Dentist", dueAt = Instant.parse("2026-11-21T05:00:00Z")))
+        runBlocking { tasks.repository.setCompleted(done, true) }
+        show()
+        waitFor { compose.onAllNodesWithTextCount("Gym") == 1 }
+        waitFor { compose.onAllNodesWithTextCount("2 things today") == 1 }
+        compose.onNodeWithTag("calendar-day-2026-11-20").performClick()
+        waitFor { compose.onAllNodes(hasText("Selected day", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("2 things today").assertIsDisplayed()
+        compose.onNodeWithTag("calendar-day-2026-11-21").performClick()
+        waitFor { compose.onAllNodesWithTextCount("Selected day · 1") == 1 }
+        compose.onNodeWithText("2 things today").assertIsDisplayed()
     }
 
     @Test

@@ -239,4 +239,14 @@ class QuickParseTest {
             QuickRepeatDays.firstDays(rule, LocalDate.of(2026, 10, 16), 3),
         )
     }
+
+    @Test
+    fun aCaptureKeepsDateWordsAsTextAndOnlyReadsThePriority() {
+        val p = QuickAdd.parse("Sample idea for weekend every week 9am p1", QuickParseOptions(now = friday, kinds = QuickParseOptions.CaptureKinds))
+        assertEquals("Sample idea for weekend every week 9am", p.title)
+        assertNull(p.dueAt)
+        assertNull(p.repeat)
+        assertFalse(p.hasSchedule)
+        assertEquals(listOf(QuickTokenKind.Priority), p.tokens.map { it.kind })
+    }
 }

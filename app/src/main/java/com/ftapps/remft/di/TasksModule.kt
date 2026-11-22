@@ -7,6 +7,7 @@ import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.data.repeat.SeriesRepository
 import com.ftapps.remft.data.tasks.LiveZoneClock
 import com.ftapps.remft.data.tasks.PendingDeletes
+import com.ftapps.remft.data.tasks.SystemTimeChanges
 import com.ftapps.remft.data.tasks.TasksRepository
 import com.ftapps.remft.ui.tasks.TasksEnvironment
 import dagger.Module
@@ -38,6 +39,7 @@ object TasksModule {
         clock = LiveZoneClock,
         attachmentsDir = File(context.filesDir, "files"),
         seriesHooks = series,
+        timeChanges = SystemTimeChanges.flow(context),
     )
 
     @Provides

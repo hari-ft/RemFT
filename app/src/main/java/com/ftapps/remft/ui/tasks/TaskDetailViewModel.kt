@@ -51,16 +51,15 @@ class TaskDetailViewModel(private val env: TasksEnvironment, val taskId: String)
         writes.launch { runCatching { repository.update(taskId, patch, scope) } }
     }
 
-    private fun applyTitle(task: Task?, patch: TaskPatch, interactive: Boolean) {
-        val asker = scopeAsker
-        when {
-            task == null || !task.isRecurring -> apply(patch)
-            interactive && asker != null -> asker(task, false) { scope -> apply(patch, scope) }
-            else -> writes.launch {
-                runCatching {
-                    val afterCompletion = env.series?.isAfterCompletion(task.seriesId) ?: true
-                    repository.update(taskId, patch, if (afterCompletion) null else EditScope.Future)
-                }
+    private fun saveTitleQuietly(task: Task?, patch: TaskPatch) {
+        if (task == null || !task.isRecurring) {
+            apply(patch)
+            return
+        }
+        writes.launch {
+            runCatching {
+                val afterCompletion = env.series?.isAfterCompletion(task.seriesId) ?: true
+                repository.update(taskId, patch, if (afterCompletion) null else EditScope.Future)
             }
         }
     }
@@ -68,20 +67,33 @@ class TaskDetailViewModel(private val env: TasksEnvironment, val taskId: String)
     fun onTitleChanged(text: String) {
         pendingTitle = text
         titleJob?.cancel()
+        if (current()?.isRecurring == true) return
         titleJob = viewModelScope.launch {
             delay(AUTOSAVE_MS)
-            flushTitle(interactive = true)
+            flushTitle()
         }
     }
 
     fun flushTitle(interactive: Boolean = false) {
         titleJob?.cancel()
         val text = pendingTitle ?: return
-        pendingTitle = null
         val title = text.trim()
         val task = current()
-        if (title.isEmpty() || title == task?.title) return
-        applyTitle(task, TaskPatch(title = title), interactive)
+        if (title.isEmpty() || title == task?.title) {
+            pendingTitle = null
+            return
+        }
+        val patch = TaskPatch(title = title)
+        val asker = scopeAsker
+        if (interactive && asker != null && task != null && task.isRecurring) {
+            asker(task, false) { scope ->
+                if (pendingTitle == text) pendingTitle = null
+                apply(patch, scope)
+            }
+            return
+        }
+        pendingTitle = null
+        saveTitleQuietly(task, patch)
     }
 
     fun onDescriptionChanged(text: String) {

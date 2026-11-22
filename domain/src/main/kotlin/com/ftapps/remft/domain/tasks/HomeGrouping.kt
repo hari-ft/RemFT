@@ -142,6 +142,12 @@ object HomeGrouping {
         return groups
     }
 
+    fun dueByTodayCount(tasks: List<Task>, today: LocalDate, zone: ZoneId): Int =
+        tasks.count { task ->
+            val due = task.dueAt
+            !task.isCompleted && due != null && !localDay(due, zone).isAfter(today)
+        }
+
     fun daysWithTasks(tasks: List<Task>, zone: ZoneId): Set<LocalDate> =
         tasks.mapNotNullTo(linkedSetOf()) { task ->
             val due = task.dueAt

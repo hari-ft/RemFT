@@ -41,6 +41,7 @@ data class HomeUiState(
     val selectedDay: LocalDate? = null,
     val sort: SortState = SortState.parse(TaskSort.DEFAULT, TaskSort.choices),
     val calendarVisible: Boolean = true,
+    val dueCount: Int = 0,
 )
 
 class HomeViewModel(private val env: TasksEnvironment) : ViewModel() {
@@ -59,8 +60,9 @@ class HomeViewModel(private val env: TasksEnvironment) : ViewModel() {
             .catch { emit(ListLoad.Failed) }
     }
 
-    val state: StateFlow<HomeUiState> = combine(tasksFlow, env.pendingDeletes.ids, selected, sortFlow, calendarFlow) { load, pending, day, sort, calendar ->
-        val now = repository.now()
+    private val listFlow = combine(tasksFlow, repository.minuteTicks()) { load, now -> load to now }
+
+    val state: StateFlow<HomeUiState> = combine(listFlow, env.pendingDeletes.ids, selected, sortFlow, calendarFlow) { (load, now), pending, day, sort, calendar ->
         val zone = repository.zone
         val local = LocalDateTime.ofInstant(now, zone)
         when (load) {
@@ -71,6 +73,7 @@ class HomeViewModel(private val env: TasksEnvironment) : ViewModel() {
                 HomeUiState(
                     load = ListLoad.Ready(HomeGrouping.group(visible, local, zone, day, sort)),
                     markedDays = HomeGrouping.daysWithTasks(visible, zone),
+                    dueCount = HomeGrouping.dueByTodayCount(visible, local.toLocalDate(), zone),
                     today = local.toLocalDate(),
                     now = now,
                     selectedDay = day,

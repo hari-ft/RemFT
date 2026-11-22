@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -56,6 +56,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -63,6 +65,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
@@ -148,7 +152,7 @@ fun PriorityLabel(priority: String, modifier: Modifier = Modifier) {
             modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(Space.x2))
-        Text(stringResource(priorityLabel(priority)))
+        Text(stringResource(priorityLabel(priority)), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -157,7 +161,44 @@ fun StatusLabel(status: String, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Icon(statusIcon(status), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(Space.x2))
-        Text(stringResource(statusLabel(status)))
+        Text(stringResource(statusLabel(status)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+fun isLargeFont(): Boolean = LocalDensity.current.fontScale >= LARGE_FONT_SCALE
+
+const val LARGE_FONT_SCALE = 1.5f
+
+@Composable
+fun SideBySideOrStacked(gap: Dp, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val gapPx = gap.roundToPx()
+        val width = constraints.maxWidth
+        val half = ((width - gapPx * (measurables.size - 1)) / measurables.size.coerceAtLeast(1)).coerceAtLeast(0)
+        val sideBySide = constraints.hasBoundedWidth && measurables.all { it.maxIntrinsicWidth(Constraints.Infinity) <= half }
+        if (sideBySide) {
+            val placeables = measurables.map { it.measure(Constraints.fixedWidth(half)) }
+            val height = placeables.maxOfOrNull { it.height } ?: 0
+            layout(width, height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+                var x = 0
+                placeables.forEach { placeable ->
+                    placeable.placeRelative(x, (height - placeable.height) / 2)
+                    x += half + gapPx
+                }
+            }
+        } else {
+            val full = if (constraints.hasBoundedWidth) width else measurables.maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
+            val placeables = measurables.map { it.measure(Constraints.fixedWidth(full)) }
+            val height = placeables.sumOf { it.height } + gapPx * (placeables.size - 1).coerceAtLeast(0)
+            layout(full, height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+                var y = 0
+                placeables.forEach { placeable ->
+                    placeable.placeRelative(0, y)
+                    y += placeable.height + gapPx
+                }
+            }
+        }
     }
 }
 
@@ -261,7 +302,7 @@ fun SwipeToReveal(
         }
         Box(
             Modifier
-                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                .absoluteOffset { IntOffset(offset.value.roundToInt(), 0) }
                 .draggable(
                     state = draggable,
                     orientation = Orientation.Horizontal,

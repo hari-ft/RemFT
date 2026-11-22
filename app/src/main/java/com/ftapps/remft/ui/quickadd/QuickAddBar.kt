@@ -95,6 +95,7 @@ fun QuickAddBar(
     tag: String,
     onSubmit: (raw: String, parsed: QuickParse) -> Unit,
     modifier: Modifier = Modifier,
+    capture: Boolean = false,
 ) {
     val env = LocalTasksEnvironment.current
     val creator = remember(env) { QuickAddCreator(env.repository, env.series) }
@@ -102,13 +103,13 @@ fun QuickAddBar(
     var text by rememberSaveable { mutableStateOf("") }
     var ignored by remember { mutableStateOf(emptySet<String>()) }
     var helpOpen by remember { mutableStateOf(false) }
-    val parsed = remember(text, ignored, format) { creator.parse(text, format, ignored) }
+    val parsed = remember(text, ignored, format, capture) { creator.parse(text, format, ignored, capture) }
     val markStyle = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
     val highlight = remember(parsed.highlightRanges, markStyle) { QuickAddHighlight(parsed.highlightRanges, markStyle) }
     val submit = submit@{
         val raw = text.trim()
         if (raw.isEmpty()) return@submit
-        val finalParse = creator.parse(raw, format, ignored)
+        val finalParse = creator.parse(raw, format, ignored, capture)
         text = ""
         ignored = emptySet()
         onSubmit(raw, finalParse)

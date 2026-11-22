@@ -45,8 +45,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -63,7 +65,9 @@ import com.ftapps.remft.ui.repeat.CreateSheetRepeatRow
 import com.ftapps.remft.ui.repeat.RepeatDraft
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.Space
-import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import java.util.UUID
 import java.time.LocalDateTime
 
 class TaskSheetState(
@@ -111,6 +115,31 @@ class TaskSheetState(
             TaskSheetState("", "", TaskPriority.Medium.db, initialDue, null, isUrgent = true, remindAuto = false)
                 .also { it.syncAutoReminder(now) }
 
+        val Saver: Saver<TaskSheetState, Any> = listSaver(
+            save = {
+                listOf(
+                    it.title,
+                    it.description,
+                    it.priority,
+                    it.dueAt?.toString().orEmpty(),
+                    it.remindAt?.toString().orEmpty(),
+                    it.isUrgent,
+                    it.remindAuto,
+                )
+            },
+            restore = {
+                TaskSheetState(
+                    it[0] as String,
+                    it[1] as String,
+                    it[2] as String,
+                    (it[3] as String).takeIf(String::isNotEmpty)?.let(LocalDateTime::parse),
+                    (it[4] as String).takeIf(String::isNotEmpty)?.let(LocalDateTime::parse),
+                    it[5] as Boolean,
+                    it[6] as Boolean,
+                )
+            },
+        )
+
         fun forEdit(task: Task, toLocal: (java.time.Instant) -> LocalDateTime): TaskSheetState = TaskSheetState(
             task.title,
             task.description.orEmpty(),
@@ -135,56 +164,50 @@ fun TaskCreateSheet(
     val repository = env.repository
     val zone = repository.zone
     val now = { LocalDateTime.ofInstant(repository.now(), repository.zone) }
-    val state = remember(editing?.id) {
+    val state = rememberSaveable(editing?.id, saver = TaskSheetState.Saver) {
         if (editing != null) TaskSheetState.forEdit(editing) { it.toLocal(zone) } else TaskSheetState.forCreate(initialDue, now()).also { it.title = initialTitle }
     }
-    val repeatDraft = remember { RepeatDraft() }
-    var saving by remember { mutableStateOf(false) }
-    var titleError by remember { mutableStateOf(false) }
-    var saveError by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val repeatDraft = rememberSaveable(saver = RepeatDraft.Saver) { RepeatDraft() }
+    var titleError by rememberSaveable { mutableStateOf(false) }
+    val session = rememberSaveable { UUID.randomUUID().toString() }
+    val saver: TaskSheetViewModel = viewModel(key = "task-sheet-$session") { TaskSheetViewModel(env) }
+    val saveState by saver.state.collectAsStateWithLifecycle()
+    val saving = saveState == SheetSave.Saving
+    LaunchedEffect(saveState) {
+        if (saveState == SheetSave.Saved) onDismiss()
+    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val save: () -> Unit = save@{
         if (state.title.isBlank()) {
             titleError = true
             return@save
         }
-        saving = true
-        saveError = false
-        scope.launch {
-            val ok = runCatching {
-                if (editing != null) {
-                    repository.update(
-                        editing.id,
-                        TaskPatch(
-                            title = state.title.trim(),
-                            description = Change(state.descriptionOrNull),
-                            priority = state.priority,
-                            dueAt = Change(state.dueAt?.toInstant(zone)),
-                            remindAt = Change(state.remindAt?.toInstant(zone)),
-                            isUrgent = state.isUrgent,
-                        ),
-                    )
-                } else {
-                    val createdId = repository.create(
-                        TaskDraft(
-                            title = state.title.trim(),
-                            description = state.descriptionOrNull,
-                            priority = state.priority,
-                            dueAt = state.dueAt?.toInstant(zone),
-                            remindAt = state.remindAt?.toInstant(zone),
-                            isUrgent = state.isUrgent,
-                        ),
-                    )
-                    val rule = repeatDraft.rule
-                    val series = env.series
-                    if (rule != null && series != null) {
-                        runCatching { series.start(createdId, rule, repeatDraft.anchor(state, now()).toInstant(zone)) }
-                    }
-                }
-            }.isSuccess
-            saving = false
-            if (ok) onDismiss() else saveError = true
+        if (editing != null) {
+            saver.update(
+                editing.id,
+                TaskPatch(
+                    title = state.title.trim(),
+                    description = Change(state.descriptionOrNull),
+                    priority = state.priority,
+                    dueAt = Change(state.dueAt?.toInstant(zone)),
+                    remindAt = Change(state.remindAt?.toInstant(zone)),
+                    isUrgent = state.isUrgent,
+                ),
+            )
+        } else {
+            val rule = repeatDraft.rule
+            saver.create(
+                TaskDraft(
+                    title = state.title.trim(),
+                    description = state.descriptionOrNull,
+                    priority = state.priority,
+                    dueAt = state.dueAt?.toInstant(zone),
+                    remindAt = state.remindAt?.toInstant(zone),
+                    isUrgent = state.isUrgent,
+                ),
+                rule,
+                rule?.let { repeatDraft.anchor(state, now()).toInstant(zone) },
+            )
         }
     }
     RemftBottomSheet(
@@ -285,10 +308,10 @@ fun TaskCreateSheet(
                         modifier = Modifier.padding(start = Space.x4, end = Space.x4, top = Space.x1).testTag("task-sheet-urgent-needs-time"),
                     )
                 }
-                if (saveError) {
+                if (saveState == SheetSave.Failed || saveState == SheetSave.TooDense) {
                     Spacer(Modifier.height(Space.x3))
                     Text(
-                        stringResource(R.string.task_couldNotSave),
+                        stringResource(if (saveState == SheetSave.TooDense) R.string.repeat_tooDense else R.string.task_couldNotSave),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier
@@ -353,18 +376,22 @@ fun UrgentSwitch(checked: Boolean, onChange: (Boolean) -> Unit, tag: String) {
     ListItem(
         headlineContent = { Text(stringResource(R.string.task_urgentAlarm), style = MaterialTheme.typography.titleMedium) },
         supportingContent = { Text(stringResource(R.string.task_urgentAlarmSub)) },
-        leadingContent = {
-            Box(
-                Modifier
-                    .size(40.dp)
-                    .background(if (checked) urgent.container else RemftTheme.tonal.level2, MarkedShapes.pill),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.NotificationImportant,
-                    contentDescription = null,
-                    tint = if (checked) urgent.onContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        leadingContent = if (isLargeFont()) {
+            null
+        } else {
+            {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .background(if (checked) urgent.container else RemftTheme.tonal.level2, MarkedShapes.pill),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.NotificationImportant,
+                        contentDescription = null,
+                        tint = if (checked) urgent.onContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         },
         trailingContent = { Switch(checked = checked, onCheckedChange = onChange, colors = successSwitchColors(), modifier = Modifier.testTag(tag)) },

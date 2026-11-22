@@ -146,16 +146,20 @@ class QuickAddScreensTest {
     }
 
     @Test
-    fun inboxCaptureWithADateIsBornOpenWithDefaults() {
+    fun inboxCaptureWithADateWordStaysACaptureInTheInbox() {
         show { InboxTasksScreen(bottomPadding = 0.dp, onOpenSettings = {}) }
-        compose.onNodeWithTag("inbox-capture").performTextInput("file taxes tomorrow")
+        compose.onNodeWithTag("inbox-capture").performTextInput("Sample idea for weekend")
+        compose.waitForIdle()
+        assertEquals(0, compose.onAllNodesWithTagCount("inbox-capture-token-due"))
         compose.onNodeWithTag("inbox-capture").performImeAction()
         val row = onlyTask()
-        assertEquals("file taxes", row["title"])
-        assertEquals("open", row["status"])
-        assertEquals("medium", row["priority"])
-        assertEquals("1", row["is_urgent"])
-        assertEquals("2026-11-21T05:30:00.000Z", row["due_at"])
+        assertEquals("Sample idea for weekend", row["title"])
+        assertEquals("inbox", row["status"])
+        assertEquals("none", row["priority"])
+        assertEquals("0", row["is_urgent"])
+        assertNull(row["due_at"])
+        assertNull(row["remind_at"])
+        waitFor { compose.onAllNodesWithTextCount("Sample idea for weekend") == 1 }
     }
 
     @Test

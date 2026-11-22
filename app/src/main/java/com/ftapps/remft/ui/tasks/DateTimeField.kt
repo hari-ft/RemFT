@@ -53,6 +53,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.settings.DateFormatId
@@ -170,7 +171,7 @@ fun DateTimeFieldContent(
             }
         }
         Spacer(Modifier.size(Space.x2))
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.x2), modifier = Modifier.fillMaxWidth()) {
+        SideBySideOrStacked(gap = Space.x2, modifier = Modifier.fillMaxWidth()) {
             PartButton(
                 text = dateText,
                 isSet = isSet,
@@ -178,7 +179,6 @@ fun DateTimeFieldContent(
                 description = stringResource(R.string.dateField_dateOf).fill("field" to label),
                 tag = "$tag-date",
                 onClick = onPickDate,
-                modifier = Modifier.weight(1f),
             )
             PartButton(
                 text = timeText,
@@ -187,7 +187,6 @@ fun DateTimeFieldContent(
                 description = stringResource(R.string.dateField_timeOf).fill("field" to label),
                 tag = "$tag-time",
                 onClick = onPickTime,
-                modifier = Modifier.weight(1f),
             )
         }
         if (afterDeadline) {
@@ -241,6 +240,8 @@ private fun PartButton(
             text,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = if (isSet) FontWeight.SemiBold else null,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
     }

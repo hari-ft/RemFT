@@ -446,7 +446,7 @@ internal class QuickParser(private val text: String, private val o: QuickParseOp
         var i = 0
         while (i < words.size) {
             val cands = (repeats(i) + schedule(i) + times(i) + marks(i))
-                .filter { i + it.len <= words.size && it.kind !in filled }
+                .filter { i + it.len <= words.size && it.kind !in filled && it.kind in o.kinds }
             if (cands.isEmpty()) {
                 i += 1
                 continue

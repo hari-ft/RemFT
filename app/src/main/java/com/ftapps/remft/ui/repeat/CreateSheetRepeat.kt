@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -16,10 +19,9 @@ import com.ftapps.remft.ui.tasks.rememberDateFormat
 import java.time.Duration
 import java.time.LocalDateTime
 
-class RepeatDraft {
-    var rule by mutableStateOf<RepeatRule?>(null)
+class RepeatDraft(rule: RepeatRule? = null, private var dueFromRepeat: Boolean = false) {
+    var rule by mutableStateOf(rule)
         private set
-    private var dueFromRepeat = false
 
     fun anchor(state: TaskSheetState, now: LocalDateTime): LocalDateTime {
         val due = state.dueAt
@@ -64,13 +66,20 @@ class RepeatDraft {
     fun onDueTouched() {
         dueFromRepeat = false
     }
+
+    companion object {
+        val Saver: Saver<RepeatDraft, Any> = listSaver(
+            save = { listOf(it.rule?.toJsonString().orEmpty(), it.dueFromRepeat) },
+            restore = { RepeatDraft((it[0] as String).takeIf(String::isNotEmpty)?.let(RepeatRule::fromJsonString), it[1] as Boolean) },
+        )
+    }
 }
 
 @Composable
 fun CreateSheetRepeatRow(draft: RepeatDraft, state: TaskSheetState, now: () -> LocalDateTime) {
     val format = rememberDateFormat()
     val sentence = rememberRepeatSentence()
-    var editing by remember { mutableStateOf(false) }
+    var editing by rememberSaveable { mutableStateOf(false) }
     val rule = draft.rule
     RepeatSwitchRow(
         on = rule != null,
