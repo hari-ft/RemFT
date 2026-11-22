@@ -149,4 +149,15 @@ class GlobalSearchTest {
         val snippet = GlobalSearch.context(SearchTier.Body, body, listOf("invoice", "march"), "Invoice for the shop")
         assertTrue(snippet!!.contains("march"))
     }
+
+    @Test
+    fun hiddenItemsLeaveTheirGroupAndTheTotal() {
+        val tasks = GlobalSearchGroup(GlobalSearchKind.Task, listOf(GlobalSearchItem(GlobalSearchKind.Task, "T1", "Gym"), GlobalSearchItem(GlobalSearchKind.Task, "T2", "Gym bag")), 7)
+        val notes = GlobalSearchGroup(GlobalSearchKind.Note, listOf(GlobalSearchItem(GlobalSearchKind.Note, "N1", "Gym plan")), 1)
+        val shown = GlobalSearch.withoutHidden(listOf(tasks, notes), setOf("T1", "N1"))
+        assertEquals(1, shown.size)
+        assertEquals(listOf("T2"), shown.single().items.map { it.id })
+        assertEquals(6, shown.single().total)
+        assertEquals(listOf(tasks, notes), GlobalSearch.withoutHidden(listOf(tasks, notes), emptySet()))
+    }
 }

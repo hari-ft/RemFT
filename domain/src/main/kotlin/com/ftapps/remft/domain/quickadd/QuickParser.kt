@@ -234,9 +234,6 @@ internal class QuickParser(private val text: String, private val o: QuickParseOp
             val hits = listOfNotNull(numericDate(i + 1)) + namedDates(i + 1)
             for (hit in hits) out.add(Cand(QuickTokenKind.Due, 1 + hit.len, date = hit))
         }
-        if (w in dateLeads) {
-            for (hit in dates(i + 1)) out.add(Cand(QuickTokenKind.Due, 1 + hit.len, date = hit))
-        }
         for (hit in dates(i)) out.add(Cand(QuickTokenKind.Due, hit.len, date = hit))
         return out
     }
@@ -611,8 +608,6 @@ internal class QuickParser(private val text: String, private val o: QuickParseOp
         )
 
         private val dueKeywords = setOf("due", "by", "deadline", "until", "till")
-
-        private val dateLeads = setOf("for")
 
         private val priorityWords = mapOf(
             "p1" to "high", "p2" to "medium", "p3" to "low", "p4" to "none",

@@ -30,6 +30,7 @@ class SearchEnvironment(
     val repository: SearchRepository,
     val recents: SearchRecentsStore,
     val palette: GlobalSearchRequests = GlobalSearchRequests(),
+    val hidden: StateFlow<Set<String>> = MutableStateFlow(emptySet()),
 )
 
 val LocalSearchEnvironment = staticCompositionLocalOf<SearchEnvironment?> { null }

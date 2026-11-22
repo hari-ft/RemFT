@@ -39,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.UUID
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.time.ZoneId
@@ -85,7 +86,7 @@ class NoteExporter(private val context: Context, private val repository: NotesRe
         val name = NoteMarkdownFile.fileName(title, format.extension)
         val dir = File(context.cacheDir, EXPORT_DIR).apply { mkdirs() }
         TempCopies.pruneStale(dir)
-        val out = File(dir, name)
+        val out = File(File(dir, UUID.randomUUID().toString()).apply { mkdirs() }, name)
         when (format) {
             NoteExportFormat.Markdown -> out.writeBytes(NoteMarkdownFile.bytes(title, markdown))
             NoteExportFormat.Docx -> {

@@ -7,7 +7,9 @@ import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.testing.TestFiles
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,5 +35,16 @@ class NoteExportFilesTest {
         assertTrue(first.file.isFile)
         assertTrue(second.file.isFile)
         assertFalse(stale.exists())
+    }
+
+    @Test
+    fun aSecondExportWithTheSameTitleDoesNotOverwriteTheFirst() = runBlocking {
+        val exporter = NoteExporter(context, rig.notes)
+        val first = exporter.export(NoteExportFormat.Markdown, "Packing list", "# Tent", null, DateFormatId.System)
+        val second = exporter.export(NoteExportFormat.Markdown, "Packing list", "# Stove", null, DateFormatId.System)
+        assertEquals(first.file.name, second.file.name)
+        assertNotEquals(first.file, second.file)
+        assertTrue(first.file.readText().contains("Tent"))
+        assertTrue(second.file.readText().contains("Stove"))
     }
 }
