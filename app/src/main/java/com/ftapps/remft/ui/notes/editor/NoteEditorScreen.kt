@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,15 +37,15 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.automirrored.outlined.Toc
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.outlined.VerticalSplit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -52,11 +54,11 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,7 +68,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -74,6 +78,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -86,18 +92,22 @@ import com.ftapps.remft.domain.notes.markdown.Outline
 import com.ftapps.remft.domain.notes.markdown.OutlineHeading
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.EmptyState
+import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.files.FilesEnvironment
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import com.ftapps.remft.ui.files.NoteAttachments
 import com.ftapps.remft.ui.files.NoteAttachmentsSheet
 import com.ftapps.remft.ui.files.NoteMediaButtons
 import com.ftapps.remft.ui.notes.ExportMenuItems
+import com.ftapps.remft.ui.notes.NotesDropdownMenu
 import com.ftapps.remft.ui.notes.export.NoteExportHost
 import com.ftapps.remft.ui.notes.export.NoteExportViewModel
 import com.ftapps.remft.ui.notes.markdown.MarkdownView
 import com.ftapps.remft.ui.notes.markdown.rememberMarkdownDocument
 import com.ftapps.remft.ui.theme.Breakpoints
-import com.ftapps.remft.ui.theme.RemftThemeExtras
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
 
@@ -161,27 +171,32 @@ private fun ConflictDialog(viewModel: NoteEditorViewModel) {
     val copyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/markdown")) { uri ->
         if (uri != null) viewModel.saveExternalCopy(uri) else viewModel.dismissConflict()
     }
-    AlertDialog(
+    val rowColors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    RemftDialog(
         onDismissRequest = viewModel::dismissConflict,
-        confirmButton = { TextButton(onClick = viewModel::dismissConflict) { Text(stringResource(R.string.common_cancel)) } },
-        title = { Text(stringResource(R.string.note_extConflictTitle)) },
+        confirmButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = viewModel::dismissConflict) },
+        title = stringResource(R.string.note_extConflictTitle),
         text = {
             Column {
-                Text(stringResource(R.string.note_extConflictBody).fill("name" to name))
+                Text(stringResource(R.string.note_extConflictBody).fill("name" to name), style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(Space.x2))
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.note_extReload)) },
+                    headlineContent = { Text(stringResource(R.string.note_extReload), style = MaterialTheme.typography.titleMedium) },
                     supportingContent = { Text(stringResource(R.string.note_extReloadHint)) },
-                    modifier = Modifier.clickableRow { viewModel.reloadExternal() }.testTag("conflict-reload"),
+                    colors = rowColors,
+                    modifier = Modifier.clip(MarkedShapes.small).clickableRow { viewModel.reloadExternal() }.testTag("conflict-reload"),
                 )
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.note_extSaveCopy)) },
+                    headlineContent = { Text(stringResource(R.string.note_extSaveCopy), style = MaterialTheme.typography.titleMedium) },
                     supportingContent = { Text(stringResource(R.string.note_extSaveCopyHint)) },
-                    modifier = Modifier.clickableRow { copyLauncher.launch(name.ifBlank { "document.md" }) }.testTag("conflict-copy"),
+                    colors = rowColors,
+                    modifier = Modifier.clip(MarkedShapes.small).clickableRow { copyLauncher.launch(name.ifBlank { "document.md" }) }.testTag("conflict-copy"),
                 )
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.note_extOverwrite), color = MaterialTheme.colorScheme.error) },
+                    headlineContent = { Text(stringResource(R.string.note_extOverwrite), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error) },
                     supportingContent = { Text(stringResource(R.string.note_extOverwriteHint)) },
-                    modifier = Modifier.clickableRow { viewModel.saveExternal(force = true) }.testTag("conflict-overwrite"),
+                    colors = rowColors,
+                    modifier = Modifier.clip(MarkedShapes.small).clickableRow { viewModel.saveExternal(force = true) }.testTag("conflict-overwrite"),
                 )
             }
         },
@@ -202,7 +217,14 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
     val scope = rememberCoroutineScope()
     val session by viewModel.externalSession.collectAsStateWithLifecycle()
     TopAppBar(
-        title = { Text(stringResource(if (viewModel.isExternal) R.string.note_extTitle else R.string.note_detailTitle)) },
+        title = {
+            Text(
+                stringResource(if (viewModel.isExternal) R.string.note_extTitle else R.string.note_detailTitle),
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         navigationIcon = {
             IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
@@ -223,7 +245,7 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
                     Icon(
                         if (viewModel.isPinned) Icons.Outlined.Star else Icons.Outlined.StarBorder,
                         contentDescription = stringResource(if (viewModel.isPinned) R.string.note_unpin else R.string.note_pin),
-                        tint = if (viewModel.isPinned) RemftThemeExtras.colors.warning else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (viewModel.isPinned) RemftTheme.colors.note.color else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = viewModel::toggleArchived, modifier = Modifier.testTag("note-archive")) {
@@ -244,7 +266,7 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
                     IconButton(onClick = { menu = true }, modifier = Modifier.testTag("note-quick-menu")) {
                         Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.note_actions))
                     }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    NotesDropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         ExportMenuItems { format ->
                             menu = false
                             exportViewModel.exportContent(format, viewModel.titleForExport(), viewModel.source.text, viewModel.updatedAt)
@@ -264,23 +286,34 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
                 }
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface,
+            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+            actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+        ),
     )
     attachmentsFor?.let { id ->
         NoteAttachmentsSheet(id, onDismiss = { attachmentsFor = null }) { toast(context, it) }
     }
     if (confirmDelete) {
-        AlertDialog(
+        RemftDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.note_deleteTitle)) },
-            text = { Text(stringResource(if (binOn) R.string.bin_toBin else R.string.note_deleteBody)) },
+            title = stringResource(R.string.note_deleteTitle),
+            text = { Text(stringResource(if (binOn) R.string.bin_toBin else R.string.note_deleteBody), style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    viewModel.delete()
-                }, modifier = Modifier.testTag("note-delete-confirm")) { Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error) }
+                RemftTextButton(
+                    stringResource(R.string.common_delete),
+                    onClick = {
+                        confirmDelete = false
+                        viewModel.delete()
+                    },
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("note-delete-confirm"),
+                )
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.common_cancel)) } },
+            dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = { confirmDelete = false }) },
         )
     }
 }
@@ -312,11 +345,18 @@ private fun ExternalBand(viewModel: NoteEditorViewModel) {
         !current.writable -> stringResource(R.string.note_extReadOnly)
         else -> stringResource(R.string.note_extExternal)
     }
+    val tone = RemftTheme.colors.file
     Column(
-        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = Space.x4, vertical = Space.x2).testTag("external-band"),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Space.x4, vertical = Space.x1)
+            .clip(MarkedShapes.medium)
+            .background(tone.container)
+            .padding(horizontal = Space.x4, vertical = Space.x3)
+            .testTag("external-band"),
     ) {
-        Text(current.handle.displayName, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
-        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+        Text(current.handle.displayName, style = MaterialTheme.typography.titleSmall, color = tone.onContainer)
+        Text(text, style = MaterialTheme.typography.bodySmall, color = tone.onContainer)
     }
 }
 
@@ -383,35 +423,52 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
         Column(Modifier.fillMaxSize()) {
             if (viewModel.isExternal) ExternalBand(viewModel)
             Row(Modifier.fillMaxWidth().padding(horizontal = Space.x3, vertical = Space.x1), verticalAlignment = Alignment.CenterVertically) {
+                val segmentColors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    activeBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    inactiveContainerColor = RemftTheme.tonal.level1,
+                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                )
                 SingleChoiceSegmentedButtonRow(Modifier.weight(1f, fill = false)) {
                     EditorMode.entries.forEachIndexed { index, mode ->
                         SegmentedButton(
                             selected = viewModel.mode == mode,
                             onClick = { viewModel.mode = mode },
-                            shape = SegmentedButtonDefaults.itemShape(index, EditorMode.entries.size),
+                            shape = SegmentedButtonDefaults.itemShape(index, EditorMode.entries.size, CircleShape),
+                            colors = segmentColors,
                             modifier = Modifier.testTag("mode-${mode.name.lowercase()}"),
-                        ) { Text(stringResource(if (mode == EditorMode.Source) R.string.note_modeSource else R.string.note_modeReading)) }
+                        ) {
+                            Text(
+                                stringResource(if (mode == EditorMode.Source) R.string.note_modeSource else R.string.note_modeReading),
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.weight(1f))
                 SaveIndicator(viewModel.saveState, viewModel.isExternal, viewModel.dirty)
-                IconButton(onClick = { outline = true }, modifier = Modifier.testTag("open-outline")) {
-                    Icon(Icons.AutoMirrored.Outlined.Toc, contentDescription = stringResource(R.string.note_outline))
-                }
-                if (viewModel.mode == EditorMode.Source) {
-                    IconButton(onClick = {
-                        finding = !finding
-                        replacing = finding
-                    }, modifier = Modifier.testTag("open-find")) {
-                        Icon(Icons.Outlined.FindReplace, contentDescription = stringResource(R.string.note_find))
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+                    IconButton(onClick = { outline = true }, modifier = Modifier.testTag("open-outline")) {
+                        Icon(Icons.AutoMirrored.Outlined.Toc, contentDescription = stringResource(R.string.note_outline))
                     }
-                }
-                if (wide) {
-                    IconButton(onClick = { split = !split }, modifier = Modifier.testTag("toggle-split")) {
-                        Icon(Icons.Outlined.VerticalSplit, contentDescription = stringResource(if (split) R.string.note_splitOff else R.string.note_splitOn))
+                    if (viewModel.mode == EditorMode.Source) {
+                        IconButton(onClick = {
+                            finding = !finding
+                            replacing = finding
+                        }, modifier = Modifier.testTag("open-find")) {
+                            Icon(Icons.Outlined.FindReplace, contentDescription = stringResource(R.string.note_find))
+                        }
                     }
-                    IconButton(onClick = { focusMode = !focusMode }, modifier = Modifier.testTag("toggle-focus")) {
-                        Icon(Icons.Outlined.CenterFocusStrong, contentDescription = stringResource(if (focusMode) R.string.note_focusOff else R.string.note_focusOn))
+                    if (wide) {
+                        IconButton(onClick = { split = !split }, modifier = Modifier.testTag("toggle-split")) {
+                            Icon(Icons.Outlined.VerticalSplit, contentDescription = stringResource(if (split) R.string.note_splitOff else R.string.note_splitOn))
+                        }
+                        IconButton(onClick = { focusMode = !focusMode }, modifier = Modifier.testTag("toggle-focus")) {
+                            Icon(Icons.Outlined.CenterFocusStrong, contentDescription = stringResource(if (focusMode) R.string.note_focusOff else R.string.note_focusOn))
+                        }
                     }
                 }
             }
@@ -431,7 +488,7 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                         NoteMediaButtons(viewModel::ensureNoteId, viewModel::insertText) { toast(context, it) }
                     }
                 }
-                HorizontalDivider(color = RemftThemeExtras.colors.hairline)
+                HorizontalDivider(color = RemftTheme.extras.hairline)
             }
             val readingPane: @Composable (Modifier) -> Unit = { modifier ->
                 MarkdownView(
@@ -445,7 +502,7 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                     header = {
                         Text(
                             viewModel.title.text.ifBlank { stringResource(R.string.note_untitled) },
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.W700),
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = Space.x4).testTag("reading-title"),
                         )
@@ -469,7 +526,7 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                 when {
                     viewModel.mode == EditorMode.Source && wide && split && !focusMode -> {
                         sourcePane(Modifier.weight(1f).fillMaxHeight())
-                        VerticalDivider(color = RemftThemeExtras.colors.hairline)
+                        VerticalDivider(color = RemftTheme.extras.hairline)
                         readingPane(Modifier.weight(1f).fillMaxHeight())
                     }
                     viewModel.mode == EditorMode.Source -> Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
@@ -478,7 +535,7 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                     else -> {
                         if (wide && !focusMode && document != null) {
                             OutlineList(document.headings, ::jumpTo, Modifier.width(260.dp).fillMaxHeight().testTag("outline-panel"))
-                            VerticalDivider(color = RemftThemeExtras.colors.hairline)
+                            VerticalDivider(color = RemftTheme.extras.hairline)
                         }
                         Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
                             readingPane(Modifier.widthIn(max = Breakpoints.detailMaxWidth).fillMaxHeight())
@@ -504,7 +561,7 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
 
 @Composable
 private fun TitleField(viewModel: NoteEditorViewModel) {
-    val style = MaterialTheme.typography.headlineMedium.copy(color = MaterialTheme.colorScheme.onSurface)
+    val style = MaterialTheme.typography.headlineLarge.copy(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.W700)
     BasicTextField(
         value = viewModel.title,
         onValueChange = viewModel::onTitleChange,

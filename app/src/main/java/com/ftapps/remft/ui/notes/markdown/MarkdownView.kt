@@ -30,11 +30,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckBox
-import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.ExpandLess
@@ -62,7 +61,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -90,9 +91,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.notes.highlight.CodeHighlighter
 import com.ftapps.remft.domain.notes.highlight.CodeTokenKind
@@ -109,8 +112,11 @@ import com.ftapps.remft.domain.notes.markdown.OutlineHeading
 import com.ftapps.remft.domain.notes.markdown.ParsedMarkdown
 import com.ftapps.remft.domain.notes.markdown.children
 import com.ftapps.remft.domain.notes.markdown.textContent
-import com.ftapps.remft.ui.theme.RemftThemeExtras
-import com.ftapps.remft.ui.theme.Radius
+import com.ftapps.remft.ui.theme.CodeStyle
+import com.ftapps.remft.ui.theme.JetBrainsMono
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.SemanticColor
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -207,7 +213,7 @@ fun MarkdownView(
             document.blocks.forEachIndexed { index, block ->
                 if (index in hidden) return@forEachIndexed
                 item(key = index) {
-                    Box(Modifier.padding(bottom = Space.x3)) {
+                    Box(Modifier.padding(top = headingTopSpace(block, index), bottom = Space.x3)) {
                         val heading = document.headings.firstOrNull { it.blockIndex == index }
                         if (heading != null && block is Heading) {
                             HeadingBlock(block, foldable = onToggleFold, collapsed = index in collapsed, index = index)
@@ -235,21 +241,33 @@ fun MarkdownColumn(source: String, modifier: Modifier = Modifier) {
 
 fun headerIndexOffset(hasHeader: Boolean): Int = if (hasHeader) 1 else 0
 
+private data class MarkdownInk(val color: Color, val struck: Boolean = false)
+
+private val LocalMarkdownInk = staticCompositionLocalOf { MarkdownInk(Color.Unspecified) }
+
 @Composable
-private fun bodyStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface)
+private fun inkColor(): Color = LocalMarkdownInk.current.color.takeOrElse { MaterialTheme.colorScheme.onSurface }
+
+@Composable
+private fun bodyStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(
+    color = inkColor(),
+    textDecoration = if (LocalMarkdownInk.current.struck) TextDecoration.LineThrough else null,
+)
 
 @Composable
 private fun headingStyle(level: Int): TextStyle {
     val type = MaterialTheme.typography
     val base = when (level) {
-        1 -> type.headlineMedium
-        2 -> type.headlineSmall
+        1 -> type.headlineMedium.copy(fontWeight = FontWeight.W700)
+        2 -> type.headlineSmall.copy(fontWeight = FontWeight.W700)
         3 -> type.titleLarge
-        4 -> type.titleMedium
-        else -> type.titleSmall
+        4 -> type.titleLarge.copy(fontSize = 19.sp, lineHeight = 26.sp)
+        else -> type.titleLarge.copy(fontSize = 17.sp, lineHeight = 24.sp)
     }
-    return base.copy(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.W700)
+    return base.copy(color = inkColor())
 }
+
+private fun headingTopSpace(block: Node, index: Int) = if (index > 0 && block is Heading && block.level <= 2) Space.x3 else 0.dp
 
 @Composable
 private fun HeadingBlock(block: Heading, foldable: ((Int) -> Unit)?, collapsed: Boolean, index: Int) {
@@ -277,7 +295,7 @@ private fun MdBlock(node: Node) {
         is Alert -> AlertBlock(node)
         is FencedCodeBlock -> FencedBlock(node)
         is IndentedCodeBlock -> CodePanel(node.literal.trimEnd('\n'), null)
-        is ThematicBreak -> HorizontalDivider(Modifier.padding(vertical = Space.x2), color = MaterialTheme.colorScheme.outlineVariant)
+        is ThematicBreak -> HorizontalDivider(Modifier.padding(vertical = Space.x3), thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
         is TableBlock -> TableView(node)
         is HtmlBlock -> RawHtml(node.literal.trimEnd('\n'))
         is FrontMatter -> FrontMatterBlock(node.literal)
@@ -339,9 +357,10 @@ private fun InlineText(node: Node, style: TextStyle, modifier: Modifier = Modifi
 @Composable
 private fun InlineNodes(nodes: List<Node>, style: TextStyle, modifier: Modifier = Modifier) {
     val colors = InlineColors(
-        link = RemftThemeExtras.colors.link,
-        codeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
-        mark = RemftThemeExtras.colors.warning.copy(alpha = 0.30f),
+        link = RemftTheme.extras.link,
+        codeBackground = RemftTheme.tonal.level3,
+        mark = RemftTheme.colors.today.container,
+        markInk = RemftTheme.colors.today.onContainer,
         muted = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     val actions = LocalMarkdownActions.current
@@ -349,7 +368,7 @@ private fun InlineNodes(nodes: List<Node>, style: TextStyle, modifier: Modifier 
     Text(text, style = style, modifier = modifier)
 }
 
-private data class InlineColors(val link: Color, val codeBackground: Color, val mark: Color, val muted: Color)
+private data class InlineColors(val link: Color, val codeBackground: Color, val mark: Color, val markInk: Color, val muted: Color)
 
 private fun buildInline(nodes: List<Node>, colors: InlineColors, actions: MarkdownActions): AnnotatedString = buildAnnotatedString {
     fun walk(node: Node) {
@@ -357,11 +376,11 @@ private fun buildInline(nodes: List<Node>, colors: InlineColors, actions: Markdo
             is TextNode -> append(node.literal)
             is SoftLineBreak -> append(' ')
             is HardLineBreak -> append('\n')
-            is Code -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = colors.codeBackground)) { append(node.literal) }
+            is Code -> withStyle(SpanStyle(fontFamily = JetBrainsMono, fontSize = 0.88.em, background = colors.codeBackground)) { append(node.literal) }
             is Emphasis -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { node.children().forEach(::walk) }
             is StrongEmphasis -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { node.children().forEach(::walk) }
             is Strikethrough -> withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { node.children().forEach(::walk) }
-            is Highlight -> withStyle(SpanStyle(background = colors.mark)) { node.children().forEach(::walk) }
+            is Highlight -> withStyle(SpanStyle(background = colors.mark, color = colors.markInk)) { node.children().forEach(::walk) }
             is MathInline -> withStyle(SpanStyle(fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, background = colors.codeBackground)) { append(node.literal) }
             is Emoji -> append(node.glyph)
             is HtmlInline -> append(node.literal)
@@ -392,26 +411,44 @@ private fun buildInline(nodes: List<Node>, colors: InlineColors, actions: Markdo
 private fun ListBlock(list: Node) {
     val ordered = list as? OrderedList
     var number = ordered?.markerStartNumber ?: 1
+    val soft = MaterialTheme.colorScheme.onSurfaceVariant
     Column(verticalArrangement = Arrangement.spacedBy(Space.x1)) {
         list.children().filterIsInstance<ListItem>().forEach { item ->
             val marker = findTaskMarker(item)
             Row {
                 Box(Modifier.widthIn(min = 28.dp).padding(end = Space.x2), contentAlignment = Alignment.TopEnd) {
                     when {
-                        marker != null -> Icon(
-                            if (marker.isChecked) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
-                            contentDescription = null,
-                            tint = if (marker.isChecked) RemftThemeExtras.colors.success else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp).padding(top = 2.dp),
-                        )
-                        ordered != null -> Text("$number${ordered.markerDelimiter ?: "."}", style = bodyStyle())
-                        else -> Text("•", style = bodyStyle())
+                        marker != null -> TaskMark(marker.isChecked)
+                        ordered != null -> Text("$number${ordered.markerDelimiter ?: "."}", style = bodyStyle().copy(color = soft, textDecoration = null))
+                        else -> Text("•", style = bodyStyle().copy(color = RemftTheme.colors.note.color, fontWeight = FontWeight.W700, textDecoration = null))
                     }
                 }
-                Box(Modifier.weight(1f)) { BlockChildren(item) }
+                Box(Modifier.weight(1f)) {
+                    if (marker?.isChecked == true) {
+                        CompositionLocalProvider(LocalMarkdownInk provides MarkdownInk(soft, struck = true)) { BlockChildren(item) }
+                    } else {
+                        BlockChildren(item)
+                    }
+                }
             }
             number++
         }
+    }
+}
+
+@Composable
+private fun TaskMark(checked: Boolean) {
+    val done = RemftTheme.colors.done
+    val ring = if (checked) done.color else MaterialTheme.colorScheme.outline
+    Box(
+        Modifier
+            .padding(top = 2.dp)
+            .size(20.dp)
+            .background(if (checked) done.color else Color.Transparent, CircleShape)
+            .border(2.dp, ring, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (checked) Icon(Icons.Filled.Check, contentDescription = null, tint = done.onColor, modifier = Modifier.size(14.dp))
     }
 }
 
@@ -423,52 +460,66 @@ private fun findTaskMarker(item: ListItem): TaskListItemMarker? {
 
 @Composable
 private fun QuoteBlock(node: BlockQuote) {
+    val soft = MaterialTheme.colorScheme.onSurfaceVariant
     Row(Modifier.height(IntrinsicSize.Min)) {
-        Box(Modifier.width(4.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(2.dp)))
-        Spacer(Modifier.width(Space.x3))
-        Box(Modifier.weight(1f)) {
-            CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+        Box(Modifier.width(3.dp).fillMaxHeight().background(RemftTheme.colors.note.color, CircleShape))
+        Spacer(Modifier.width(Space.x4))
+        Box(Modifier.weight(1f).padding(vertical = 2.dp)) {
+            CompositionLocalProvider(
+                androidx.compose.material3.LocalContentColor provides soft,
+                LocalMarkdownInk provides LocalMarkdownInk.current.copy(color = soft),
+            ) {
                 BlockChildren(node)
             }
         }
     }
 }
 
-private data class AlertLook(val icon: ImageVector, val label: Int, val color: Color)
+private data class AlertLook(val icon: ImageVector, val label: Int, val tone: SemanticColor)
 
 @Composable
 private fun alertLook(kind: AlertKind): AlertLook {
     val scheme = MaterialTheme.colorScheme
-    val extras = RemftThemeExtras.colors
+    val semantic = RemftTheme.colors
     return when (kind) {
-        AlertKind.Note -> AlertLook(Icons.Outlined.Info, R.string.markdown_alert_note, scheme.primary)
-        AlertKind.Tip -> AlertLook(Icons.Outlined.Lightbulb, R.string.markdown_alert_tip, extras.success)
-        AlertKind.Important -> AlertLook(Icons.Outlined.ChatBubbleOutline, R.string.markdown_alert_important, scheme.secondary)
-        AlertKind.Warning -> AlertLook(Icons.Outlined.WarningAmber, R.string.markdown_alert_warning, extras.warning)
-        AlertKind.Caution -> AlertLook(Icons.Outlined.ReportProblem, R.string.markdown_alert_caution, scheme.error)
+        AlertKind.Note -> AlertLook(
+            Icons.Outlined.Info,
+            R.string.markdown_alert_note,
+            SemanticColor(scheme.primary, scheme.onPrimary, scheme.primaryContainer, scheme.onPrimaryContainer),
+        )
+        AlertKind.Tip -> AlertLook(Icons.Outlined.Lightbulb, R.string.markdown_alert_tip, semantic.success)
+        AlertKind.Important -> AlertLook(Icons.Outlined.ChatBubbleOutline, R.string.markdown_alert_important, semantic.note)
+        AlertKind.Warning -> AlertLook(Icons.Outlined.WarningAmber, R.string.markdown_alert_warning, semantic.warning)
+        AlertKind.Caution -> AlertLook(Icons.Outlined.ReportProblem, R.string.markdown_alert_caution, semantic.overdue)
     }
 }
 
 @Composable
 private fun AlertBlock(node: Alert) {
     val look = alertLook(node.kind)
-    val labelColor = if (node.kind == AlertKind.Warning) MaterialTheme.colorScheme.onSurface else look.color
+    val shape = MarkedShapes.medium
     Row(
         Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .background(look.color.copy(alpha = 0.10f), RoundedCornerShape(Radius.chip))
+            .clip(shape)
+            .background(look.tone.container)
             .testTag("alert-${node.kind.marker.lowercase()}"),
     ) {
-        Box(Modifier.width(4.dp).fillMaxHeight().background(look.color, RoundedCornerShape(topStart = Radius.chip, bottomStart = Radius.chip)))
-        Column(Modifier.padding(Space.x3)) {
+        Box(Modifier.width(4.dp).fillMaxHeight().background(look.tone.color))
+        Column(Modifier.padding(start = Space.x3, top = Space.x3, end = Space.x4, bottom = Space.x3)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(look.icon, contentDescription = null, tint = look.color, modifier = Modifier.size(18.dp))
+                Icon(look.icon, contentDescription = null, tint = look.tone.onContainer, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(Space.x2))
-                Text(stringResource(look.label), style = MaterialTheme.typography.titleSmall, color = labelColor)
+                Text(stringResource(look.label), style = MaterialTheme.typography.titleSmall, color = look.tone.onContainer)
             }
             Spacer(Modifier.height(Space.x1))
-            BlockChildren(node)
+            CompositionLocalProvider(
+                androidx.compose.material3.LocalContentColor provides look.tone.onContainer,
+                LocalMarkdownInk provides MarkdownInk(look.tone.onContainer),
+            ) {
+                BlockChildren(node)
+            }
         }
     }
 }
@@ -486,7 +537,7 @@ private fun FencedBlock(node: FencedCodeBlock) {
 
 @Composable
 fun CodePanel(code: String, info: String?) {
-    val palette = RemftThemeExtras.colors.code
+    val palette = RemftTheme.extras.code
     val ink = MaterialTheme.colorScheme.onSurface
     val highlighted = remember(code, info, palette) {
         val tokens = runCatching { CodeHighlighter.highlight(code, info) }.getOrDefault(emptyList())
@@ -501,51 +552,70 @@ fun CodePanel(code: String, info: String?) {
                     CodeTokenKind.Name -> palette.name
                     CodeTokenKind.Meta -> palette.meta
                 }
-                if (token.start in 0..code.length && token.end in token.start..code.length) addStyle(SpanStyle(color = color), token.start, token.end)
+                val style = if (token.kind == CodeTokenKind.Comment) SpanStyle(color = color, fontStyle = FontStyle.Italic) else SpanStyle(color = color)
+                if (token.start in 0..code.length && token.end in token.start..code.length) addStyle(style, token.start, token.end)
             }
         }
     }
+    val language = remember(info) { info?.trim()?.substringBefore(' ')?.takeIf { it.isNotEmpty() } }
     val clipboard = LocalClipboard.current
     val clipScope = rememberCoroutineScope()
     var copied by remember { mutableStateOf(false) }
-    Box(
+    val shape = MarkedShapes.medium
+    Column(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(Radius.chip))
-            .border(1.dp, RemftThemeExtras.colors.hairline, RoundedCornerShape(Radius.chip)),
+            .clip(shape)
+            .background(codeWell())
+            .border(1.dp, RemftTheme.extras.hairline, shape),
     ) {
+        Row(Modifier.fillMaxWidth().padding(start = Space.x4), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                language.orEmpty(),
+                style = MaterialTheme.typography.labelMedium.copy(fontFamily = JetBrainsMono),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                onClick = {
+                    clipScope.launch { runCatching { clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("code", code))) } }
+                    copied = true
+                },
+            ) {
+                Icon(
+                    if (copied) Icons.Filled.Check else Icons.Outlined.ContentCopy,
+                    contentDescription = stringResource(if (copied) R.string.markdown_copied else R.string.markdown_copyCode),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
         SelectionContainer {
             Text(
                 highlighted,
-                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, color = ink),
+                style = CodeStyle.copy(color = ink),
                 softWrap = false,
-                modifier = Modifier.horizontalScroll(rememberScrollState()).padding(start = Space.x3, top = Space.x3, bottom = Space.x3, end = 56.dp),
-            )
-        }
-        IconButton(
-            onClick = {
-                clipScope.launch { runCatching { clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("code", code))) } }
-                copied = true
-            },
-            modifier = Modifier.align(Alignment.TopEnd),
-        ) {
-            Icon(
-                Icons.Outlined.ContentCopy,
-                contentDescription = stringResource(if (copied) R.string.markdown_copied else R.string.markdown_copyCode),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.horizontalScroll(rememberScrollState()).padding(start = Space.x4, end = Space.x4, bottom = Space.x4),
             )
         }
     }
 }
 
 @Composable
+private fun codeWell(): Color = RemftTheme.tonal.level0
+
+@Composable
 private fun MathPanel(source: String) {
+    val shape = MarkedShapes.medium
     Box(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(Radius.chip))
+            .clip(shape)
+            .background(codeWell())
+            .border(1.dp, RemftTheme.extras.hairline, shape)
             .horizontalScroll(rememberScrollState())
-            .padding(Space.x3)
+            .padding(Space.x4)
             .testTag("math-block"),
         contentAlignment = Alignment.Center,
     ) {
@@ -561,18 +631,21 @@ private fun MathPanel(source: String) {
 
 @Composable
 private fun RawHtml(source: String) {
+    val shape = MarkedShapes.medium
     Column(
         Modifier
             .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(Radius.chip))
-            .padding(Space.x3)
+            .clip(shape)
+            .background(codeWell())
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+            .padding(Space.x4)
             .testTag("raw-html"),
     ) {
         Text(stringResource(R.string.markdown_rawHtml), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(Space.x1))
+        Spacer(Modifier.height(Space.x2))
         Text(
             source,
-            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            style = CodeStyle.copy(fontSize = 12.sp, lineHeight = 18.sp),
             color = MaterialTheme.colorScheme.onSurface,
             softWrap = false,
             modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -583,31 +656,35 @@ private fun RawHtml(source: String) {
 @Composable
 private fun FrontMatterBlock(source: String) {
     var open by rememberSaveable { mutableStateOf(false) }
+    val shape = MarkedShapes.medium
+    val ink = MaterialTheme.colorScheme.onSurface
+    val soft = MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(Radius.chip))
+            .clip(shape)
+            .background(RemftTheme.tonal.level2)
             .testTag("front-matter"),
     ) {
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { open = !open }.padding(horizontal = Space.x3),
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { open = !open }.padding(horizontal = Space.x4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.markdown_frontMatter), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-            Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
+            Text(stringResource(R.string.markdown_frontMatter), style = MaterialTheme.typography.titleSmall, color = ink, modifier = Modifier.weight(1f))
+            Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null, tint = soft)
         }
         if (open) {
-            Column(Modifier.padding(start = Space.x3, end = Space.x3, bottom = Space.x3)) {
+            Column(Modifier.padding(start = Space.x4, end = Space.x4, bottom = Space.x3), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 source.lines().filter { it.isNotBlank() }.forEach { line ->
                     val key = line.substringBefore(':', "")
                     if (key.isNotEmpty() && !key.startsWith(' ')) {
                         Row {
-                            Text(key, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.W600), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(key, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.W600), color = soft)
                             Spacer(Modifier.width(Space.x2))
-                            Text(line.substringAfter(':').trim(), style = MaterialTheme.typography.bodySmall)
+                            Text(line.substringAfter(':').trim(), style = MaterialTheme.typography.bodySmall, color = ink)
                         }
                     } else {
-                        Text(line, style = MaterialTheme.typography.bodySmall)
+                        Text(line, style = MaterialTheme.typography.bodySmall, color = ink)
                     }
                 }
             }
@@ -623,7 +700,7 @@ private fun FootnoteBlock(node: FootnoteDefinition) {
         Box(Modifier.weight(1f)) {
             Column {
                 node.children().forEach { child ->
-                    if (child is Paragraph) InlineText(child, MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface)) else MdBlock(child)
+                    if (child is Paragraph) InlineText(child, MaterialTheme.typography.bodySmall.copy(color = inkColor())) else MdBlock(child)
                 }
             }
         }
@@ -647,9 +724,10 @@ private fun TableView(node: TableBlock) {
         List(columns) { list.getOrNull(it) }
     }
     val border = MaterialTheme.colorScheme.outlineVariant
-    val headerBackground = MaterialTheme.colorScheme.surfaceContainer
+    val headerBackground = RemftTheme.tonal.level2
+    val shape = MarkedShapes.small
     Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("table")) {
-        TableGrid(columns, Modifier.border(1.dp, border, RoundedCornerShape(4.dp))) {
+        TableGrid(columns, Modifier.clip(shape).border(1.dp, border, shape)) {
             cells.forEach { cell ->
                 val header = cell?.isHeader == true
                 Box(
@@ -664,10 +742,11 @@ private fun TableView(node: TableBlock) {
                     },
                 ) {
                     if (cell != null) {
-                        val style = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = if (header) FontWeight.W600 else FontWeight.Normal,
-                        )
+                        val style = if (header) {
+                            MaterialTheme.typography.titleSmall.copy(color = MaterialTheme.colorScheme.onSurface)
+                        } else {
+                            MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)
+                        }
                         InlineText(cell, style)
                     }
                 }
@@ -729,19 +808,25 @@ fun MarkdownImage(destination: String?, alt: String) {
             image,
             contentDescription = alt.ifBlank { stringResource(R.string.markdown_image) },
             contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxWidth().sizeIn(maxHeight = 480.dp).testTag("md-image"),
+            modifier = Modifier.fillMaxWidth().sizeIn(maxHeight = 480.dp).clip(MarkedShapes.medium).testTag("md-image"),
         )
     } else {
         val label = alt.ifBlank { stringResource(if (fileId == null) R.string.markdown_relativeImage else R.string.markdown_image) }
         Row(
             Modifier
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(Radius.chip))
-                .padding(horizontal = Space.x3, vertical = Space.x2)
+                .heightIn(min = 36.dp)
+                .background(RemftTheme.tonal.level2, MarkedShapes.pill)
+                .padding(horizontal = Space.x4, vertical = Space.x2)
                 .semantics { contentDescription = label }
                 .testTag("image-chip"),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(if (fileId == null) Icons.Outlined.ErrorOutline else Icons.Outlined.Image, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(
+                if (fileId == null) Icons.Outlined.ErrorOutline else Icons.Outlined.Image,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
             Spacer(Modifier.width(Space.x2))
             Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
         }
@@ -755,4 +840,57 @@ fun decodeSampled(file: File, maxSide: Int): android.graphics.Bitmap? {
     var sample = 1
     while (bounds.outWidth / sample > maxSide || bounds.outHeight / sample > maxSide) sample *= 2
     return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+}
+
+private val PreviewMarkdown = """
+# Weekend plan
+A short list for **Saturday**, with a ==highlight== and `inline code`. See [errands](#errands).
+
+## Errands
+- [x] Pick up the bike
+- [ ] Return the library books
+- Buy coffee beans
+
+1. Market first
+2. Then the park
+
+> Slow mornings are the best mornings.
+
+> [!TIP]
+> Take the reusable bags.
+
+```kotlin
+fun greet(name: String): String {
+    return "Hello, ${'$'}name" + 42
+}
+```
+
+| Item | Cost |
+| --- | ---: |
+| Beans | 9 |
+| Bread | 3 |
+""".trimIndent()
+
+@Composable
+private fun MarkdownPreviewContent() {
+    val document = remember { markdownDocument(PreviewMarkdown) }
+    Box(Modifier.background(MaterialTheme.colorScheme.surface).padding(Space.x5)) {
+        Column(verticalArrangement = Arrangement.spacedBy(Space.x3)) {
+            document.blocks.forEachIndexed { index, block ->
+                Box(Modifier.padding(top = headingTopSpace(block, index))) { MdBlock(block) }
+            }
+        }
+    }
+}
+
+@Preview(name = "Markdown light", heightDp = 1400)
+@Composable
+private fun MarkdownLightPreview() {
+    RemftTheme(darkTheme = false) { MarkdownPreviewContent() }
+}
+
+@Preview(name = "Markdown dark", heightDp = 1400)
+@Composable
+private fun MarkdownDarkPreview() {
+    RemftTheme(darkTheme = true) { MarkdownPreviewContent() }
 }

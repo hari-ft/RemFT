@@ -31,7 +31,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
@@ -44,7 +43,8 @@ import com.ftapps.remft.R
 import com.ftapps.remft.domain.notes.editing.MdTokenKind
 import com.ftapps.remft.domain.notes.editing.SourceTokens
 import com.ftapps.remft.domain.settings.NoteSourceStyling
-import com.ftapps.remft.ui.theme.RemftThemeExtras
+import com.ftapps.remft.ui.theme.JetBrainsMono
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 
 data class SourcePalette(val body: Color, val marker: Color, val accent: Color, val link: Color, val code: Color, val mark: Color)
@@ -93,15 +93,16 @@ private fun styleFor(kind: MdTokenKind, onCaretLine: Boolean, quiet: Boolean, pa
 @Composable
 fun sourcePalette(): SourcePalette {
     val scheme = MaterialTheme.colorScheme
-    val extras = RemftThemeExtras.colors
-    return remember(scheme, extras) {
+    val extras = RemftTheme.extras
+    val semantic = RemftTheme.colors
+    return remember(scheme, extras, semantic) {
         SourcePalette(
             body = scheme.onSurface,
             marker = scheme.onSurfaceVariant,
-            accent = scheme.onSurface,
+            accent = semantic.note.color,
             link = extras.link,
-            code = scheme.onSurfaceVariant,
-            mark = extras.warning.copy(alpha = 0.22f),
+            code = extras.code.meta,
+            mark = semantic.today.container,
         )
     }
 }
@@ -164,7 +165,7 @@ fun SourceEditor(
     val caretLine = remember(value.text, value.selection.start) { SourceTokens.lineOf(value.text, value.selection.start) }
     val transformation = remember(styling, palette, caretLine) { SourceStylingTransformation(styling, palette, caretLine) }
     val label = stringResource(R.string.note_bodyLabel)
-    val style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = MaterialTheme.typography.bodyLarge.fontSize, lineHeight = 1.5.em, color = palette.body)
+    val style = TextStyle(fontFamily = JetBrainsMono, fontSize = MaterialTheme.typography.bodyLarge.fontSize, lineHeight = 1.5.em, color = palette.body)
     Box(modifier.verticalScroll(rememberScrollState())) {
         BasicTextField(
             value = value,
