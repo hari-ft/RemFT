@@ -1,28 +1,25 @@
 package com.ftapps.remft.ui.completed
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircleOutline
-import androidx.compose.material.icons.outlined.Replay
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,8 +27,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,12 +39,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.data.db.entity.TaskEntity
@@ -57,14 +51,21 @@ import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.domain.time.UtcText
+import com.ftapps.remft.ui.components.CircleCheckbox
 import com.ftapps.remft.ui.components.EmptyState
+import com.ftapps.remft.ui.components.GroupedCardItem
+import com.ftapps.remft.ui.components.RemftListRow
+import com.ftapps.remft.ui.components.RemftSnackbar
+import com.ftapps.remft.ui.components.RemftTopBar
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import com.ftapps.remft.ui.files.rememberDateFormat
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.theme.Breakpoints
-import com.ftapps.remft.ui.theme.Radius
-import com.ftapps.remft.ui.theme.RemftThemeExtras
+import com.ftapps.remft.ui.theme.GroupPosition
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import com.ftapps.remft.ui.theme.groupPosition
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -101,6 +102,22 @@ object CompletedArchive {
         loaded >= pages * PAGE_SIZE && lastVisible >= total - 10
 }
 
+private fun itemPositions(rows: List<CompletedRow>): List<GroupPosition> {
+    val out = MutableList(rows.size) { GroupPosition.Single }
+    var start = 0
+    while (start < rows.size) {
+        if (rows[start] is CompletedRow.Header) {
+            start++
+            continue
+        }
+        var end = start
+        while (end < rows.size && rows[end] is CompletedRow.Item) end++
+        for (i in start until end) out[i] = groupPosition(i - start, end - start)
+        start = end
+    }
+    return out
+}
+
 @Composable
 private fun headerLabel(day: LocalDate?, today: LocalDate, format: DateFormatId): String = when {
     day == null -> stringResource(R.string.task_notSet)
@@ -109,7 +126,6 @@ private fun headerLabel(day: LocalDate?, today: LocalDate, format: DateFormatId)
     else -> DateFormats.date(day.atStartOfDay(), format)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
     val env = LocalFilesEnvironment.current
@@ -121,17 +137,16 @@ fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
     val zone = tasksEnv.repository.zone
     val reopened = stringResource(R.string.completed_reopened)
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
-        snackbarHost = { SnackbarHost(snackbar) },
+        containerColor = RemftTheme.tonal.level0,
+        snackbarHost = { SnackbarHost(snackbar) { RemftSnackbar(it) } },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.completed_title)) },
+            RemftTopBar(
+                title = stringResource(R.string.completed_title),
                 navigationIcon = {
                     IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
         modifier = Modifier.testTag("screen-completed"),
@@ -150,6 +165,7 @@ fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
                     val format = env?.let { rememberDateFormat(it) } ?: DateFormatId.System
                     val today = tasksEnv.repository.now().atZone(zone).toLocalDate()
                     val rows = remember(loaded, zone) { CompletedArchive.rows(loaded, zone) }
+                    val positions = remember(rows) { itemPositions(rows) }
                     val listState = rememberLazyListState()
                     val lastVisible by remember { derivedStateOf { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 } }
                     LaunchedEffect(lastVisible, loaded.size, pages) {
@@ -158,27 +174,18 @@ fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.widthIn(max = Breakpoints.detailMaxWidth).fillMaxWidth().testTag("completed-list"),
-                        contentPadding = PaddingValues(horizontal = Space.x4, vertical = Space.x2),
+                        contentPadding = PaddingValues(start = Space.x4, end = Space.x4, top = Space.x1, bottom = Space.x6),
                     ) {
-                        item {
-                            Text(
-                                stringResource(R.string.completed_scope),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = Space.x2, end = Space.x2, top = Space.x1, bottom = Space.x3),
-                            )
-                        }
-                        items(rows, key = { row -> if (row is CompletedRow.Item) row.task.id else "h-${(row as CompletedRow.Header).day}" }) { row ->
+                        item { CompletedScopeNote(stringResource(R.string.completed_scope)) }
+                        itemsIndexed(rows, key = { _, row -> if (row is CompletedRow.Item) row.task.id else "h-${(row as CompletedRow.Header).day}" }) { index, row ->
                             when (row) {
-                                is CompletedRow.Header -> Text(
+                                is CompletedRow.Header -> CompletedDayHeader(
                                     headerLabel(row.day, today, format),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = Space.x2, end = Space.x2, top = Space.x4, bottom = Space.x1).testTag("completed-header-${row.day}"),
+                                    Modifier.testTag("completed-header-${row.day}"),
                                 )
                                 is CompletedRow.Item -> CompletedTaskRow(
                                     task = row.task,
+                                    position = positions[index],
                                     onOpen = { onOpenTask(row.task.id) },
                                     onReopen = {
                                         scope.launch {
@@ -197,30 +204,79 @@ fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
 }
 
 @Composable
-private fun CompletedTaskRow(task: TaskEntity, onOpen: () -> Unit, onReopen: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Card(
-        shape = RoundedCornerShape(Radius.card),
-        colors = CardDefaults.cardColors(containerColor = scheme.surfaceContainerLow),
-        border = BorderStroke(1.dp, RemftThemeExtras.colors.hairline),
-        modifier = Modifier.fillMaxWidth().padding(vertical = Space.x1).testTag("completed-${task.id}"),
+private fun CompletedScopeNote(text: String) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(bottom = Space.x2)
+            .background(RemftTheme.tonal.level2, MarkedShapes.small)
+            .padding(horizontal = Space.x3, vertical = Space.x3),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onOpen).padding(start = Space.x4, end = Space.x1),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f).padding(vertical = Space.x2)) {
-                Text(
-                    task.title,
-                    style = MaterialTheme.typography.bodyLarge.copy(textDecoration = TextDecoration.LineThrough),
-                    color = scheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+        Icon(Icons.Outlined.TaskAlt, contentDescription = null, tint = RemftTheme.colors.done.color, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(Space.x3))
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun CompletedDayHeader(label: String, modifier: Modifier = Modifier) {
+    Text(
+        label,
+        style = MaterialTheme.typography.labelLarge,
+        color = RemftTheme.colors.done.color,
+        modifier = modifier
+            .padding(start = Space.x1, end = Space.x1, top = Space.x4, bottom = Space.x2)
+            .semantics { heading() },
+    )
+}
+
+@Composable
+private fun CompletedTaskRow(task: TaskEntity, position: GroupPosition, onOpen: () -> Unit, onReopen: () -> Unit) {
+    GroupedCardItem(position, Modifier.testTag("completed-${task.id}")) {
+        RemftListRow(
+            headline = task.title,
+            struck = true,
+            onClick = onOpen,
+            leading = {
+                CircleCheckbox(
+                    checked = true,
+                    description = stringResource(R.string.completed_reopen),
+                    onToggle = onReopen,
+                    modifier = Modifier.testTag("reopen-${task.id}"),
                 )
-            }
-            IconButton(onClick = onReopen, modifier = Modifier.testTag("reopen-${task.id}")) {
-                Icon(Icons.Outlined.Replay, contentDescription = stringResource(R.string.completed_reopen))
-            }
-        }
+            },
+        )
+    }
+}
+
+@Preview(name = "Completed light", widthDp = 411)
+@Composable
+private fun CompletedLightPreview() {
+    RemftTheme(darkTheme = false) { CompletedPreviewContent() }
+}
+
+@Preview(name = "Completed dark", widthDp = 411)
+@Composable
+private fun CompletedDarkPreview() {
+    RemftTheme(darkTheme = true) { CompletedPreviewContent() }
+}
+
+@Composable
+private fun CompletedPreviewContent() {
+    Column(Modifier.background(RemftTheme.tonal.level0).padding(Space.x4)) {
+        CompletedScopeNote("Completed tasks, newest first.")
+        CompletedDayHeader("Today")
+        PreviewDoneRow("Send the rent receipt", GroupPosition.First)
+        PreviewDoneRow("Water the balcony plants", GroupPosition.Last)
+        CompletedDayHeader("Yesterday")
+        PreviewDoneRow("Book train tickets for December", GroupPosition.Single)
+    }
+}
+
+@Composable
+private fun PreviewDoneRow(title: String, position: GroupPosition) {
+    GroupedCardItem(position) {
+        RemftListRow(title, struck = true, onClick = {}, leading = { CircleCheckbox(true, "Reopen", onToggle = {}) })
     }
 }

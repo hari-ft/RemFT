@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -36,7 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -46,13 +47,18 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.ftapps.remft.R
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.domain.text.fill
+import com.ftapps.remft.ui.components.RoundIconButton
+import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
@@ -95,7 +101,10 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
     val couldNotDelete = stringResource(R.string.file_couldNotDelete)
     val counterArgs = arrayOf("index" to index + 1, "total" to ids.size)
     val position = stringResource(R.string.file_viewerPosition).fill(*counterArgs)
-    Box(Modifier.fillMaxSize().background(Color.Black).testTag("image-viewer")) {
+    val scheme = MaterialTheme.colorScheme
+    val ink = scheme.onSurface
+    val inkSoft = scheme.onSurfaceVariant
+    Box(Modifier.fillMaxSize().background(scheme.scrim).testTag("image-viewer")) {
         HorizontalPager(
             state = pager,
             userScrollEnabled = !zoomed,
@@ -106,16 +115,25 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
             ViewerPage(id, env, active = page == pager.currentPage, onZoomChanged = { if (page == pager.currentPage) zoomed = it })
         }
         Row(
-            Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.45f)).statusBarsPadding().padding(horizontal = Space.x1),
+            Modifier
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(scheme.scrim.copy(alpha = 0.72f), scheme.scrim.copy(alpha = 0f))))
+                .statusBarsPadding()
+                .padding(start = Space.x2, end = Space.x2, top = Space.x2, bottom = Space.x6),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onClose, modifier = Modifier.testTag("viewer-close")) {
-                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.files_viewerClose), tint = Color.White)
-            }
+            RoundIconButton(
+                Icons.Outlined.Close,
+                stringResource(R.string.files_viewerClose),
+                onClick = onClose,
+                container = RemftTheme.tonal.level2.copy(alpha = 0.85f),
+                content = ink,
+                modifier = Modifier.testTag("viewer-close"),
+            )
             Column(Modifier.weight(1f).padding(horizontal = Space.x2)) {
                 Text(
                     current?.name ?: stringResource(R.string.file_mediaUnavailable),
-                    color = Color.White,
+                    color = ink,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -124,8 +142,8 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
                 if (ids.size > 1) {
                     Text(
                         stringResource(R.string.file_viewerCounter).fill(*counterArgs),
-                        color = Color.White.copy(alpha = 0.7f),
-                        style = MaterialTheme.typography.bodySmall,
+                        color = inkSoft,
+                        style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.semantics { contentDescription = position }.testTag("viewer-counter"),
                     )
                 }
@@ -141,10 +159,10 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
                 enabled = current != null,
                 modifier = Modifier.testTag("viewer-open"),
             ) {
-                Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = stringResource(R.string.file_openDownload), tint = Color.White)
+                Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = stringResource(R.string.file_openDownload), tint = ink)
             }
             IconButton(onClick = { confirm = current }, enabled = current != null, modifier = Modifier.testTag("viewer-delete")) {
-                Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.common_delete), tint = Color.White)
+                Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.common_delete), tint = ink)
             }
         }
     }
@@ -235,8 +253,38 @@ private fun ViewerPage(id: String, env: FilesEnvironment, active: Boolean, onZoo
 
 @Composable
 private fun ViewerProblem(@StringRes text: Int, tag: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.testTag(tag)) {
-        Icon(Icons.Outlined.BrokenImage, contentDescription = null, tint = Color.White.copy(alpha = 0.7f))
-        Text(stringResource(text), color = Color.White.copy(alpha = 0.7f), modifier = Modifier.padding(Space.x4))
+    val file = RemftTheme.colors.file
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(Space.x6).testTag(tag)) {
+        Box(Modifier.size(64.dp).background(file.container, MarkedShapes.large), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.BrokenImage, contentDescription = null, tint = file.onContainer, modifier = Modifier.size(32.dp))
+        }
+        Text(
+            stringResource(text),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(Space.x4),
+        )
+    }
+}
+
+@Preview(name = "Viewer problem light")
+@Composable
+private fun ViewerProblemLightPreview() {
+    RemftTheme(darkTheme = false) { ViewerProblemPreviewContent() }
+}
+
+@Preview(name = "Viewer problem dark")
+@Composable
+private fun ViewerProblemDarkPreview() {
+    RemftTheme(darkTheme = true) { ViewerProblemPreviewContent() }
+}
+
+@Composable
+private fun ViewerProblemPreviewContent() {
+    RemftTheme(darkTheme = true) {
+        Box(Modifier.background(MaterialTheme.colorScheme.scrim).padding(Space.x4), contentAlignment = Alignment.Center) {
+            ViewerProblem(R.string.file_viewerImageFailed, "viewer-preview")
+        }
     }
 }

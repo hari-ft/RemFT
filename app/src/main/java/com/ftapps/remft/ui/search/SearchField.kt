@@ -1,8 +1,9 @@
 package com.ftapps.remft.ui.search
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -29,10 +30,14 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.domain.Fold
 import com.ftapps.remft.domain.search.SearchMatch
-import com.ftapps.remft.ui.theme.Radius
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
 
@@ -118,14 +123,17 @@ fun SearchField(
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
     onSearch: (() -> Unit)? = null,
+    container: Color = MaterialTheme.colorScheme.surface,
 ) {
+    val scheme = MaterialTheme.colorScheme
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         placeholder = { Text(hint, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         singleLine = true,
-        shape = RoundedCornerShape(Radius.input),
-        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+        shape = MarkedShapes.pill,
+        textStyle = MaterialTheme.typography.bodyLarge,
+        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.padding(start = Space.x1)) },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }, modifier = Modifier.testTag("$tag-clear")) {
@@ -136,13 +144,46 @@ fun SearchField(
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedContainerColor = container,
+            unfocusedContainerColor = container,
+            focusedBorderColor = scheme.primary,
+            unfocusedBorderColor = scheme.outlineVariant,
+            focusedLeadingIconColor = scheme.primary,
+            unfocusedLeadingIconColor = scheme.onSurfaceVariant,
+            unfocusedTrailingIconColor = scheme.onSurfaceVariant,
+            focusedTrailingIconColor = scheme.onSurfaceVariant,
+            unfocusedPlaceholderColor = scheme.onSurfaceVariant,
+            focusedPlaceholderColor = scheme.onSurfaceVariant,
+            cursorColor = scheme.primary,
         ),
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = 56.dp)
             .padding(vertical = Space.x1)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .testTag(tag),
     )
+}
+
+@Composable
+private fun SearchFieldPreviewContent() {
+    PreviewSurface {
+        Column {
+            SearchField("", {}, "Search tasks", "preview-empty")
+            SearchField("rent", {}, "Search tasks", "preview-filled")
+            HighlightedText("Ask for the rent receipt for October", "rent")
+        }
+    }
+}
+
+@Preview(name = "Search field light")
+@Composable
+private fun SearchFieldLightPreview() {
+    RemftTheme(darkTheme = false) { SearchFieldPreviewContent() }
+}
+
+@Preview(name = "Search field dark")
+@Composable
+private fun SearchFieldDarkPreview() {
+    RemftTheme(darkTheme = true) { SearchFieldPreviewContent() }
 }

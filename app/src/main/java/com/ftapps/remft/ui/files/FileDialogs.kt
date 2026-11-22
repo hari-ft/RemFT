@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.files
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -7,7 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -17,17 +17,14 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -44,13 +41,19 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import com.ftapps.remft.R
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.data.db.entity.FolderEntity
 import com.ftapps.remft.data.files.FolderRuleException
 import com.ftapps.remft.data.files.SubtreeCounts
 import com.ftapps.remft.domain.text.fill
-import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
 
@@ -246,19 +249,15 @@ private fun FileActionsSheet(
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.widthIn(max = Breakpoints.sheetMaxWidth).testTag("file-actions"),
-    ) {
+    RemftBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("file-actions")) {
         Column(Modifier.navigationBarsPadding()) {
             ListItem(
                 leadingContent = { FileThumb(row, remember(row.id) { env.attachments.fileOf(row) }) },
-                headlineContent = { Text(row.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                supportingContent = { Text(formatBytes(row.sizeBytes)) },
+                headlineContent = { Text(row.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                supportingContent = { Text(formatBytes(row.sizeBytes), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             )
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = Space.x4))
             extras.forEach { action ->
                 SheetRow(action.icon, action.label, action.tag) {
                     onDismiss()
@@ -276,11 +275,7 @@ private fun FileActionsSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FolderActionsSheet(onDismiss: () -> Unit, onRename: () -> Unit, onMove: () -> Unit, onDelete: () -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.widthIn(max = Breakpoints.sheetMaxWidth),
-    ) {
+    RemftBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.navigationBarsPadding()) {
             SheetRow(Icons.Outlined.DriveFileRenameOutline, stringResource(R.string.files_renameFolder), "folder-action-rename", onClick = onRename)
             SheetRow(Icons.AutoMirrored.Outlined.DriveFileMove, stringResource(R.string.files_moveFolder), "folder-action-move", onClick = onMove)
@@ -292,11 +287,12 @@ private fun FolderActionsSheet(onDismiss: () -> Unit, onRename: () -> Unit, onMo
 
 @Composable
 private fun SheetRow(icon: ImageVector, label: String, tag: String, danger: Boolean = false, onClick: () -> Unit) {
-    val color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val scheme = MaterialTheme.colorScheme
+    val color = if (danger) scheme.error else scheme.onSurface
     ListItem(
         modifier = Modifier.testTag(tag).clickable(onClick = onClick),
-        leadingContent = { Icon(icon, contentDescription = null, tint = color) },
-        headlineContent = { Text(label, color = color) },
+        leadingContent = { Icon(icon, contentDescription = null, tint = if (danger) scheme.error else scheme.onSurfaceVariant) },
+        headlineContent = { Text(label, color = color, style = MaterialTheme.typography.bodyLarge) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
     )
 }
@@ -305,23 +301,19 @@ private fun SheetRow(icon: ImageVector, label: String, tag: String, danger: Bool
 @Composable
 fun MoveTargetSheet(folders: List<FolderEntity>, exclude: String?, onDismiss: () -> Unit, onPick: (String?) -> Unit) {
     val entries = remember(folders, exclude) { FolderTree.flatten(folders, exclude) }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.widthIn(max = Breakpoints.sheetMaxWidth),
-    ) {
+    RemftBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(contentPadding = PaddingValues(bottom = Space.x4), modifier = Modifier.navigationBarsPadding()) {
             item {
                 Text(
                     stringResource(R.string.files_moveTo),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(start = Space.x4, end = Space.x4, bottom = Space.x2),
                 )
             }
             item {
                 ListItem(
                     modifier = Modifier.testTag("move-target-root").clickable { onPick(null) },
-                    leadingContent = { Icon(Icons.Outlined.Home, contentDescription = null) },
+                    leadingContent = { KindTile(Icons.Outlined.Home, TileTone.Folder) },
                     headlineContent = { Text(stringResource(R.string.files_rootFolder)) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
@@ -332,7 +324,7 @@ fun MoveTargetSheet(folders: List<FolderEntity>, exclude: String?, onDismiss: ()
                         .testTag("move-target-${entry.folder.id}")
                         .clickable { onPick(entry.folder.id) }
                         .padding(start = Space.x4 * entry.depth),
-                    leadingContent = { Icon(Icons.Outlined.Folder, contentDescription = null) },
+                    leadingContent = { KindTile(Icons.Outlined.Folder, TileTone.Folder) },
                     headlineContent = { Text(entry.folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
@@ -369,37 +361,36 @@ object FolderTree {
 @Composable
 fun NameDialog(title: String, label: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var value by remember { mutableStateOf(initial) }
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = title,
         text = {
             OutlinedTextField(
                 value = value,
                 onValueChange = { if (it.length <= 255) value = it },
                 label = { Text(label) },
                 singleLine = true,
+                shape = MarkedShapes.small,
                 modifier = Modifier.testTag("name-field"),
             )
         },
         confirmButton = {
-            TextButton(onClick = { onSave(value.trim()) }, modifier = Modifier.testTag("name-save")) { Text(stringResource(R.string.common_save)) }
+            RemftTextButton(stringResource(R.string.common_save), onClick = { onSave(value.trim()) }, modifier = Modifier.testTag("name-save"))
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
+        dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },
     )
 }
 
 @Composable
 fun ConfirmDeleteDialog(title: String, body: String, confirm: String, confirmTag: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(body) },
+        title = title,
+        text = { Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) },
         confirmButton = {
-            TextButton(onClick = onConfirm, modifier = Modifier.testTag(confirmTag)) {
-                Text(confirm, color = MaterialTheme.colorScheme.error)
-            }
+            RemftTextButton(confirm, onClick = onConfirm, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(confirmTag))
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
+        dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },
     )
 }
 
@@ -415,4 +406,33 @@ private fun DeleteFileDialog(row: FileRowEntity, env: FilesEnvironment, onDismis
         onDismiss = onDismiss,
         onConfirm = onConfirm,
     )
+}
+
+@Preview(name = "File sheet light")
+@Composable
+private fun FileSheetLightPreview() {
+    RemftTheme(darkTheme = false) { FileSheetPreviewContent() }
+}
+
+@Preview(name = "File sheet dark")
+@Composable
+private fun FileSheetDarkPreview() {
+    RemftTheme(darkTheme = true) { FileSheetPreviewContent() }
+}
+
+@Composable
+private fun FileSheetPreviewContent() {
+    PreviewSurface {
+        Column(Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow, MarkedShapes.sheet).padding(vertical = Space.x3)) {
+            ListItem(
+                leadingContent = { KindTile(Icons.Outlined.Folder, TileTone.Folder) },
+                headlineContent = { Text("Travel documents", style = MaterialTheme.typography.titleMedium) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = Space.x4))
+            SheetRow(Icons.AutoMirrored.Outlined.OpenInNew, "Open", "p-open") {}
+            SheetRow(Icons.Outlined.DriveFileRenameOutline, "Rename", "p-rename") {}
+            SheetRow(Icons.Outlined.DeleteOutline, "Delete", "p-delete", danger = true) {}
+        }
+    }
 }

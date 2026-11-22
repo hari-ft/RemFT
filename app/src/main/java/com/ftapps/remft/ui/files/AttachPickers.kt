@@ -7,14 +7,15 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -26,10 +27,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +47,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.ftapps.remft.R
 import com.ftapps.remft.data.files.MimeTypes
-import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.components.RemftBottomSheet
+import com.ftapps.remft.ui.components.RemftTonalButton
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
 import java.io.File
@@ -183,21 +185,17 @@ private fun AttachSource.tag(): String = when (this) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttachSourceSheet(onPick: (AttachSource) -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.widthIn(max = Breakpoints.sheetMaxWidth),
-    ) {
+    RemftBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.navigationBarsPadding()) {
             Text(
                 stringResource(R.string.file_attachTitle),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = Space.x5, end = Space.x5, bottom = Space.x2),
             )
             AttachMenuSources.forEach { source ->
                 ListItem(
                     modifier = Modifier.testTag(source.tag()).clickable { onPick(source) },
-                    leadingContent = { Icon(source.icon(), contentDescription = null) },
+                    leadingContent = { KindTile(source.icon()) },
                     headlineContent = { Text(stringResource(source.label())) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
@@ -218,15 +216,20 @@ fun AttachButton(
 ) {
     var sheet by remember { mutableStateOf(false) }
     val launcher = rememberAttachLauncher(onPicked, onFailed)
-    val content: @Composable () -> Unit = {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.size(Space.x2))
-        Text(stringResource(R.string.file_add))
-    }
+    val label = stringResource(R.string.file_add)
     if (outlined) {
-        OutlinedButton(onClick = { sheet = true }, modifier = modifier.testTag(tag)) { content() }
+        OutlinedButton(
+            onClick = { sheet = true },
+            shape = MarkedShapes.pill,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = modifier.heightIn(min = Sizes.touchTarget).testTag(tag),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(Space.x2))
+            Text(label, style = MaterialTheme.typography.labelLarge)
+        }
     } else {
-        TextButton(onClick = { sheet = true }, modifier = modifier.testTag(tag)) { content() }
+        RemftTonalButton(label, onClick = { sheet = true }, icon = icon, modifier = modifier.testTag(tag))
     }
     if (sheet) {
         AttachSourceSheet(onPick = {

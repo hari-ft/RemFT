@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -16,7 +15,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.ftapps.remft.R
-import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.components.RemftBottomSheet
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
 
@@ -91,13 +89,9 @@ fun NoteMediaButtons(ensureNote: suspend () -> String?, onInsert: (String) -> Un
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteAttachmentsSheet(noteId: String, onDismiss: () -> Unit, onMessage: (String) -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.widthIn(max = Breakpoints.sheetMaxWidth).testTag("note-attachments-sheet"),
-    ) {
+    RemftBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("note-attachments-sheet")) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = Space.x4, vertical = Space.x2)) {
-            Text(stringResource(R.string.task_attachments), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = Space.x2))
+            Text(stringResource(R.string.task_attachments), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = Space.x3))
             AttachmentsSection("note", noteId, onMessage)
         }
     }
