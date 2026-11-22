@@ -60,6 +60,17 @@ class LocalIdentityRepositoryTest {
     }
 
     @Test
+    fun aConfirmedIdIsKeptUntilTheSessionIsForgotten() = runBlocking {
+        val repo = repository()
+        val first = repo.workspaceId()
+        store.set(SettingKeys.LocalWorkspaceId.name, "01JRESTORED000000000000000")
+        assertEquals(first, repo.workspaceId())
+        repo.forgetSession()
+        assertEquals("01JRESTORED000000000000000", repo.workspaceId())
+        assertEquals("01JRESTORED000000000000000", repo.resolve().workspaceId)
+    }
+
+    @Test
     fun adoptsTheWorkspaceThatOwnsTheData() = runBlocking {
         store.set(SettingKeys.LocalWorkspaceId.name, "01JSTALE000000000000000000")
         val repo = repository { db ->

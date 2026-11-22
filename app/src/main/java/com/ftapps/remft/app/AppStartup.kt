@@ -53,13 +53,16 @@ class AppStartup @Inject constructor(
 
     fun retry() {
         mutableState.value = StartupState.Starting
+        identity.forgetSession()
+        databaseHolder.close()
         scope.launch { run() }
     }
 
     fun restartAfterRestore() {
+        mutableState.value = StartupState.Starting
+        identity.forgetSession()
         databaseHolder.close()
         databaseHolder.reopenAfterRestore()
-        identity.forgetSession()
         restored = true
         retry()
     }

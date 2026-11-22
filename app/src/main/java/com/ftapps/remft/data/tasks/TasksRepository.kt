@@ -35,8 +35,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.time.Clock
 import java.time.Instant
@@ -54,18 +52,12 @@ class TasksRepository(
     private val seriesHooks: TaskSeriesHooks? = null,
 ) {
     private val dao: TasksDao get() = database().tasksDao()
-    private val workspaceMutex = Mutex()
-
-    @Volatile
-    private var cachedWorkspace: String? = null
 
     val zone: ZoneId get() = clock.zone
 
     fun now(): Instant = clock.instant()
 
-    suspend fun workspaceId(): String = cachedWorkspace ?: workspaceMutex.withLock {
-        cachedWorkspace ?: identity.resolve().also { if (it.reliable) cachedWorkspace = it.workspaceId }.workspaceId
-    }
+    suspend fun workspaceId(): String = identity.workspaceId()
 
     fun dayStarts(): Flow<Instant> = flow {
         while (true) {

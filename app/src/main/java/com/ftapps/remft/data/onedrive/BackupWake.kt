@@ -7,6 +7,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.ftapps.remft.app.AppStartup
@@ -19,7 +20,9 @@ import com.ftapps.remft.domain.backup.auto.BackupSchedule
 import com.ftapps.remft.domain.settings.SettingKeys
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Duration
 import java.time.Instant
@@ -33,16 +36,20 @@ fun interface WakeBooker {
 class WorkManagerWakeBooker(private val context: Context) : WakeBooker {
     override fun book(delay: Duration?) {
         val work = WorkManager.getInstance(context)
-        if (delay == null) {
-            work.cancelUniqueWork(BackupWake.WORK_NAME)
-            return
+        val running = BackupWake.WORK_NAMES.filterTo(HashSet()) { name ->
+            runCatching { work.getWorkInfosForUniqueWork(name).get().any { it.state == WorkInfo.State.RUNNING } }.getOrDefault(true)
         }
+        val target = if (delay == null) null else BackupWake.slotName(running)
+        for (name in BackupWake.WORK_NAMES) {
+            if (name != target && name !in running) work.cancelUniqueWork(name)
+        }
+        if (delay == null || target == null) return
         val request = OneTimeWorkRequestBuilder<BackupWakeWorker>()
             .setInitialDelay(delay.toMillis().coerceAtLeast(0), TimeUnit.MILLISECONDS)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .addTag(BackupWake.WORK_NAME)
             .build()
-        work.enqueueUniqueWork(BackupWake.WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+        work.enqueueUniqueWork(target, ExistingWorkPolicy.REPLACE, request)
     }
 }
 
@@ -68,7 +75,8 @@ class BackupWake(
             store.set(SettingKeys.AutoBackupWakeSlots.name, slots.joinToString(",") { it.toEpochMilli().toString() })
             if (!book) return
             val first = slots.firstOrNull()
-            booker.book(first?.let { Duration.between(clock(), it).coerceAtLeast(Duration.ZERO) })
+            val delay = first?.let { Duration.between(clock(), it).coerceAtLeast(Duration.ZERO) }
+            withContext(Dispatchers.IO) { booker.book(delay) }
         } catch (e: Exception) {
             log.warn("autobackup.wake_failed", e)
         }
@@ -76,7 +84,11 @@ class BackupWake(
 
     companion object {
         const val WORK_NAME = "remft-backup-wake"
+        const val NEXT_WORK_NAME = "remft-backup-wake-next"
         const val SLOTS = 8
+        val WORK_NAMES: List<String> = listOf(WORK_NAME, NEXT_WORK_NAME)
+
+        fun slotName(running: Set<String>): String? = WORK_NAMES.firstOrNull { it !in running }
     }
 }
 

@@ -53,7 +53,8 @@ object AlarmModule {
         ready = {
             val app = startup.get()
             app.start()
-            withTimeoutOrNull(STARTUP_WAIT_MS) { app.state.first { it !is StartupState.Starting } }
+            val state = withTimeoutOrNull(STARTUP_WAIT_MS) { app.state.first { it !is StartupState.Starting } }
+            check(state is StartupState.Ready) { "Startup is not ready" }
         },
     )
 

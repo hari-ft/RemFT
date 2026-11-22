@@ -26,8 +26,10 @@ import com.ftapps.remft.data.onedrive.OneDriveTokenStore
 import com.ftapps.remft.data.onedrive.PrefsTokenSlot
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.data.repeat.SeriesRepository
+import com.ftapps.remft.data.search.SearchDao
 import com.ftapps.remft.data.tasks.TasksRepository
 import com.ftapps.remft.di.BackupModule
+import com.ftapps.remft.di.SearchModule
 import com.ftapps.remft.domain.alarm.SnoozePresets
 import com.ftapps.remft.domain.alarm.SoundChoice
 import com.ftapps.remft.domain.backup.BackupLog
@@ -309,6 +311,39 @@ class FreshInstallRestoreTest {
         assertTrue(BackupReminder.isDue(ZonedDateTime.now(clock).plusDays(31), hasData = true, lastBackup = lastBackup))
 
         assertEquals(0, context.getSystemService(NotificationManager::class.java).activeNotifications.size)
+    }
+
+    @Test
+    fun aRestoreIntoAnotherWorkspaceIsWhatTasksAndSearchSeeAfterTheRestart() = runBlocking {
+        startup.start()
+        val freshWorkspace = awaitReady().identity.workspaceId
+        val search = SearchModule.searchRepository(SearchDao { holder.db }, identity)
+        assertEquals(freshWorkspace, tasks.workspaceId())
+        assertTrue(search.global("passport").isEmpty())
+
+        backup.restore(backup.validate(sourceZip().inputStream()))
+        startup.restartAfterRestore()
+        awaitReady()
+
+        assertEquals(SOURCE_WORKSPACE, tasks.workspaceId())
+        assertTrue(tasks.watchInbox().first().any { it.id == "01JCT000000000000000000004" })
+        assertTrue(search.global("passport").isNotEmpty())
+
+        val added = tasks.create(TaskDraft(title = "Written after the restore", status = "inbox"))
+        assertEquals(SOURCE_WORKSPACE, tasks.detail(added)!!.task.workspaceId)
+        holder.close()
+
+        val coldHolder = DatabaseHolder(context, holder.file)
+        try {
+            val coldIdentity = LocalIdentityRepository({ coldHolder.db.identityDao() }, store)
+            val coldTasks = TasksRepository({ coldHolder.db }, coldIdentity, store, clock)
+            val coldSearch = SearchModule.searchRepository(SearchDao { coldHolder.db }, coldIdentity)
+            assertEquals(SOURCE_WORKSPACE, coldIdentity.resolve().workspaceId)
+            assertTrue(coldTasks.watchInbox().first().any { it.id == added })
+            assertTrue(coldSearch.global("Written after").isNotEmpty())
+        } finally {
+            coldHolder.close()
+        }
     }
 
     @Test

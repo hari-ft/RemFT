@@ -36,7 +36,7 @@ object FilesModule {
         database = { holder.db },
         settings = settings,
         attachmentsDir = attachmentsDir(context),
-        workspaceId = { identity.resolve().workspaceId },
+        workspaceId = identity::workspaceId,
     )
 
     @Provides
@@ -63,7 +63,7 @@ object FilesModule {
         attachments: AttachmentStore,
     ): FilesRepository = FilesRepository(
         database = { holder.db },
-        workspaceId = { identity.resolve().workspaceId },
+        workspaceId = identity::workspaceId,
         bin = bin,
         attachments = attachments,
     )

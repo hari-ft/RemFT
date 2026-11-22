@@ -24,6 +24,7 @@ import com.ftapps.remft.data.onedrive.OneDriveTriggers
 import com.ftapps.remft.data.onedrive.PrefsTokenSlot
 import com.ftapps.remft.data.onedrive.WorkManagerWakeBooker
 import com.ftapps.remft.data.prefs.SettingsStore
+import com.ftapps.remft.domain.backup.lock.WorkLockNames
 import com.ftapps.remft.domain.backup.lock.WorkLocks
 import dagger.Module
 import dagger.Provides
@@ -71,8 +72,14 @@ object OneDriveModule {
 
     @Provides
     @Singleton
-    fun fileMirror(holder: DatabaseHolder, graph: GraphClient, paths: BackupPaths, store: SettingsStore): FileMirror =
-        FileMirror(SupportMirrorSql { holder.db.openHelper.writableDatabase }, graph, paths.filesDir, store)
+    fun fileMirror(holder: DatabaseHolder, graph: GraphClient, paths: BackupPaths, store: SettingsStore, locks: WorkLocks): FileMirror =
+        FileMirror(
+            SupportMirrorSql { holder.db.openHelper.writableDatabase },
+            graph,
+            paths.filesDir,
+            store,
+            stopRequested = { locks.isHeld(WorkLockNames.RESTORE) },
+        )
 
     @Provides
     @Singleton
@@ -110,6 +117,7 @@ object OneDriveModule {
                 dataSize = { backup.dataSize() },
                 onSuccess = { backup.recordShared(it) },
                 catchUpDeadline = deadline,
+                stopRequested = { locks.isHeld(WorkLockNames.RESTORE) },
             )
         },
         wake = wake,

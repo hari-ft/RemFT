@@ -9,6 +9,7 @@ import com.ftapps.remft.app.AppStartup
 import com.ftapps.remft.app.StartupState
 import com.ftapps.remft.data.backup.AndroidBackupLog
 import com.ftapps.remft.data.backup.BackupService
+import com.ftapps.remft.data.backup.RestoreDatabaseInUse
 import com.ftapps.remft.data.backup.RestoreStage
 import com.ftapps.remft.data.backup.StartupRestoreRecovery
 import com.ftapps.remft.data.onedrive.CloudBackups
@@ -269,6 +270,7 @@ class BackupCoordinator @Inject constructor(
             if (id != null) return context.getString(id)
         }
         if (error is BackgroundWorkBusy) return context.getString(R.string.backup_error_busy)
+        if (error is RestoreDatabaseInUse) return context.getString(R.string.dfx_restore_db_in_use)
         return context.getString(R.string.error_unknown)
     }
 }

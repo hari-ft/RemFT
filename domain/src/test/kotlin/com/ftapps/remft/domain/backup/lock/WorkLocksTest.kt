@@ -190,6 +190,39 @@ class WorkLocksTest {
     }
 
     @Test
+    fun theRestoreWaitsForOneDriveWorkAndKeepsItUntilTheRestoreEnds() {
+        val work = locks().tryAcquire(WorkLockNames.ONEDRIVE_WORK)!!
+        val releaser = Thread {
+            Thread.sleep(150)
+            work.release()
+        }
+        releaser.start()
+        val l = locks()
+        val hold = l.beginRestore(Duration.ofSeconds(5))
+        releaser.join()
+        assertTrue(l.isHeld(WorkLockNames.RESTORE))
+        assertTrue(l.isHeld(WorkLockNames.ONEDRIVE_WORK))
+        assertNull(locks().tryAcquire(WorkLockNames.ONEDRIVE_WORK))
+        hold.release()
+        assertFalse(l.isHeld(WorkLockNames.RESTORE))
+        assertFalse(l.isHeld(WorkLockNames.ONEDRIVE_WORK))
+    }
+
+    @Test
+    fun theRestoreGivesUpHoldingNothingWhenOneDriveWorkDoesNotLetGo() {
+        val work = locks().tryAcquire(WorkLockNames.ONEDRIVE_WORK)!!
+        val l = locks()
+        try {
+            l.beginRestore(Duration.ofMillis(200))
+            fail("expected busy")
+        } catch (_: BackgroundWorkBusy) {
+        }
+        assertFalse(l.isHeld(WorkLockNames.RESTORE))
+        assertTrue(l.isHeld(WorkLockNames.ONEDRIVE_WORK))
+        work.release()
+    }
+
+    @Test
     fun theRestoreLockGivesUpHoldingNothingWhenTheTurnDoesNotLetGo() {
         val turn = locks().tryAcquire(WorkLockNames.HEADLESS_TURN)!!
         val l = locks()

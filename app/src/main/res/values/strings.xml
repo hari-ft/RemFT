@@ -875,4 +875,5 @@
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <string name="dfx_restore_db_in_use">The app was still using its data, so nothing was replaced. Try again in a minute.</string>
 </resources>

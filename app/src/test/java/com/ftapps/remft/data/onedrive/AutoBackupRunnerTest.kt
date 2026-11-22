@@ -51,7 +51,7 @@ class AutoBackupRunnerTest {
         rig.close()
     }
 
-    private fun runner(withMirror: Boolean = true) = AutoBackupRunner(
+    private fun runner(withMirror: Boolean = true, stop: () -> Boolean = { false }) = AutoBackupRunner(
         store = rig.store,
         destination = destination,
         builder = AutoBackupBuilder { out, now, listOnly ->
@@ -70,7 +70,26 @@ class AutoBackupRunnerTest {
         clock = { rig.now },
         zone = { ZoneOffset.UTC },
         log = BackupLog.None,
+        stopRequested = stop,
     )
+
+    @Test
+    fun aRestoreThatStartsBeforeTheBuildStopsTheRunCleanly() = runBlocking {
+        assertEquals(AutoBackupOutcome.Busy, runner(stop = { true }).run(force = true))
+        assertTrue(builds.isEmpty())
+        assertTrue(destination.uploads.isEmpty())
+        assertNull(rig.store.get(SettingKeys.AutoBackupLastOk.name))
+    }
+
+    @Test
+    fun aRestoreThatStartsDuringTheBuildStopsBeforeTheUpload() = runBlocking {
+        assertEquals(AutoBackupOutcome.Busy, runner(stop = { builds.isNotEmpty() }).run(force = true))
+        assertEquals(1, builds.size)
+        assertTrue(destination.uploads.isEmpty())
+        assertTrue(destination.deleted.isEmpty())
+        assertTrue(File(rig.root, "auto-backup").listFiles().orEmpty().isEmpty())
+        assertNull(rig.store.get(SettingKeys.AutoBackupLastOk.name))
+    }
 
     @Test
     fun offWhenOneDriveIsNotOn() = runBlocking {

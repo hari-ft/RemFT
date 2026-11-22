@@ -280,6 +280,27 @@ class RestoreJournalTest {
     }
 
     @Test
+    fun theDatabaseMayNotOpenWhileAnUnfinishedSwapIsPending() {
+        assertFalse(BackupRestore.openBlocked(dbFile))
+        for (step in listOf("staged", "swapping-db", "db-parked", "db-in", "files-in")) {
+            setUpFresh()
+            killAt(step)
+            assertTrue(step, BackupRestore.openBlocked(dbFile))
+            startUp()
+            assertFalse(step, BackupRestore.openBlocked(dbFile))
+        }
+        setUpFresh()
+        killAt("done")
+        assertFalse(BackupRestore.openBlocked(dbFile))
+        setUpFresh()
+        File(tmp, RESTORE_JOURNAL_NAME).writeText("{not json")
+        assertTrue(BackupRestore.openBlocked(dbFile))
+        File(tmp, RESTORE_JOURNAL_NAME).delete()
+        dbFile.renameTo(File(dbFile.path + ".bak"))
+        assertTrue(BackupRestore.openBlocked(dbFile))
+    }
+
+    @Test
     fun aRecoveryThatFailsKeepsTheJournalAndTheParkedCopy() {
         killAt("db-in")
         dbFile.delete()

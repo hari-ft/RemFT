@@ -40,6 +40,7 @@ class AutoBackupRunner(
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val log: BackupLog = AndroidBackupLog,
+    private val stopRequested: () -> Boolean = { false },
 ) {
     private val statusKey = DestinationStatus.key(destination.id)
 
@@ -63,6 +64,7 @@ class AutoBackupRunner(
             null
         }
         if (size != null && pausedOnDrop(size, now)) return AutoBackupOutcome.Paused
+        if (stopped()) return AutoBackupOutcome.Busy
 
         var listOnly = emptyMap<String, MirrorRef>()
         if (mirror != null) {
@@ -80,6 +82,8 @@ class AutoBackupRunner(
             }
         }
 
+        if (stopped()) return AutoBackupOutcome.Busy
+
         val built = try {
             builder.build(File(scratch, name), now, listOnly)
         } catch (e: Exception) {
@@ -90,6 +94,7 @@ class AutoBackupRunner(
 
         val keepDays = Retention.keepDays(store.get(SettingKeys.AutoBackupKeepDays.name))
         val delivered = try {
+            if (stopped()) return AutoBackupOutcome.Busy
             deliver(built.zip, name, keepDays, now)
         } finally {
             withContext(Dispatchers.IO) { runCatching { FileOps.deleteFileIfExists(built.zip) } }
@@ -108,6 +113,12 @@ class AutoBackupRunner(
             store.set(SettingKeys.AutoBackupUnavailable.name, unavailable.size.toString())
             AutoBackupOutcome.Incomplete
         }
+    }
+
+    private suspend fun stopped(): Boolean {
+        val stop = withContext(Dispatchers.IO) { stopRequested() }
+        if (stop) log.info("autobackup.stopped_for_restore")
+        return stop
     }
 
     private suspend fun pausedOnDrop(size: BackupDataSize, now: Instant): Boolean {

@@ -97,7 +97,7 @@ class MirrorDownloads(
             return
         }
         try {
-            round()
+            round { set.isHeld(WorkLockNames.RESTORE) }
         } finally {
             withContext(Dispatchers.IO) { hold.release() }
         }
@@ -111,7 +111,7 @@ class MirrorDownloads(
         }
     }
 
-    private suspend fun round() {
+    private suspend fun round(stopRequested: () -> Boolean = { false }) {
         val pending = try {
             mirror.pendingDownloads()
         } catch (e: Exception) {
@@ -134,7 +134,12 @@ class MirrorDownloads(
         var notFound = 0
         var error: String? = null
         mutableState.value = MirrorDownloadState(MirrorDownloadPhase.Downloading, pending.size)
+        var stopped = false
         for (d in pending) {
+            if (withContext(Dispatchers.IO) { stopRequested() }) {
+                stopped = true
+                break
+            }
             try {
                 mirror.download(d)
                 done++
@@ -152,6 +157,11 @@ class MirrorDownloads(
             }
         }
         log.info("mirror.downloads", mapOf("done" to done, "failed" to failed, "notFound" to notFound))
+        if (stopped) {
+            mutableState.value = MirrorDownloadState(MirrorDownloadPhase.Waiting, pending.size, done)
+            scheduleAfterRound(backoff.first())
+            return
+        }
         if (done == 0 && notFound >= 2 && notFound == failed) error = OneDriveErrors.OTHER_ACCOUNT
         if (failed == 0 && done == pending.size) {
             failures = 0
