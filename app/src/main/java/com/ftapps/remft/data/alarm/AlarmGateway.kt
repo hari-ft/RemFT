@@ -12,6 +12,7 @@ import android.media.AudioAttributes
 import android.net.Uri
 import androidx.core.net.toUri
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import com.ftapps.remft.MainActivity
@@ -35,6 +36,10 @@ interface AlarmGateway {
     fun show(notification: PlannedNotification)
 
     fun shownIds(): Set<Int>
+
+    fun shownPayloads(): Map<Int, String?>
+
+    fun showMissed(notification: PlannedNotification)
 
     fun cancelShown(id: Int)
 
@@ -88,6 +93,16 @@ class AndroidAlarmGateway(
 
     override fun shownIds(): Set<Int> = runCatching { notificationManager.activeNotifications.map { it.id }.toSet() }
         .getOrDefault(emptySet())
+
+    override fun shownPayloads(): Map<Int, String?> = runCatching {
+        notificationManager.activeNotifications.associate { it.id to it.notification.extras?.getString(EXTRA_PAYLOAD) }
+    }.getOrDefault(emptyMap())
+
+    @SuppressLint("MissingPermission")
+    override fun showMissed(notification: PlannedNotification) {
+        ensureChannel(context, false, AlarmNotifications.missedSound(notification))
+        notificationManager.notify(notification.id, AlarmNotifications.build(context, notification, snoozeOrder(), fullScreen = false, missed = true))
+    }
 
     override fun cancelShown(id: Int) = notificationManager.cancel(id)
 
@@ -206,9 +221,12 @@ object AlarmNotifications {
         notification: PlannedNotification,
         snoozeOrder: List<String> = SnoozePresets.ids,
         fullScreen: Boolean = true,
+        missed: Boolean = false,
     ): Notification {
         val urgent = notification.urgent
-        val channelId = AlarmSounds.channelIdFor(urgent, notification.soundName)
+        val insistent = urgent && !missed
+        val test = notification.payload == AlarmPlanner.TEST_PAYLOAD
+        val channelId = if (missed) AlarmSounds.channelIdFor(false, missedSound(notification)) else AlarmSounds.channelIdFor(urgent, notification.soundName)
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_stat_remft)
             .setContentTitle(notification.title)
@@ -216,27 +234,38 @@ object AlarmNotifications {
             .setStyle(NotificationCompat.BigTextStyle().bigText(notification.body))
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setCategory(if (urgent) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
+            .setCategory(if (insistent) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
             .setWhen(notification.fireAt.toEpochMilli())
             .setShowWhen(true)
-            .setAutoCancel(!urgent)
+            .setAutoCancel(!insistent || test)
             .setOngoing(false)
             .setContentIntent(AndroidAlarmGateway.contentIntent(context, notification))
-        AndroidAlarmGateway.soundUri(context, notification.soundName)?.let { uri ->
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-                @Suppress("DEPRECATION")
-                builder.setSound(uri, if (urgent) android.media.AudioManager.STREAM_ALARM else android.media.AudioManager.STREAM_NOTIFICATION)
-            }
-        }
-        if (urgent && fullScreen) builder.setFullScreenIntent(AndroidAlarmGateway.fullScreenIntent(context, notification), true)
-        if (notification.payload != AlarmPlanner.TEST_PAYLOAD) {
-            for (button in NotificationActions.buttonsFor(urgent, snoozeOrder)) {
-                builder.addAction(0, labelOf(context, button), AndroidAlarmGateway.actionIntent(context, notification, button.actionId))
-            }
+            .addExtras(Bundle().apply { putString(AndroidAlarmGateway.EXTRA_PAYLOAD, notification.payload) })
+        if (missed) builder.setSubText(context.getString(R.string.almed_missed_subtext))
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) legacySound(context, builder, insistent, if (missed) missedSound(notification) else notification.soundName)
+        if (insistent && fullScreen) builder.setFullScreenIntent(AndroidAlarmGateway.fullScreenIntent(context, notification), true)
+        for (button in buttonsOf(test, urgent, snoozeOrder)) {
+            builder.addAction(0, labelOf(context, button), AndroidAlarmGateway.actionIntent(context, notification, button.actionId))
         }
         val built = builder.build()
-        if (urgent) built.flags = built.flags or Notification.FLAG_INSISTENT
+        if (insistent) built.flags = built.flags or Notification.FLAG_INSISTENT
         return built
+    }
+
+    fun missedSound(notification: PlannedNotification): String? = if (notification.urgent) null else notification.soundName
+
+    private fun buttonsOf(test: Boolean, urgent: Boolean, snoozeOrder: List<String>): List<NotificationButton> =
+        if (test) listOf(NotificationButton(NotificationActions.ACKNOWLEDGE, ButtonLabel.ACKNOWLEDGE)) else NotificationActions.buttonsFor(urgent, snoozeOrder)
+
+    @Suppress("DEPRECATION")
+    private fun legacySound(context: Context, builder: NotificationCompat.Builder, alarm: Boolean, soundName: String?) {
+        val uri = AndroidAlarmGateway.soundUri(context, soundName)
+        if (uri == null) {
+            builder.setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE)
+        } else {
+            builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE)
+            builder.setSound(uri, if (alarm) android.media.AudioManager.STREAM_ALARM else android.media.AudioManager.STREAM_NOTIFICATION)
+        }
     }
 
     fun labelOf(context: Context, button: NotificationButton): String = when (button.label) {

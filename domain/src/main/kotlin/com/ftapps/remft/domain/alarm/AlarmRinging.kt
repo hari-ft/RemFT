@@ -55,7 +55,7 @@ object AlarmRinging {
             val slots = rings[alarm]
             val latest = latestRing(slots, now) ?: continue
             if (isLive(latest, now, liveFor)) continue
-            if (slots!!.first().isBefore(floor)) continue
+            if (slots!!.min().isBefore(floor)) continue
             val kept = byTask[alarm.taskId]
             val wins = when {
                 kept == null -> true
@@ -85,7 +85,6 @@ object AlarmRinging {
             for (at in rings[alarm].orEmpty()) {
                 if (!at.isAfter(now)) continue
                 if (next == null || at.isBefore(next)) next = at
-                break
             }
         }
         return next
@@ -98,7 +97,7 @@ object AlarmRinging {
         times: Map<AlarmInput, List<Instant>>? = null,
     ): Instant? {
         val rings = times ?: AlarmPlanner.plannedRingTimes(listOf(alarm), profile)
-        return rings[alarm].orEmpty().firstOrNull { it.isAfter(after) }
+        return rings[alarm].orEmpty().filter { it.isAfter(after) }.minOrNull()
     }
 
     fun liveWindowEnds(
@@ -133,8 +132,8 @@ object AlarmRinging {
     fun latestRing(slots: List<Instant>?, now: Instant): Instant? {
         var latest: Instant? = null
         for (at in slots.orEmpty()) {
-            if (at.isAfter(now)) break
-            latest = at
+            if (at.isAfter(now)) continue
+            if (latest == null || at.isAfter(latest)) latest = at
         }
         return latest
     }

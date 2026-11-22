@@ -878,4 +878,5 @@
     <string name="noteLeave_body">{name} has changes that are not saved to the file yet.</string>
     <string name="noteLeave_discard">Discard</string>
     <string name="dfx_restore_db_in_use">The app was still using its data, so nothing was replaced. Try again in a minute.</string>
+    <string name="almed_missed_subtext">Missed while the phone was off</string>
 </resources>

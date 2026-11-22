@@ -14,15 +14,22 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ftapps.remft.ui.theme.MarkedShapes
 
+val LocalTooltipsSuppressed = compositionLocalOf { false }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Tooltipped(label: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val state = rememberTooltipState()
+    val suppressed = LocalTooltipsSuppressed.current
+    LaunchedEffect(suppressed, state.isVisible) { if (suppressed && state.isVisible) state.dismiss() }
     TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = {
@@ -32,9 +39,10 @@ fun Tooltipped(label: String, modifier: Modifier = Modifier, content: @Composabl
                 contentColor = scheme.inverseOnSurface,
             ) { Text(label, style = MaterialTheme.typography.labelMedium) }
         },
-        state = rememberTooltipState(),
+        state = state,
         modifier = modifier,
         focusable = false,
+        enableUserInput = !suppressed,
         content = content,
     )
 }

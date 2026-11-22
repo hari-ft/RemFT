@@ -206,7 +206,7 @@ class AlarmPlannerTest {
         val normal = planner.planNotifications(listOf(alarm(title = "Buy milk")), now, privacyMode = false).single()
         assertEquals(
             "{\"taskId\":\"TR100000000000000000000000\",\"reminderId\":\"R1000000000000000000000000\",\"kind\":\"remind\"," +
-                "\"at\":1784120400000,\"chainIndex\":0,\"planned\":1784120400000,\"fireAt\":1784120400000}",
+                "\"at\":1784120400000,\"chainIndex\":0,\"planned\":1784120400000,\"fireAt\":1784120400000,\"base\":1784120400000}",
             normal.payload,
         )
     }

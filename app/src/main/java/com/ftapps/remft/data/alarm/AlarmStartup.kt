@@ -25,10 +25,14 @@ class AlarmStartup(private val env: AlarmEnvironment) {
 
     private var dataJob: Job? = null
 
+    @Volatile
+    private var exactAllowed: Boolean? = null
+
     fun start(observeProcess: Boolean = true) {
         if (started) return
         started = true
         val scheduler = env.scheduler
+        exactAlarmsRegained()
         scheduler.launchWorker(env.scope)
         env.scope.launch {
             env.appLog.info("app.launch")
@@ -49,14 +53,23 @@ class AlarmStartup(private val env: AlarmEnvironment) {
             env.scope.launch(Dispatchers.Main) {
                 runCatching {
                     ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
-                        override fun onStart(owner: LifecycleOwner) {
-                            scheduler.request()
-                            env.ring.reconsider()
-                        }
+                        override fun onStart(owner: LifecycleOwner) = onForeground()
                     })
                 }
             }
         }
+    }
+
+    fun onForeground() {
+        env.scheduler.request(rebook = exactAlarmsRegained())
+        env.ring.reconsider()
+    }
+
+    fun exactAlarmsRegained(): Boolean {
+        val now = runCatching { env.health.status().exactAlarms }.getOrNull()
+        val before = exactAllowed
+        exactAllowed = now
+        return before == false && now == true
     }
 
     fun afterRestore() {

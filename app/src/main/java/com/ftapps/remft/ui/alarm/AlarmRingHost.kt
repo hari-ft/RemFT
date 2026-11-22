@@ -1,8 +1,10 @@
 package com.ftapps.remft.ui.alarm
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -12,7 +14,12 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.AlarmLogEvent
@@ -26,6 +33,7 @@ import com.ftapps.remft.domain.alarm.SnoozePresets
 import com.ftapps.remft.domain.alarm.SoundChoice
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.settings.SettingKeys
+import com.ftapps.remft.ui.components.LocalTooltipsSuppressed
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -35,10 +43,9 @@ import java.time.Instant
 fun AlarmRingHost(env: AlarmEnvironment, onOpenTask: (String) -> Unit, content: @Composable () -> Unit) {
     val state by env.ring.state.collectAsStateWithLifecycle()
     val missedShown by env.ring.missedShown.collectAsStateWithLifecycle()
-    Box(Modifier.fillMaxSize()) {
-        content()
-        val ringing = state.ringing
-        val missed = missedShown
+    val ringing = state.ringing
+    val missed = missedShown
+    RingCover(covered = ringing != null || missed != null, content = content) {
         when {
             ringing != null -> key("ring-${ringing.reminderId}-${ringing.fireAt}") {
                 AlarmRingOverlay(env, ringing, missed = false, onOpenTask = onOpenTask)
@@ -47,6 +54,36 @@ fun AlarmRingHost(env: AlarmEnvironment, onOpenTask: (String) -> Unit, content: 
                 AlarmRingOverlay(env, missed, missed = true, onOpenTask = onOpenTask)
             }
         }
+    }
+}
+
+@Composable
+fun RingCover(covered: Boolean, content: @Composable () -> Unit, overlay: @Composable () -> Unit) {
+    val focus = LocalFocusManager.current
+    LaunchedEffect(covered) { if (covered) focus.clearFocus(force = true) }
+    Box(Modifier.fillMaxSize()) {
+        val hidden = if (covered) Modifier.clearAndSetSemantics { } else Modifier
+        Box(
+            Modifier
+                .fillMaxSize()
+                .then(hidden)
+                .focusProperties { onEnter = { if (covered) cancelFocusChange() } }
+                .focusGroup(),
+        ) {
+            CompositionLocalProvider(LocalTooltipsSuppressed provides covered) { content() }
+        }
+        if (covered) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                        }
+                    },
+            )
+        }
+        overlay()
     }
 }
 

@@ -136,4 +136,27 @@ class AlarmReceiversTest {
         Thread.sleep(300)
         assertFalse(shadowOf(alarmManager).scheduledAlarms.isNotEmpty())
     }
+
+    @Test
+    fun exactAlarmPermissionGrantedRebooksEverything() = runBlocking {
+        bookedFor("Call the plumber", urgent = true)
+        val count = shadowOf(alarmManager).scheduledAlarms.size
+        shadowOf(alarmManager).scheduledAlarms.toList().forEach { alarmManager.cancel(it.operation!!) }
+        t.context.sendBroadcast(
+            Intent("android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED").setClass(t.context, AlarmSystemReceiver::class.java),
+        )
+        waitFor { shadowOf(alarmManager).scheduledAlarms.size == count }
+        assertEquals(3, count)
+    }
+
+    @Test
+    fun comingBackWithExactAlarmsAllowedAgainAsksForARebook() {
+        val startup = AlarmStartup(t.env)
+        t.health.current = t.health.current.copy(exactAlarms = false)
+        assertFalse(startup.exactAlarmsRegained())
+        assertFalse(startup.exactAlarmsRegained())
+        t.health.current = t.health.current.copy(exactAlarms = true)
+        assertTrue(startup.exactAlarmsRegained())
+        assertFalse(startup.exactAlarmsRegained())
+    }
 }

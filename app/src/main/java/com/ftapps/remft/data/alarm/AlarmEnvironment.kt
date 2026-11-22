@@ -45,7 +45,7 @@ class AlarmEnvironment(
     val sounds = AlarmSoundStore(context, database, clock, filesDir)
     val scheduler = AlarmScheduler(identity, settings, store, gateway, pending, log, appLog, sounds, planner, clock, ready, mirror, texts)
     val silencer = AlarmSilencer(settings, store, gateway, planner, { scheduler }, log)
-    val actions = AlarmActionHandler(settings, store, scheduler, silencer, gateway, planner, log, appLog, clock)
+    val actions = AlarmActionHandler(settings, store, scheduler, silencer, gateway, log, appLog, clock)
     val ring = AlarmRingController(this)
 
     suspend fun workspaceFeed() = identity.resolve().let { if (it.reliable) store.feed(it.workspaceId) else emptyList() }

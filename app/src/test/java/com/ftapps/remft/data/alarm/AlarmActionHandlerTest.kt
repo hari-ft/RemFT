@@ -1,7 +1,9 @@
 package com.ftapps.remft.data.alarm
 
+import android.app.Notification
 import android.app.NotificationManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ftapps.remft.domain.alarm.AlarmPlanner
 import com.ftapps.remft.domain.alarm.PlannedNotification
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.tasks.Change
@@ -154,5 +156,53 @@ class AlarmActionHandlerTest {
     fun garbagePayloadIsIgnored() = runBlocking {
         assertEquals(ActionResult.IGNORED, t.env.actions.handle(1, "acknowledge", "{not json"))
         assertEquals(ActionResult.IGNORED, t.env.actions.handle(1, "acknowledge", null))
+    }
+
+    @Test
+    fun aButtonStillAnswersAfterTitlePrivacyProfileAndSoundChanged() = runBlocking {
+        val ring = first()
+        ringNow(ring)
+        t.tasks.repository.update(taskId, TaskPatch(title = "Call the electrician"))
+        t.env.settings.set(SettingKeys.NotificationPrivacy.name, "true")
+        t.env.settings.set(SettingKeys.ReminderProfile.name, "{\"slots\":[0,5],\"repeatAfterSnooze\":true}")
+        t.env.settings.set(SettingKeys.AlarmSound.name, "os")
+        val result = t.env.actions.handle(ring.id, "acknowledge", ring.payload)
+        assertEquals(ActionResult.APPLIED, result)
+        assertEquals(listOf<String?>("acknowledged"), reminderStatuses())
+        assertTrue(ring.id !in t.env.gateway.shownIds())
+    }
+
+    @Test
+    fun aStaleButtonStillDismissesItsNotification() = runBlocking {
+        val ring = first()
+        ringNow(ring)
+        t.tasks.repository.update(taskId, TaskPatch(remindAt = Change(t.clock.instant().plus(Duration.ofHours(2)))))
+        assertEquals(ActionResult.NOT_OURS, t.env.actions.handle(ring.id, "acknowledge", ring.payload))
+        assertTrue(ring.id !in t.env.gateway.shownIds())
+    }
+
+    @Test
+    fun inAppSilencingFindsTheShownRingAfterARename() = runBlocking {
+        val ring = first()
+        ringNow(ring)
+        t.tasks.repository.update(taskId, TaskPatch(title = "Call the electrician"))
+        t.env.settings.set(SettingKeys.NotificationPrivacy.name, "true")
+        val silenced = t.env.silencer.silence(taskId, null, emptyList(), "test")
+        assertEquals(1, silenced)
+        assertTrue(ring.id !in t.env.gateway.shownIds())
+    }
+
+    @Test
+    fun theTestAlarmCanBeAnsweredAndTappingItClearsIt() = runBlocking {
+        val test = t.env.planner.testAlarm(t.clock.instant(), "remft_alarm")
+        t.env.gateway.show(test)
+        val manager = t.context.getSystemService(NotificationManager::class.java)
+        val posted = manager.activeNotifications.single { it.id == test.id }.notification
+        assertEquals(listOf("Acknowledge"), posted.actions.map { it.title.toString() })
+        assertTrue(posted.flags and Notification.FLAG_AUTO_CANCEL != 0)
+        val payload = shadowOf(posted.actions.single().actionIntent).savedIntent.getStringExtra(AndroidAlarmGateway.EXTRA_PAYLOAD)
+        assertEquals(AlarmPlanner.TEST_PAYLOAD, payload)
+        assertEquals(ActionResult.APPLIED, t.env.actions.handle(test.id, "acknowledge", payload))
+        assertTrue(test.id !in t.env.gateway.shownIds())
     }
 }
