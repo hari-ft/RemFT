@@ -21,8 +21,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 data class NoteRow(
@@ -52,6 +56,7 @@ class NotesViewModel @Inject constructor(
     val query: StateFlow<NotesQuery> = mutableQuery
 
     private val pendingDeletes = MutableStateFlow<Set<String>>(emptySet())
+    private val awaitingUndo = mutableSetOf<String>()
     private val reload = MutableStateFlow(0)
 
     val sort: StateFlow<NoteSortState> = settings.flow(SettingKeys.NotesSort)
@@ -66,13 +71,18 @@ class NotesViewModel @Inject constructor(
         .map { DateFormatId.parse(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, DateFormatId.System)
 
+    private val notes = repository.observeList()
+        .map { Result.success(it) }
+        .catch { emit(Result.failure(it)) }
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
+
     val state: StateFlow<NotesListState> = reload
         .let { trigger ->
             combine(trigger, mutableQuery, sort, pendingDeletes) { _, q, s, p -> Triple(q, s, p) }
         }
         .let { inputs ->
-            combine(repository.observeList(), inputs) { notes, (q, s, pending) ->
-                val visible = notes.filter { it.id !in pending }
+            combine(notes, inputs) { loaded, (q, s, pending) ->
+                val visible = loaded.getOrThrow().filter { it.id !in pending }
                 val arranged = NoteListing.arrange(visible, q.filter, q.search, s, ::searchRow)
                 NotesListState.Ready(arranged.map(::row)) as NotesListState
             }
@@ -125,19 +135,30 @@ class NotesViewModel @Inject constructor(
     }
 
     fun hide(id: String) {
-        pendingDeletes.value = pendingDeletes.value + id
+        awaitingUndo += id
+        pendingDeletes.update { it + id }
     }
 
     fun undoDelete(id: String) {
-        pendingDeletes.value = pendingDeletes.value - id
+        awaitingUndo -= id
+        pendingDeletes.update { it - id }
     }
 
     fun commitDelete(id: String) {
-        if (id !in pendingDeletes.value) return
-        repository.deleteInBackground(id)
+        if (!awaitingUndo.remove(id)) return
+        repository.deleteInBackground(id) {
+            withTimeoutOrNull(SETTLE_MS) { notes.first { loaded -> loaded.getOrNull()?.none { it.id == id } ?: true } }
+            pendingDeletes.update { it - id }
+        }
     }
 
     override fun onCleared() {
-        pendingDeletes.value.forEach(repository::deleteInBackground)
+        val ids = awaitingUndo.toList()
+        awaitingUndo.clear()
+        ids.forEach { id -> repository.deleteInBackground(id) }
+    }
+
+    private companion object {
+        const val SETTLE_MS = 2_000L
     }
 }

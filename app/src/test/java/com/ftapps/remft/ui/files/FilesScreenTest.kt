@@ -120,6 +120,30 @@ class FilesScreenTest {
         assertEquals(null, rig.environment.requests.requests.value)
     }
 
+    private fun top(tag: String): Float = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.top
+
+    @Test
+    fun theSortAppliesToFoldersAndFilesInsideAFolder() {
+        runBlocking { rig.settings.set("remft_files_sort", "name:asc") }
+        val box = runBlocking { rig.files.createFolder("Box", null) }
+        val zeta = runBlocking { rig.files.createFolder("Zeta", box) }
+        val alpha = runBlocking { rig.files.createFolder("Alpha", box) }
+        val charlie = rig.add("charlie.txt", folderId = box)
+        val able = rig.add("able.txt", folderId = box)
+        val baker = rig.add("baker.txt", folderId = box)
+        showFiles()
+        waitFor { exists("folder-row-$box") }
+        compose.onNodeWithTag("folder-row-$box").performClick()
+        waitFor { exists("folder-row-$zeta") && exists("folder-row-$alpha") && exists("file-row-$charlie") && exists("file-row-$able") && exists("file-row-$baker") }
+        assert(top("folder-row-$alpha") < top("folder-row-$zeta"))
+        assert(top("file-row-$able") < top("file-row-$baker"))
+        assert(top("file-row-$baker") < top("file-row-$charlie"))
+
+        runBlocking { rig.settings.set("remft_files_sort", "name:desc") }
+        waitFor { top("folder-row-$zeta") < top("folder-row-$alpha") }
+        waitFor { top("file-row-$charlie") < top("file-row-$baker") && top("file-row-$baker") < top("file-row-$able") }
+    }
+
     @Test
     fun theSortMenuStoresTheChoice() {
         showFiles()

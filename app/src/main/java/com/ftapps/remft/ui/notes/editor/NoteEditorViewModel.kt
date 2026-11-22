@@ -22,6 +22,7 @@ import com.ftapps.remft.domain.notes.editing.MdEditing
 import com.ftapps.remft.domain.settings.NoteSourceStyling
 import com.ftapps.remft.domain.settings.SettingKeys
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,6 +30,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 enum class EditorMode { Source, Reading }
@@ -41,12 +44,12 @@ enum class ExternalMessage { Saved, SavedAsNote, SaveFailed, LostAccess, CopySav
 
 @HiltViewModel
 class NoteEditorViewModel @Inject constructor(
-    savedState: SavedStateHandle,
+    private val savedState: SavedStateHandle,
     private val repository: NotesRepository,
     private val external: ExternalDocumentStore,
     settings: SettingsStore,
 ) : ViewModel() {
-    private val initialId: String? = savedState.get<String>("id")
+    private val initialId: String? = savedState.get<String>(KEY_ID)
     val isExternal: Boolean = savedState.get<Boolean>("external") == true
 
     var noteId: String? by mutableStateOf(initialId)
@@ -83,7 +86,14 @@ class NoteEditorViewModel @Inject constructor(
     private var debounce: Job? = null
     private var saving = false
     private var saveAgain = false
-    private var deleted = false
+    private var closeWhenSaved = false
+
+    @Volatile private var deleted = false
+
+    @Volatile private var storedId: String? = initialId
+
+    @Volatile private var persisted: Draft? = if (initialId == null) Draft("", "") else null
+    private val writeLock = Mutex()
 
     init {
         if (isExternal) {
@@ -112,9 +122,14 @@ class NoteEditorViewModel @Inject constructor(
         isPinned = note.isPinned
         isArchived = note.isArchived
         if (first || (!dirty && !saving && note.updatedAt != updatedAt)) {
-            if (first || title.text != note.title) title = TextFieldValue(note.title)
+            if (first) {
+                title = TextFieldValue(note.title)
+            } else if (repository.titleFor(title.text) != note.title) {
+                title = TextFieldValue(note.title, title.selection.clampTo(note.title.length))
+            }
             val content = note.contentMarkdown.orEmpty()
             if (first || source.text != content) source = TextFieldValue(content, TextRange(if (first) 0 else source.selection.start.coerceAtMost(content.length)))
+            persisted = Draft(title.text, source.text)
         }
         updatedAt = note.updatedAt
         load = LoadState.Ready
@@ -212,22 +227,35 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     private suspend fun saveOnce() {
-        val titleText = title.text
-        val markdown = source.text
+        val draft = Draft(title.text, source.text)
         dirty = false
         saveState = SaveState.Saving
         try {
-            val id = noteId
-            if (id == null) {
-                noteId = repository.create(titleText, markdown)
-            } else {
-                repository.save(id, titleText, markdown)
+            val id = repository.outliving { write(draft, createWhenUnchanged = true) }
+            if (id != null && id != noteId) {
+                noteId = id
+                savedState[KEY_ID] = id
             }
             saveState = SaveState.Saved
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             dirty = true
             saveState = SaveState.Failed
         }
+    }
+
+    private suspend fun write(draft: Draft, createWhenUnchanged: Boolean): String? = writeLock.withLock {
+        val id = storedId
+        if (deleted) return@withLock id
+        if (draft == persisted && (id != null || !createWhenUnchanged)) return@withLock id
+        if (id == null) {
+            storedId = repository.create(draft.title, draft.markdown)
+        } else {
+            repository.save(id, draft.title, draft.markdown)
+        }
+        persisted = draft
+        storedId
     }
 
     private suspend fun ensureSaved(): String? {
@@ -262,9 +290,8 @@ class NoteEditorViewModel @Inject constructor(
         debounce?.cancel()
         deleted = true
         dirty = false
-        val id = noteId
         viewModelScope.launch {
-            if (id != null) repository.delete(id)
+            repository.outliving { writeLock.withLock { storedId?.let { repository.delete(it) } } }
             closed = true
         }
     }
@@ -278,15 +305,28 @@ class NoteEditorViewModel @Inject constructor(
                     dirty = false
                     conflict = false
                     externalMessage = ExternalMessage.Saved
+                    if (closeWhenSaved) closed = true
                 }
                 ExternalSaveOutcome.Conflict -> conflict = true
-                ExternalSaveOutcome.LostAccess -> externalMessage = ExternalMessage.LostAccess
-                ExternalSaveOutcome.Failed -> externalMessage = ExternalMessage.SaveFailed
+                ExternalSaveOutcome.LostAccess -> {
+                    closeWhenSaved = false
+                    externalMessage = ExternalMessage.LostAccess
+                }
+                ExternalSaveOutcome.Failed -> {
+                    closeWhenSaved = false
+                    externalMessage = ExternalMessage.SaveFailed
+                }
             }
         }
     }
 
+    fun saveExternalAndClose(asNote: Boolean) {
+        closeWhenSaved = true
+        if (asNote) saveExternalAsNote() else saveExternal(force = false)
+    }
+
     fun reloadExternal() {
+        closeWhenSaved = false
         viewModelScope.launch {
             conflict = false
             when (val result = external.reload()) {
@@ -301,6 +341,7 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     fun saveExternalCopy(target: Uri) {
+        closeWhenSaved = false
         viewModelScope.launch {
             conflict = false
             externalMessage = if (external.saveCopy(target, source.text)) ExternalMessage.CopySaved else ExternalMessage.SaveFailed
@@ -308,6 +349,7 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     fun dismissConflict() {
+        closeWhenSaved = false
         conflict = false
     }
 
@@ -316,21 +358,22 @@ class NoteEditorViewModel @Inject constructor(
             repository.create(title.text, source.text)
             dirty = false
             externalMessage = ExternalMessage.SavedAsNote
+            if (closeWhenSaved) closed = true
         }
     }
 
     override fun onCleared() {
-        if (!isExternal && dirty && !deleted) {
-            val id = noteId
-            val titleText = title.text
-            val markdown = source.text
-            repository.detached {
-                if (id == null) repository.create(titleText, markdown) else repository.save(id, titleText, markdown)
-            }
-        }
+        if (isExternal || deleted || persisted == null) return
+        val draft = Draft(title.text, source.text)
+        repository.detached { write(draft, createWhenUnchanged = false) }
     }
+
+    private data class Draft(val title: String, val markdown: String)
 
     companion object {
         const val AUTOSAVE_MS = 1_500L
+        const val KEY_ID = "id"
     }
 }
+
+private fun TextRange.clampTo(length: Int): TextRange = TextRange(start.coerceIn(0, length), end.coerceIn(0, length))

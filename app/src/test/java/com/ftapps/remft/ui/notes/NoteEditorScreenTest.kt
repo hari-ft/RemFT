@@ -1,6 +1,7 @@
 package com.ftapps.remft.ui.notes
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.text.TextRange
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.ui.notes.editor.NoteEditorScreen
@@ -80,6 +82,40 @@ class NoteEditorScreenTest {
         compose.onNodeWithTag("action-h1").performScrollTo().performTouchInput { longClick() }
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Heading 1").fetchSemanticsNodes().size == 1 }
         assertEquals("word", viewModel.source.text)
+    }
+
+    @Test
+    fun typingWithTheFindBarOpenKeepsTheCursorWhereItIs() {
+        val viewModel = show(null)
+        compose.onNodeWithTag("note-source").performTextInput("cat dog cat")
+        compose.onNodeWithTag("open-find").performClick()
+        compose.onNodeWithTag("find-field").performTextInput("cat")
+        compose.waitForIdle()
+        assertEquals(TextRange(0, 3), viewModel.source.selection)
+        compose.runOnIdle {
+            viewModel.select(0, 0)
+            viewModel.insertText("A")
+        }
+        compose.waitForIdle()
+        assertEquals("Acat dog cat", viewModel.source.text)
+        assertEquals(TextRange(1), viewModel.source.selection)
+    }
+
+    @Test
+    fun replacingTheLastMatchKeepsTheCounterInRange() {
+        val viewModel = show(null)
+        compose.onNodeWithTag("note-source").performTextInput("cat cat cat")
+        compose.onNodeWithTag("open-find").performClick()
+        compose.onNodeWithTag("find-field").performTextInput("cat")
+        compose.onNodeWithTag("find-next").performClick()
+        compose.onNodeWithTag("find-next").performClick()
+        compose.onNodeWithTag("find-count").assertTextEquals("3 of 3")
+        compose.onNodeWithTag("replace-field").performTextInput("dog")
+        compose.onNodeWithTag("replace-one").performClick()
+        compose.waitForIdle()
+        assertEquals("cat cat dog", viewModel.source.text)
+        compose.onNodeWithTag("find-count").assertTextEquals("1 of 2")
+        assertEquals(TextRange(0, 3), viewModel.source.selection)
     }
 
     @Test

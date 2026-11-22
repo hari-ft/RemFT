@@ -10,12 +10,17 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.domain.notes.ExternalDocHandle
 import com.ftapps.remft.ui.theme.RemftTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
@@ -121,6 +126,53 @@ class NotesScreenTest {
         compose.onNodeWithTag("note-delete-$id").performClick()
         compose.mainClock.advanceTimeBy(4_000)
         compose.waitUntil(10_000) { runBlocking { env.repository.get(id) == null } }
+    }
+
+    @Test
+    fun aNoteRestoredFromTheBinAfterTheUndoWindowShowsAgain() {
+        val id = runBlocking { env.repository.create("Comes back", "x") }
+        val stored = runBlocking { env.repository.get(id)!! }
+        show()
+        waitForText("Comes back")
+        compose.onNodeWithTag("note-menu-$id").performClick()
+        compose.onNodeWithTag("note-delete-$id").performClick()
+        compose.mainClock.advanceTimeBy(4_000)
+        compose.waitUntil(10_000) { runBlocking { env.repository.get(id) == null } }
+        runBlocking { env.holder.db.notesDao().insert(stored) }
+        waitForText("Comes back")
+    }
+
+    @Test
+    fun clearingTheListDoesNotDeleteARestoredNoteAgain() {
+        val id = runBlocking { env.repository.create("Kept", "x") }
+        val stored = runBlocking { env.repository.get(id)!! }
+        val store = ViewModelStore()
+        val viewModel = ViewModelProvider.create(store, viewModelFactory { initializer { NotesViewModel(env.repository, env.settings) } })[NotesViewModel::class]
+        viewModel.hide(id)
+        viewModel.commitDelete(id)
+        waitUntil { runBlocking { env.repository.get(id) == null } }
+        runBlocking { env.holder.db.notesDao().insert(stored) }
+        store.clear()
+        Thread.sleep(1_000)
+        assertNotNull(runBlocking { env.repository.get(id) })
+    }
+
+    @Test
+    fun clearingTheListCommitsADeleteStillAwaitingUndo() {
+        val id = runBlocking { env.repository.create("Pending", "x") }
+        val store = ViewModelStore()
+        val viewModel = ViewModelProvider.create(store, viewModelFactory { initializer { NotesViewModel(env.repository, env.settings) } })[NotesViewModel::class]
+        viewModel.hide(id)
+        store.clear()
+        waitUntil { runBlocking { env.repository.get(id) == null } }
+    }
+
+    private fun waitUntil(condition: () -> Boolean) {
+        val end = System.currentTimeMillis() + 10_000
+        while (!condition()) {
+            check(System.currentTimeMillis() < end)
+            Thread.sleep(20)
+        }
     }
 
     @Test
