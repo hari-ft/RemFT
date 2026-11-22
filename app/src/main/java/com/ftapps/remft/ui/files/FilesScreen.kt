@@ -1,7 +1,5 @@
 package com.ftapps.remft.ui.files
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,16 +9,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
@@ -39,8 +35,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,7 +50,6 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -75,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
@@ -89,11 +84,16 @@ import com.ftapps.remft.domain.tasks.SortChoice
 import com.ftapps.remft.domain.tasks.SortState
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.EmptyState
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftSnackbar
+import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.components.SectionScaffold
 import com.ftapps.remft.ui.theme.Breakpoints
-import com.ftapps.remft.ui.theme.Radius
-import com.ftapps.remft.ui.theme.RemftThemeExtras
+import com.ftapps.remft.ui.theme.GroupPosition
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import com.ftapps.remft.ui.theme.groupPosition
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -203,8 +203,8 @@ fun FilesScreen(
     }
 
     Scaffold(
-        containerColor = Color.Transparent,
-        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = bottomPadding)) },
+        containerColor = RemftTheme.tonal.level0,
+        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = bottomPadding)) { RemftSnackbar(it) } },
         topBar = {
             TopAppBar(
                 title = {
@@ -214,11 +214,19 @@ fun FilesScreen(
                             onValueChange = { query = it },
                             placeholder = { Text(stringResource(R.string.files_searchHint)) },
                             singleLine = true,
-                            colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent),
-                            modifier = Modifier.fillMaxWidth().testTag("files-search"),
+                            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                            shape = MarkedShapes.pill,
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = RemftTheme.tonal.level2,
+                                unfocusedContainerColor = RemftTheme.tonal.level2,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                            ),
+                            modifier = Modifier.fillMaxWidth().padding(end = Space.x1).testTag("files-search"),
                         )
                     } else {
-                        Text(stringResource(R.string.nav_files))
+                        Text(stringResource(R.string.nav_files), style = MaterialTheme.typography.titleLarge)
                     }
                 },
                 navigationIcon = {
@@ -248,18 +256,28 @@ fun FilesScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()).testTag("screen-files"), contentAlignment = Alignment.TopCenter) {
             Column(Modifier.widthIn(max = Breakpoints.detailMaxWidth).fillMaxSize()) {
+                val layerColors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    activeBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                )
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = Space.x4, vertical = Space.x1).testTag("files-layer-toggle")) {
                     SegmentedButton(
                         selected = !showSources,
                         onClick = { showSources = false },
-                        shape = SegmentedButtonDefaults.itemShape(0, 2),
+                        shape = SegmentedButtonDefaults.itemShape(0, 2, baseShape = CircleShape),
+                        colors = layerColors,
                         icon = { Icon(Icons.Outlined.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp)) },
                         modifier = Modifier.testTag("layer-folders"),
                     ) { Text(stringResource(R.string.files_myFolders)) }
                     SegmentedButton(
                         selected = showSources,
                         onClick = { showSources = true },
-                        shape = SegmentedButtonDefaults.itemShape(1, 2),
+                        shape = SegmentedButtonDefaults.itemShape(1, 2, baseShape = CircleShape),
+                        colors = layerColors,
                         icon = { Icon(Icons.Outlined.Attachment, contentDescription = null, modifier = Modifier.size(18.dp)) },
                         modifier = Modifier.testTag("layer-sources"),
                     ) { Text(stringResource(R.string.files_sources)) }
@@ -369,22 +387,27 @@ private fun FoldersLayer(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Space.x4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AssistChip(onClick = { onPath(emptyList()) }, label = { Text(stringResource(R.string.nav_files)) }, modifier = Modifier.testTag("crumb-root"))
+            Crumb(stringResource(R.string.nav_files), current = trail.isEmpty(), tag = "crumb-root") { onPath(emptyList()) }
             trail.forEachIndexed { index, folder ->
-                Icon(Icons.Outlined.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp).padding(horizontal = 2.dp))
-                AssistChip(
-                    onClick = { onPath(trail.take(index + 1).map { it.id }) },
-                    label = { Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    modifier = Modifier.testTag("crumb-${folder.id}"),
+                Icon(
+                    Icons.Outlined.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp).padding(horizontal = 2.dp),
                 )
+                Crumb(folder.name, current = index == trail.lastIndex, tag = "crumb-${folder.id}") { onPath(trail.take(index + 1).map { it.id }) }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = Space.x2), horizontalArrangement = Arrangement.spacedBy(Space.x1)) {
-            TextButton(onClick = { ui.dialog = FileDialog.NewFolder(folderId) }, modifier = Modifier.testTag("files-new-folder")) {
-                Icon(Icons.Outlined.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(Space.x2))
-                Text(stringResource(R.string.files_newFolder))
-            }
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Space.x4, vertical = Space.x2),
+            horizontalArrangement = Arrangement.spacedBy(Space.x2),
+        ) {
+            RemftTonalButton(
+                stringResource(R.string.files_newFolder),
+                onClick = { ui.dialog = FileDialog.NewFolder(folderId) },
+                icon = Icons.Outlined.CreateNewFolder,
+                modifier = Modifier.testTag("files-new-folder"),
+            )
             AttachButton(
                 onPicked = { picks ->
                     scope.launch {
@@ -416,64 +439,87 @@ private fun FoldersLayer(
             modifier = Modifier.fillMaxSize().testTag("files-list"),
             contentPadding = PaddingValues(start = Space.x4, end = Space.x4, top = Space.x1, bottom = bottomPadding + Space.x4),
         ) {
-            items(level, key = { "folder-${it.id}" }) { folder ->
+            val fileCount = uploads.size + files.size
+            val gap = if (level.isNotEmpty()) Modifier.padding(top = Space.x4) else Modifier
+            itemsIndexed(level, key = { _, it -> "folder-${it.id}" }) { index, folder ->
                 val count = folders.count { it.parentId == folder.id } + workspaceFiles.count { it.folderId == folder.id }
-                FolderRowCard(folder, count, onOpen = { onPath(trail.map { it.id } + folder.id) }, onMore = { ui.dialog = FileDialog.FolderActions(folder) })
-            }
-            items(uploads, key = { "upload-${it.localId}" }) { job ->
-                UploadRowCard(job, env) { scope.launch { env.uploads.retry(job.localId) } }
-            }
-            items(files, key = { "file-${it.id}" }) { row ->
-                FileRowCard(
-                    row = row,
-                    env = env,
-                    format = format,
-                    highlighted = row.id == highlighted,
-                    onOpen = { ui.open(row, files) },
-                    onMore = {
-                        ui.dialog = FileDialog.Actions(
-                            row,
-                            listOf(
-                                ExtraAction(Icons.AutoMirrored.Outlined.DriveFileMove, moveText, "file-action-move") {
-                                    ui.dialog = FileDialog.MoveFile(row)
-                                },
-                            ),
-                        )
-                    },
-                    onDelete = { ui.dialog = FileDialog.Delete(row) },
+                FolderRowCard(
+                    folder,
+                    count,
+                    position = groupPosition(index, level.size),
+                    onOpen = { onPath(trail.map { it.id } + folder.id) },
+                    onMore = { ui.dialog = FileDialog.FolderActions(folder) },
                 )
+            }
+            itemsIndexed(uploads, key = { _, it -> "upload-${it.localId}" }) { index, job ->
+                Box(if (index == 0) gap else Modifier) {
+                    UploadRowCard(job, env, position = groupPosition(index, fileCount)) { scope.launch { env.uploads.retry(job.localId) } }
+                }
+            }
+            itemsIndexed(files, key = { _, it -> "file-${it.id}" }) { index, row ->
+                val at = uploads.size + index
+                Box(if (at == 0) gap else Modifier) {
+                    FileRowCard(
+                        position = groupPosition(at, fileCount),
+                        row = row,
+                        env = env,
+                        format = format,
+                        highlighted = row.id == highlighted,
+                        onOpen = { ui.open(row, files) },
+                        onMore = {
+                            ui.dialog = FileDialog.Actions(
+                                row,
+                                listOf(
+                                    ExtraAction(Icons.AutoMirrored.Outlined.DriveFileMove, moveText, "file-action-move") {
+                                        ui.dialog = FileDialog.MoveFile(row)
+                                    },
+                                ),
+                            )
+                        },
+                        onDelete = { ui.dialog = FileDialog.Delete(row) },
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun FolderRowCard(folder: FolderEntity, count: Int, onOpen: () -> Unit, onMore: () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(Radius.card),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, RemftThemeExtras.colors.hairline),
-        modifier = Modifier.fillMaxWidth().padding(vertical = Space.x1).testTag("folder-row-${folder.id}"),
-    ) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(onClick = onOpen).padding(start = Space.x3, end = Space.x1),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FolderLeadingTile()
-            Spacer(Modifier.width(Space.x3))
-            Column(Modifier.weight(1f).padding(vertical = Space.x2)) {
-                Text(folder.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    stringResource(R.string.files_folderSubtitle).fill("count" to count),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            IconButton(onClick = onMore, modifier = Modifier.testTag("folder-menu-${folder.id}")) {
-                Icon(Icons.Outlined.MoreHoriz, contentDescription = stringResource(R.string.files_folderActions))
-            }
-        }
+private fun FolderRowCard(folder: FolderEntity, count: Int, position: GroupPosition, onOpen: () -> Unit, onMore: () -> Unit) {
+    FileCardContainer(position, "folder-row-${folder.id}") {
+        FolderRowContent(folder.name, stringResource(R.string.files_folderSubtitle).fill("count" to count), folder.id, onOpen, onMore)
     }
+}
+
+@Composable
+private fun FolderRowContent(name: String, subtitle: String, id: String, onOpen: () -> Unit, onMore: () -> Unit) {
+    FileRowLayout(
+        leading = { FolderLeadingTile() },
+        title = name,
+        onClick = onOpen,
+        below = { Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        trailing = {
+            IconButton(onClick = onMore, modifier = Modifier.testTag("folder-menu-$id")) {
+                Icon(Icons.Outlined.MoreHoriz, contentDescription = stringResource(R.string.files_folderActions), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+    )
+}
+
+@Composable
+private fun Crumb(label: String, current: Boolean, tag: String, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    AssistChip(
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        shape = MarkedShapes.pill,
+        border = null,
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = if (current) scheme.primaryContainer else RemftTheme.tonal.level2,
+            labelColor = if (current) scheme.onPrimaryContainer else scheme.onSurfaceVariant,
+        ),
+        modifier = Modifier.testTag(tag),
+    )
 }
 
 @Composable
@@ -519,7 +565,7 @@ private fun SourcesLayer(
         modifier = Modifier.fillMaxSize().testTag("sources-list"),
         contentPadding = PaddingValues(start = Space.x4, end = Space.x4, top = Space.x2, bottom = bottomPadding + Space.x4),
     ) {
-        items(visible, key = { it.file.id }) { entry ->
+        itemsIndexed(visible, key = { _, it -> it.file.id }) { index, entry ->
             val goToSource = ExtraAction(Icons.AutoMirrored.Outlined.OpenInNew, goLabel, "file-action-source") { onGoToSource(entry) }
             FileRowCard(
                 row = entry.file,
@@ -527,10 +573,47 @@ private fun SourcesLayer(
                 format = format,
                 highlighted = entry.file.id == highlighted,
                 badge = (if (entry.sourceType == "task") taskBadge else noteBadge).fill("name" to entry.sourceTitle),
+                position = groupPosition(index, visible.size),
                 onOpen = { ui.open(entry.file, rows, listOf(goToSource)) },
                 onMore = { ui.dialog = FileDialog.Actions(entry.file, listOf(goToSource)) },
                 onDelete = { ui.dialog = FileDialog.Delete(entry.file) },
             )
+        }
+    }
+}
+
+@Preview(name = "Files light", widthDp = 411, heightDp = 760)
+@Composable
+private fun FilesLightPreview() {
+    RemftTheme(darkTheme = false) { FilesPreviewContent() }
+}
+
+@Preview(name = "Files dark", widthDp = 411, heightDp = 760)
+@Composable
+private fun FilesDarkPreview() {
+    RemftTheme(darkTheme = true) { FilesPreviewContent() }
+}
+
+@Composable
+private fun FilesPreviewContent() {
+    PreviewSurface {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Crumb("Files", current = false, tag = "p-root") {}
+                Icon(Icons.Outlined.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
+                Crumb("Home documents", current = true, tag = "p-home") {}
+            }
+            Spacer(Modifier.size(Space.x3))
+            FileCardContainer(GroupPosition.First, "p-f1") { FolderRowContent("Bills", "6 items", "p1", {}, {}) }
+            FileCardContainer(GroupPosition.Last, "p-f2") { FolderRowContent("Travel", "3 items", "p2", {}, {}) }
+            Spacer(Modifier.size(Space.x4))
+            listOf("Electricity bill October.pdf" to "application/pdf", "Train tickets.png" to "image/png").forEachIndexed { index, (name, mime) ->
+                FileCardContainer(groupPosition(index, 2), "p-file-$index") {
+                    FileRowLayout(leading = { KindTile(kindIcon(mime)) }, title = name, onClick = {}, below = {
+                        Text("240 KB · 18 Nov 2026", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    })
+                }
+            }
         }
     }
 }

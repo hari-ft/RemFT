@@ -1,21 +1,30 @@
 package com.ftapps.remft.ui.search
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ftapps.remft.R
 import com.ftapps.remft.data.tasks.PendingDeletes
@@ -27,9 +36,12 @@ import com.ftapps.remft.domain.tasks.Task
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.EmptyState
 import com.ftapps.remft.ui.components.ErrorState
+import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.tasks.RowActions
 import com.ftapps.remft.ui.tasks.TaskRow
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -106,7 +118,11 @@ fun LazyListScope.homeSearchResults(
 ) {
     when (state) {
         TaskSearchState.Loading -> item(key = "home-search-loading") {
-            LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = Space.x2))
+            LinearProgressIndicator(
+                Modifier.fillMaxWidth().padding(vertical = Space.x2),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = RemftTheme.tonal.level2,
+            )
         }
         TaskSearchState.Failed -> item(key = "home-search-failed") { ErrorState(onRetry = onRetry) }
         is TaskSearchState.Ready -> {
@@ -132,17 +148,58 @@ fun LazyListScope.homeSearchResults(
                         onDelete = { actions.onDelete(row.task) },
                     )
                     row.context?.let { snippet ->
-                        Box(Modifier.padding(start = Space.x6, end = Space.x4, bottom = Space.x2)) {
-                            HighlightedText(
-                                text = snippet,
-                                query = query,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        SearchSnippet(snippet, query)
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun SearchSnippet(snippet: String, query: String) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = Space.x12, end = Space.x2, bottom = Space.x2)
+            .background(RemftTheme.tonal.level2, MarkedShapes.small)
+            .padding(horizontal = Space.x3, vertical = Space.x2),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            Icons.Outlined.FormatQuote,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(Space.x2))
+        HighlightedText(
+            text = snippet,
+            query = query,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+        )
+    }
+}
+
+@Composable
+private fun SearchSnippetPreviewContent() {
+    PreviewSurface {
+        Column {
+            SearchSnippet("Ask the landlord for the rent receipt for October", "rent")
+        }
+    }
+}
+
+@Preview(name = "Search snippet light")
+@Composable
+private fun SearchSnippetLightPreview() {
+    RemftTheme(darkTheme = false) { SearchSnippetPreviewContent() }
+}
+
+@Preview(name = "Search snippet dark")
+@Composable
+private fun SearchSnippetDarkPreview() {
+    RemftTheme(darkTheme = true) { SearchSnippetPreviewContent() }
 }

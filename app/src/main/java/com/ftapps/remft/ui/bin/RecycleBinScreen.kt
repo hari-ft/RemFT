@@ -1,20 +1,26 @@
 package com.ftapps.remft.ui.bin
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.AutoDelete
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -22,14 +28,11 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.automirrored.outlined.StickyNote2
+import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -41,9 +44,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,7 +57,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.data.bin.RecycleBin
@@ -66,17 +68,29 @@ import com.ftapps.remft.domain.backup.bin.BinSettings
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.CenteredList
+import com.ftapps.remft.ui.components.ChipRow
+import com.ftapps.remft.ui.components.ChipTone
 import com.ftapps.remft.ui.components.EmptyState
+import com.ftapps.remft.ui.components.GroupedCardItem
+import com.ftapps.remft.ui.components.MarkedCard
+import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftListRow
+import com.ftapps.remft.ui.components.RemftSnackbar
+import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.components.RemftTopBar
+import com.ftapps.remft.ui.components.StatusChip
 import com.ftapps.remft.ui.files.ConfirmDeleteDialog
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import com.ftapps.remft.ui.files.fileDate
 import com.ftapps.remft.ui.files.formatBytes
 import com.ftapps.remft.ui.files.rememberDateFormat
-import com.ftapps.remft.ui.settings.SettingsCard
 import com.ftapps.remft.ui.theme.Breakpoints
-import com.ftapps.remft.ui.theme.Radius
-import com.ftapps.remft.ui.theme.RemftThemeExtras
+import com.ftapps.remft.ui.theme.GroupPosition
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
+import com.ftapps.remft.ui.theme.groupPosition
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -102,7 +116,8 @@ private class BinScreenState {
     var dialog by mutableStateOf<BinDialog?>(null)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+private const val SOON_DAYS = 3
+
 @Composable
 fun RecycleBinScreen(onBack: () -> Unit) {
     val env = LocalFilesEnvironment.current
@@ -110,11 +125,11 @@ fun RecycleBinScreen(onBack: () -> Unit) {
     val state = remember { BinScreenState() }
     val items by remember(env) { env?.bin?.watch() ?: flowOf(emptyList()) }.collectAsState(null)
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
-        snackbarHost = { SnackbarHost(snackbar) },
+        containerColor = RemftTheme.tonal.level0,
+        snackbarHost = { SnackbarHost(snackbar) { RemftSnackbar(it) } },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.bin_title)) },
+            RemftTopBar(
+                title = stringResource(R.string.bin_title),
                 navigationIcon = {
                     IconButton(onClick = onBack, modifier = Modifier.testTag("back")) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
@@ -127,7 +142,6 @@ fun RecycleBinScreen(onBack: () -> Unit) {
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
         modifier = Modifier.testTag("screen-bin"),
@@ -164,13 +178,13 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
     val now = env.clock.instant()
     fun title(item: TrashItemEntity) = item.title.trim().ifEmpty { untitled }
 
-    CenteredList(padding, Breakpoints.settingsMaxWidth) {
+    CenteredList(padding, Breakpoints.settingsMaxWidth, bottomPadding = Space.x6) {
         item {
-            SettingsCard {
+            BinSettingsCard {
                 ListItem(
                     modifier = Modifier.testTag("bin-enabled"),
-                    leadingContent = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
-                    headlineContent = { Text(stringResource(R.string.bin_enabled)) },
+                    leadingContent = { SettingIcon(Icons.Outlined.DeleteOutline) },
+                    headlineContent = { Text(stringResource(R.string.bin_enabled), style = MaterialTheme.typography.titleMedium) },
                     supportingContent = { Text(stringResource(if (prefs.enabled) R.string.bin_enabledOn else R.string.bin_enabledOff)) },
                     trailingContent = {
                         Switch(
@@ -188,10 +202,11 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
                 if (prefs.enabled) {
+                    SettingDivider()
                     ListItem(
                         modifier = Modifier.testTag("bin-auto-delete"),
-                        leadingContent = { Icon(Icons.Outlined.AutoDelete, contentDescription = null) },
-                        headlineContent = { Text(stringResource(R.string.bin_autoDelete)) },
+                        leadingContent = { SettingIcon(Icons.Outlined.AutoDelete) },
+                        headlineContent = { Text(stringResource(R.string.bin_autoDelete), style = MaterialTheme.typography.titleMedium) },
                         supportingContent = {
                             Text(
                                 if (prefs.autoDelete) {
@@ -211,10 +226,11 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     )
                     if (prefs.autoDelete) {
+                        SettingDivider()
                         ListItem(
                             modifier = Modifier.testTag("bin-days").clickable { dialog = BinDialog.Days },
-                            leadingContent = { Icon(Icons.Outlined.Timer, contentDescription = null) },
-                            headlineContent = { Text(stringResource(R.string.bin_daysTitle)) },
+                            leadingContent = { SettingIcon(Icons.Outlined.Timer) },
+                            headlineContent = { Text(stringResource(R.string.bin_daysTitle), style = MaterialTheme.typography.titleMedium) },
                             supportingContent = { Text(stringResource(R.string.bin_days).fill("n" to prefs.days)) },
                             trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null) },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -222,7 +238,7 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
                     }
                 }
             }
-            Spacer(Modifier.height(Space.x3))
+            Spacer(Modifier.height(Space.x4))
         }
         if (items != null && list.isEmpty()) {
             item {
@@ -234,21 +250,25 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
                 )
             }
         }
-        items(list, key = { it.id }) { item ->
+        itemsIndexed(list, key = { _, item -> item.id }) { index, item ->
             val deleted = RecycleBin.deletedAt(item.deletedAt)
             val parts = buildList {
                 add(stringResource(kindLabel(item.kind)))
                 fileDate(item.deletedAt, format, env.clock.zone)?.let { add(stringResource(R.string.bin_deletedOn).fill("date" to it)) }
                 if (item.sizeBytes > 0) add(formatBytes(item.sizeBytes))
-                if (prefs.autoDelete && deleted != null) {
-                    val left = BinCountdown.daysLeft(deleted, prefs.days, now)
-                    add(if (left < 1) stringResource(R.string.bin_goesToday) else stringResource(R.string.bin_daysLeft).fill("n" to left))
-                }
+            }
+            val left = if (prefs.autoDelete && deleted != null) BinCountdown.daysLeft(deleted, prefs.days, now) else null
+            val countdown = left?.let {
+                if (it < 1) stringResource(R.string.bin_goesToday) else stringResource(R.string.bin_daysLeft).fill("n" to it)
             }
             BinRow(
-                item = item,
+                id = item.id,
+                kind = item.kind,
                 title = title(item),
                 subtitle = parts.joinToString(" · "),
+                countdown = countdown,
+                soon = left != null && left <= SOON_DAYS,
+                position = groupPosition(index, list.size),
                 onRestore = {
                     scope.launch {
                         val ok = env.bin.restore(item.id)
@@ -317,65 +337,152 @@ private fun kindIcon(kind: String): ImageVector = when (kind) {
 }
 
 @Composable
-private fun BinRow(item: TrashItemEntity, title: String, subtitle: String, onRestore: () -> Unit, onPurge: () -> Unit) {
+private fun BinSettingsCard(content: @Composable () -> Unit) {
+    MarkedCard(Modifier.fillMaxWidth()) { content() }
+}
+
+@Composable
+private fun SettingIcon(icon: ImageVector) {
+    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+}
+
+@Composable
+private fun SettingDivider() {
+    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 56.dp, end = Space.x3))
+}
+
+@Composable
+private fun BinKindTile(kind: String) {
+    val scheme = MaterialTheme.colorScheme
+    val semantic = RemftTheme.colors
+    val (container, content) = when (kind) {
+        "task" -> semantic.done.container to semantic.done.onContainer
+        "note" -> semantic.note.container to semantic.note.onContainer
+        "folder" -> scheme.primaryContainer to scheme.onPrimaryContainer
+        else -> semantic.file.container to semantic.file.onContainer
+    }
+    Box(Modifier.padding(start = Space.x3).size(40.dp).background(container, MarkedShapes.tile), contentAlignment = Alignment.Center) {
+        Icon(kindIcon(kind), contentDescription = null, tint = content, modifier = Modifier.size(22.dp))
+    }
+}
+
+@Composable
+private fun BinRow(
+    id: String,
+    kind: String,
+    title: String,
+    subtitle: String,
+    countdown: String?,
+    soon: Boolean,
+    position: GroupPosition,
+    onRestore: () -> Unit,
+    onPurge: () -> Unit,
+) {
     var menu by remember { mutableStateOf(false) }
-    Card(
-        shape = RoundedCornerShape(Radius.card),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, RemftThemeExtras.colors.hairline),
-        modifier = Modifier.fillMaxWidth().padding(vertical = Space.x1).testTag("bin-item-${item.id}"),
-    ) {
-        ListItem(
-            leadingContent = { Icon(kindIcon(item.kind), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-            headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            supportingContent = { Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-            trailingContent = {
+    GroupedCardItem(position, Modifier.testTag("bin-item-$id")) {
+        RemftListRow(
+            headline = title,
+            supporting = subtitle,
+            leading = { BinKindTile(kind) },
+            below = if (countdown != null) {
+                { ChipRow { StatusChip(countdown, if (soon) ChipTone.Warning else ChipTone.Neutral, icon = Icons.Outlined.Timer) } }
+            } else {
+                null
+            },
+            trailing = {
                 Box {
-                    IconButton(onClick = { menu = true }, modifier = Modifier.testTag("bin-menu-${item.id}")) {
+                    IconButton(onClick = { menu = true }, modifier = Modifier.testTag("bin-menu-$id")) {
                         Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.bin_actions))
                     }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, shape = MarkedShapes.small) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.bin_restore)) },
+                            leadingIcon = { Icon(Icons.Outlined.Restore, contentDescription = null) },
                             onClick = {
                                 menu = false
                                 onRestore()
                             },
-                            modifier = Modifier.testTag("bin-restore-${item.id}"),
+                            modifier = Modifier.testTag("bin-restore-$id"),
                         )
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.bin_purge)) },
+                            text = { Text(stringResource(R.string.bin_purge), color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                             onClick = {
                                 menu = false
                                 onPurge()
                             },
-                            modifier = Modifier.testTag("bin-purge-${item.id}"),
+                            modifier = Modifier.testTag("bin-purge-$id"),
                         )
                     }
                 }
             },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         )
     }
 }
 
 @Composable
 private fun DaysDialog(current: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.bin_daysTitle)) },
+        title = stringResource(R.string.bin_daysTitle),
         text = {
             Column {
                 BinSettings.DAY_CHOICES.forEach { days ->
-                    ListItem(
-                        modifier = Modifier.testTag("bin-days-$days").clickable { onPick(days) },
-                        leadingContent = { RadioButton(selected = days == current, onClick = { onPick(days) }) },
-                        headlineContent = { Text(stringResource(R.string.bin_days).fill("n" to days)) },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    )
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = Sizes.touchTarget)
+                            .testTag("bin-days-$days")
+                            .selectable(selected = days == current, role = Role.RadioButton, onClick = { onPick(days) }),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Space.x2),
+                    ) {
+                        RadioButton(selected = days == current, onClick = null, modifier = Modifier.padding(start = Space.x1))
+                        Spacer(Modifier.width(Space.x1))
+                        Text(stringResource(R.string.bin_days).fill("n" to days), style = MaterialTheme.typography.bodyLarge)
+                    }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
+        confirmButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },
     )
+}
+
+@Preview(name = "Bin light", widthDp = 411)
+@Composable
+private fun BinLightPreview() {
+    RemftTheme(darkTheme = false) { BinPreviewContent() }
+}
+
+@Preview(name = "Bin dark", widthDp = 411)
+@Composable
+private fun BinDarkPreview() {
+    RemftTheme(darkTheme = true) { BinPreviewContent() }
+}
+
+@Composable
+private fun BinPreviewContent() {
+    Column(Modifier.background(RemftTheme.tonal.level0).padding(Space.x4)) {
+        BinSettingsCard {
+            ListItem(
+                leadingContent = { SettingIcon(Icons.Outlined.DeleteOutline) },
+                headlineContent = { Text("Recycle bin", style = MaterialTheme.typography.titleMedium) },
+                supportingContent = { Text("Deleted items wait here") },
+                trailingContent = { Switch(checked = true, onCheckedChange = {}) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+            SettingDivider()
+            ListItem(
+                leadingContent = { SettingIcon(Icons.Outlined.Timer) },
+                headlineContent = { Text("Keep items for", style = MaterialTheme.typography.titleMedium) },
+                supportingContent = { Text("30 days") },
+                trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+        Spacer(Modifier.height(Space.x4))
+        BinRow("a", "file", "lease-agreement.pdf", "File · Deleted 20 Nov · 1.2 MB", "28 days left", false, GroupPosition.First, {}, {})
+        BinRow("b", "note", "Packing list", "Note · Deleted 2 Nov", "2 days left", true, GroupPosition.Middle, {}, {})
+        BinRow("c", "task", "Renew the library card", "Task · Deleted 1 Nov", "Deleted for good today", true, GroupPosition.Last, {}, {})
+    }
 }

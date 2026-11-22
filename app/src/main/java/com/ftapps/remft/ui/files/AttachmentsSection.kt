@@ -17,6 +17,7 @@ import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.ui.theme.Space
+import com.ftapps.remft.ui.theme.groupPosition
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -42,9 +43,13 @@ fun AttachmentsSection(
     val mine = jobs.filter { it.target.targetType == targetType && it.target.targetId == targetId }
     val pickFailed = stringResource(R.string.file_pickFailed)
     Column(modifier.fillMaxWidth().testTag("attachments-$targetType")) {
-        mine.forEach { job -> UploadRowCard(job, env) { scope.launch { env.uploads.retry(job.localId) } } }
-        rows.forEach { row ->
+        val total = mine.size + rows.size
+        mine.forEachIndexed { index, job ->
+            UploadRowCard(job, env, position = groupPosition(index, total)) { scope.launch { env.uploads.retry(job.localId) } }
+        }
+        rows.forEachIndexed { index, row ->
             FileRowCard(
+                position = groupPosition(mine.size + index, total),
                 row = row,
                 env = env,
                 format = format,

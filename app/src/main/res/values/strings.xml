@@ -824,4 +824,5 @@
     <string name="app_shortcut_today_long">Show today</string>
     <string name="emptyx_errorBody">That didn’t load. Try again in a moment.</string>
     <string name="emptyx_startupBody">RemFT couldn’t finish starting up. Try again, and if it keeps happening, restart your phone.</string>
+    <string name="searchux_keysHint">↑ ↓ to move · Enter to open · Esc to close</string>
 </resources>
