@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,7 +29,7 @@ import com.ftapps.remft.ui.alarm.AlarmActivitySupport
 import com.ftapps.remft.ui.alarm.AlarmRingHost
 import com.ftapps.remft.ui.alarm.LocalAlarmEnvironment
 import com.ftapps.remft.ui.alarm.NotificationPermissionRequest
-import com.ftapps.remft.ui.components.ErrorState
+import com.ftapps.remft.ui.empty.StartupErrorScreen
 import com.ftapps.remft.ui.search.GlobalSearchShortcut
 import com.ftapps.remft.ui.search.LocalSearchEnvironment
 import com.ftapps.remft.ui.search.SearchEnvironment
@@ -111,10 +110,7 @@ class MainActivity : ComponentActivity() {
                             }
                             NotificationPermissionRequest(ready = tour.settled)
                         }
-                        is StartupState.Failed -> Box(
-                            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-                            contentAlignment = Alignment.Center,
-                        ) { ErrorState(onRetry = startup::retry) }
+                        is StartupState.Failed -> StartupErrorScreen(onRetry = startup::retry)
                         StartupState.Starting -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
                     }
                     BackupHost()
