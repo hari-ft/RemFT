@@ -21,6 +21,7 @@ appauth = "0.11.1"
 okhttp = "5.5.0"
 commonmark = "0.33.0"
 coil = "3.3.0"
+exifinterface = "1.4.1"
 haze = "1.7.3"
 junit = "4.13.2"
 robolectric = "4.18.1"
@@ -30,6 +31,7 @@ androidxTestRunner = "1.7.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
+androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }

@@ -33,6 +33,7 @@ fun AttachmentsSection(
     targetId: String,
     onMessage: (String) -> Unit,
     modifier: Modifier = Modifier,
+    launcher: AttachLauncher? = null,
 ) {
     val env = LocalFilesEnvironment.current ?: return
     val scope = rememberCoroutineScope()
@@ -68,6 +69,7 @@ fun AttachmentsSection(
             },
             onFailed = { onMessage(pickFailed) },
             tag = "attach-button",
+            hoisted = launcher,
         )
     }
     FileDialogsHost(ui, env, folders = emptyList(), onMessage = onMessage)

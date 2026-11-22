@@ -79,6 +79,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -100,6 +101,8 @@ import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import com.ftapps.remft.ui.files.NoteAttachments
 import com.ftapps.remft.ui.files.NoteAttachmentsSheet
 import com.ftapps.remft.ui.files.NoteMediaButtons
+import com.ftapps.remft.ui.files.UploadTarget
+import com.ftapps.remft.ui.files.rememberAttachLauncher
 import com.ftapps.remft.ui.notes.ExportMenuItems
 import com.ftapps.remft.ui.notes.NotesDropdownMenu
 import com.ftapps.remft.ui.notes.export.NoteExportHost
@@ -259,11 +262,22 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var binOn by remember { mutableStateOf(true) }
-    var attachmentsFor by remember { mutableStateOf<String?>(null) }
+    var attachmentsFor by rememberSaveable { mutableStateOf<String?>(null) }
     val filesEnv = LocalFilesEnvironment.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val session by viewModel.externalSession.collectAsStateWithLifecycle()
+    val pickFailed = stringResource(R.string.file_pickFailed)
+    val attachLauncher = rememberAttachLauncher(
+        onPicked = { picks ->
+            scope.launch {
+                val env = filesEnv ?: return@launch
+                val id = viewModel.ensureNoteId() ?: return@launch
+                env.uploads.uploadAll(UploadTarget(env.files.workspace(), "note", id), picks)
+            }
+        },
+        onFailed = { toast(context, pickFailed) },
+    )
     TopAppBar(
         title = {
             Text(
@@ -343,7 +357,7 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
         ),
     )
     attachmentsFor?.let { id ->
-        NoteAttachmentsSheet(id, onDismiss = { attachmentsFor = null }) { toast(context, it) }
+        NoteAttachmentsSheet(id, onDismiss = { attachmentsFor = null }, launcher = attachLauncher) { toast(context, it) }
     }
     if (confirmDelete) {
         RemftDialog(
@@ -367,7 +381,7 @@ private fun EditorTopBar(viewModel: NoteEditorViewModel, exportViewModel: NoteEx
 }
 
 @Composable
-private fun SaveIndicator(state: SaveState, external: Boolean, dirty: Boolean) {
+private fun SaveIndicator(state: SaveState, external: Boolean, dirty: Boolean, modifier: Modifier = Modifier) {
     val text = when {
         external && dirty -> stringResource(R.string.note_extUnsaved)
         external -> ""
@@ -380,7 +394,10 @@ private fun SaveIndicator(state: SaveState, external: Boolean, dirty: Boolean) {
         text,
         style = MaterialTheme.typography.labelMedium,
         color = if (state == SaveState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = Space.x2).semantics { liveRegion = LiveRegionMode.Polite }.testTag("save-indicator"),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.End,
+        modifier = modifier.padding(horizontal = Space.x2).semantics { liveRegion = LiveRegionMode.Polite }.testTag("save-indicator"),
     )
 }
 
@@ -479,7 +496,7 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                     inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
                 )
-                SingleChoiceSegmentedButtonRow(Modifier.weight(1f, fill = false)) {
+                SingleChoiceSegmentedButtonRow {
                     EditorMode.entries.forEachIndexed { index, mode ->
                         SegmentedButton(
                             selected = viewModel.mode == mode,
@@ -492,12 +509,12 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                                 stringResource(if (mode == EditorMode.Source) R.string.note_modeSource else R.string.note_modeReading),
                                 style = MaterialTheme.typography.labelLarge,
                                 maxLines = 1,
+                                softWrap = false,
                             )
                         }
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                SaveIndicator(viewModel.saveState, viewModel.isExternal, viewModel.dirty)
+                SaveIndicator(viewModel.saveState, viewModel.isExternal, viewModel.dirty, Modifier.weight(1f))
                 CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
                     RemftIconButton(label = stringResource(R.string.note_outline), onClick = { outline = true }, modifier = Modifier.testTag("open-outline")) {
                         Icon(Icons.AutoMirrored.Outlined.Toc, contentDescription = stringResource(R.string.note_outline))

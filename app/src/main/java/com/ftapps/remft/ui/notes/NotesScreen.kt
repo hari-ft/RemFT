@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.notes
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -153,6 +154,11 @@ fun NotesScreen(
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val dateFormat by viewModel.dateFormat.collectAsStateWithLifecycle()
     var searching by rememberSaveable { mutableStateOf(false) }
+    val closeSearch = {
+        searching = false
+        viewModel.setSearch("")
+    }
+    BackHandler(enabled = searching, onBack = closeSearch)
     val scope = rememberCoroutineScope()
     val undoLabel = stringResource(R.string.common_undo)
     val deletedTemplate = stringResource(R.string.note_deleted)
@@ -218,10 +224,7 @@ fun NotesScreen(
                 },
                 navigationIcon = {
                     if (searching) {
-                        RemftIconButton(label = stringResource(R.string.notes_closeSearch), onClick = {
-                            searching = false
-                            viewModel.setSearch("")
-                        }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.notes_closeSearch)) }
+                        RemftIconButton(label = stringResource(R.string.notes_closeSearch), onClick = closeSearch) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.notes_closeSearch)) }
                     }
                 },
                 actions = {

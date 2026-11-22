@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.FileProvider
+import androidx.exifinterface.media.ExifInterface
 import com.ftapps.remft.BuildConfig
 import com.ftapps.remft.R
 import com.ftapps.remft.data.notes.NotesRepository
@@ -32,8 +33,10 @@ import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.domain.time.UtcText
 import com.ftapps.remft.ui.notes.markdown.decodeSampled
+import com.ftapps.remft.ui.notes.markdown.exifOrientation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -114,7 +117,7 @@ class NoteExporter(private val context: Context, private val repository: NotesRe
     private suspend fun loadImageBytes(blocks: List<NoteBlock>): Map<String, ByteArray> {
         val out = HashMap<String, ByteArray>()
         blocks.filterIsInstance<NoteBlock.Image>().map { it.fileId }.distinct().forEach { id ->
-            repository.attachmentFile(id)?.takeIf { it.length() < MAX_IMAGE_BYTES }?.let { out[id] = it.readBytes() }
+            repository.attachmentFile(id)?.takeIf { it.length() < MAX_IMAGE_BYTES }?.let { out[id] = uprightImageBytes(it) }
         }
         return out
     }
@@ -147,6 +150,20 @@ class NoteExporter(private val context: Context, private val repository: NotesRe
     companion object {
         const val EXPORT_DIR = "exports"
         private const val MAX_IMAGE_BYTES = 25L * 1024 * 1024
+    }
+}
+
+private const val UPRIGHT_MAX_SIDE = 2400
+private const val UPRIGHT_QUALITY = 92
+
+internal fun uprightImageBytes(file: File): ByteArray {
+    val orientation = exifOrientation(file)
+    if (orientation == ExifInterface.ORIENTATION_NORMAL || orientation == ExifInterface.ORIENTATION_UNDEFINED) return file.readBytes()
+    val bitmap = runCatching { decodeSampled(file, UPRIGHT_MAX_SIDE) }.getOrNull() ?: return file.readBytes()
+    return try {
+        ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.JPEG, UPRIGHT_QUALITY, it) }.toByteArray()
+    } finally {
+        bitmap.recycle()
     }
 }
 
