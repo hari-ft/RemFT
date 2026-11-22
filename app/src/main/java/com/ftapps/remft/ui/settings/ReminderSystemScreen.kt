@@ -2,15 +2,22 @@ package com.ftapps.remft.ui.settings
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AddCircleOutline
@@ -20,16 +27,13 @@ import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.RemoveCircleOutline
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.RestartAlt
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,12 +42,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.domain.alarm.ReminderProfile
@@ -53,8 +58,11 @@ import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.ui.alarm.LocalAlarmEnvironment
 import com.ftapps.remft.ui.components.CenteredList
+import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.stringFilled
 import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -114,46 +122,45 @@ private fun ReminderSystemContent(env: AlarmEnvironment, padding: PaddingValues,
     }
 
     CenteredList(padding, Breakpoints.settingsMaxWidth) {
+        item { SettingsSectionHeader(stringResource(R.string.reminderSettings_presets)) }
         item {
             SettingsCard {
-                Column(Modifier.padding(Space.x4)) {
-                    Text(stringResource(R.string.reminderSettings_presets), style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(Space.x2))
-                    val selected = profile.presetId ?: CUSTOM_PRESET
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.x2)) {
-                        (ReminderProfile.PRESETS.map { it.id } + CUSTOM_PRESET).forEach { id ->
-                            FilterChip(
-                                selected = selected == id,
-                                onClick = {
-                                    ReminderProfile.preset(id)?.let { preset -> save(profile.copy(slots = preset.slots)) }
-                                },
-                                label = { Text(stringResource(presetLabel(id))) },
-                                modifier = Modifier.testTag("reminder-preset-$id"),
-                            )
-                        }
+                val selected = profile.presetId ?: CUSTOM_PRESET
+                FlowRow(
+                    modifier = Modifier.padding(horizontal = Space.x4, vertical = Space.x3),
+                    horizontalArrangement = Arrangement.spacedBy(Space.x2),
+                ) {
+                    (ReminderProfile.PRESETS.map { it.id } + CUSTOM_PRESET).forEach { id ->
+                        SettingsFilterChip(
+                            selected = selected == id,
+                            onClick = {
+                                ReminderProfile.preset(id)?.let { preset -> save(profile.copy(slots = preset.slots)) }
+                            },
+                            label = stringResource(presetLabel(id)),
+                            modifier = Modifier.testTag("reminder-preset-$id"),
+                        )
                     }
                 }
             }
-            Spacer(Modifier.height(Space.x3))
         }
+        item { SettingsSectionHeader(stringResource(R.string.reminderSettings_chain)) }
         item {
             SettingsCard {
-                Column(Modifier.padding(Space.x4)) {
-                    Text(stringResource(R.string.reminderSettings_chain), style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(Space.x2))
+                Column(Modifier.padding(start = Space.x4, end = Space.x4, top = Space.x4, bottom = Space.x3)) {
                     Text(
                         stringFilled(R.string.reminderSettings_timeline, "time" to DateFormats.time(base, format)),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = muted,
                     )
                     Spacer(Modifier.height(Space.x1))
                     Text(
                         slots.joinToString(" → ") { DateFormats.time(base.plusMinutes(it.toLong()), format) },
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = scheme.primary,
                         modifier = Modifier.testTag("reminder-timeline"),
                     )
-                    HorizontalDivider(Modifier.padding(vertical = Space.x3), color = scheme.outlineVariant)
+                }
+                Column {
                     slots.forEachIndexed { index, minutes ->
                         val minMinutes = ReminderProfile.minSlotAfter(slots.getOrNull(index - 1))
                         val maxMinutes = slots.getOrNull(index + 1)?.let { it - ReminderProfile.MIN_GAP_MINUTES }
@@ -167,59 +174,74 @@ private fun ReminderSystemContent(env: AlarmEnvironment, padding: PaddingValues,
                             onRemove = { save(profile.copy(slots = slots.toMutableList().also { it.removeAt(index) })) },
                         )
                     }
+                }
+                Column(Modifier.padding(start = Space.x2, end = Space.x4, top = Space.x1, bottom = Space.x4)) {
                     TextButton(
                         onClick = { save(profile.copy(slots = slots + (slots.last() + ADD_STEP_GAP))) },
                         enabled = slots.size < ReminderProfile.MAX_SLOTS,
+                        shape = MarkedShapes.pill,
                         modifier = Modifier.testTag("reminder-add-step"),
                     ) {
                         Icon(Icons.Outlined.Add, contentDescription = null)
                         Text(stringResource(R.string.reminderSettings_addStep), modifier = Modifier.padding(start = Space.x2))
                     }
-                    Spacer(Modifier.height(Space.x2))
-                    Text(
-                        stringFilled(R.string.reminderSettings_minGap, "minutes" to ReminderProfile.MIN_GAP_MINUTES),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = muted,
-                    )
-                    Text(
-                        stringFilled(R.string.reminderSettings_maxSteps, "count" to ReminderProfile.MAX_SLOTS),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = muted,
-                    )
-                    Spacer(Modifier.height(Space.x2))
-                    Text(
-                        stringFilled(R.string.reminderSettings_capacity, "count" to profile.alarmsFullyCovered),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = muted,
-                        modifier = Modifier.testTag("reminder-capacity"),
-                    )
-                    if (slots.size > CAPACITY_WARNING_STEPS) {
+                    Column(Modifier.padding(start = Space.x2)) {
                         Spacer(Modifier.height(Space.x2))
                         Text(
-                            stringResource(R.string.reminderSettings_capacityWarning),
+                            stringFilled(R.string.reminderSettings_minGap, "minutes" to ReminderProfile.MIN_GAP_MINUTES),
                             style = MaterialTheme.typography.bodySmall,
-                            color = scheme.error,
-                            modifier = Modifier.testTag("reminder-capacity-warning"),
+                            color = muted,
                         )
+                        Text(
+                            stringFilled(R.string.reminderSettings_maxSteps, "count" to ReminderProfile.MAX_SLOTS),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = muted,
+                        )
+                        Spacer(Modifier.height(Space.x2))
+                        Text(
+                            stringFilled(R.string.reminderSettings_capacity, "count" to profile.alarmsFullyCovered),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = muted,
+                            modifier = Modifier.testTag("reminder-capacity"),
+                        )
+                        if (slots.size > CAPACITY_WARNING_STEPS) {
+                            Spacer(Modifier.height(Space.x2))
+                            Row(verticalAlignment = Alignment.Top) {
+                                Icon(
+                                    Icons.Outlined.WarningAmber,
+                                    contentDescription = null,
+                                    tint = RemftTheme.colors.warning.color,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(Space.x2))
+                                Text(
+                                    stringResource(R.string.reminderSettings_capacityWarning),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = RemftTheme.colors.warning.color,
+                                    modifier = Modifier.testTag("reminder-capacity-warning"),
+                                )
+                            }
+                        }
                     }
-                    HorizontalDivider(Modifier.padding(vertical = Space.x3), color = scheme.outlineVariant)
-                    ListItem(
-                        modifier = Modifier
-                            .testTag("reminder-repeat-after-snooze")
-                            .toggleable(value = profile.repeatAfterSnooze, role = Role.Switch) { save(profile.copy(repeatAfterSnooze = it)) },
-                        headlineContent = { Text(stringResource(R.string.reminderSettings_repeatAfterSnooze)) },
-                        supportingContent = { Text(stringResource(R.string.reminderSettings_repeatAfterSnoozeSub)) },
-                        trailingContent = { Switch(checked = profile.repeatAfterSnooze, onCheckedChange = null) },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    )
-                    TextButton(onClick = { save(ReminderProfile.Factory) }, modifier = Modifier.testTag("reminder-reset")) {
+                }
+                SettingsItem(
+                    title = stringResource(R.string.reminderSettings_repeatAfterSnooze),
+                    modifier = Modifier
+                        .testTag("reminder-repeat-after-snooze")
+                        .toggleable(value = profile.repeatAfterSnooze, role = Role.Switch) { save(profile.copy(repeatAfterSnooze = it)) },
+                    icon = Icons.Outlined.Repeat,
+                    subtitle = stringResource(R.string.reminderSettings_repeatAfterSnoozeSub),
+                    trailing = { SettingsSwitch(checked = profile.repeatAfterSnooze, onCheckedChange = null) },
+                )
+                Box(Modifier.padding(horizontal = Space.x2, vertical = Space.x1)) {
+                    TextButton(onClick = { save(ReminderProfile.Factory) }, shape = MarkedShapes.pill, modifier = Modifier.testTag("reminder-reset")) {
                         Icon(Icons.Outlined.RestartAlt, contentDescription = null)
                         Text(stringResource(R.string.reminderSettings_reset), modifier = Modifier.padding(start = Space.x2))
                     }
                 }
             }
-            Spacer(Modifier.height(Space.x3))
         }
+        item { SettingsSectionHeader(stringResource(R.string.setx_sectionSounds)) }
         item {
             SettingsCard {
                 SettingsRow(
@@ -237,50 +259,21 @@ private fun ReminderSystemContent(env: AlarmEnvironment, padding: PaddingValues,
                     onClick = { sheet = SoundLane.Reminder },
                 )
             }
-            Spacer(Modifier.height(Space.x3))
         }
+        item { SettingsSectionHeader(stringResource(R.string.reminderSettings_snoozeOrder)) }
+        item { SettingsNote(stringResource(R.string.reminderSettings_snoozeOrderSub), Modifier.padding(bottom = Space.x1)) }
         item {
             SettingsCard {
-                Column(Modifier.padding(vertical = Space.x4)) {
-                    Text(
-                        stringResource(R.string.reminderSettings_snoozeOrder),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(horizontal = Space.x4),
+                order.forEachIndexed { index, id ->
+                    SnoozeOrderRow(
+                        index = index,
+                        id = id,
+                        label = stringResource(snoozePresetLabel(id)),
+                        canMoveUp = index > 0,
+                        canMoveDown = index < order.lastIndex,
+                        onUp = { saveOrder(order.toMutableList().apply { add(index - 1, removeAt(index)) }) },
+                        onDown = { saveOrder(order.toMutableList().apply { add(index + 1, removeAt(index)) }) },
                     )
-                    Spacer(Modifier.height(Space.x1))
-                    Text(
-                        stringResource(R.string.reminderSettings_snoozeOrderSub),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = muted,
-                        modifier = Modifier.padding(horizontal = Space.x4),
-                    )
-                    Spacer(Modifier.height(Space.x2))
-                    order.forEachIndexed { index, id ->
-                        val label = stringResource(snoozePresetLabel(id))
-                        ListItem(
-                            modifier = Modifier.testTag("snooze-order-$id"),
-                            headlineContent = { Text(label) },
-                            trailingContent = {
-                                Row {
-                                    IconButton(
-                                        onClick = { saveOrder(order.toMutableList().apply { add(index - 1, removeAt(index)) }) },
-                                        enabled = index > 0,
-                                        modifier = Modifier.testTag("snooze-up-$id"),
-                                    ) {
-                                        Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.tasks_checklistMoveUp))
-                                    }
-                                    IconButton(
-                                        onClick = { saveOrder(order.toMutableList().apply { add(index + 1, removeAt(index)) }) },
-                                        enabled = index < order.lastIndex,
-                                        modifier = Modifier.testTag("snooze-down-$id"),
-                                    ) {
-                                        Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.tasks_checklistMoveDown))
-                                    }
-                                }
-                            },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        )
-                    }
                 }
             }
         }
@@ -297,6 +290,14 @@ private fun ReminderSystemContent(env: AlarmEnvironment, padding: PaddingValues,
 }
 
 @Composable
+private fun StepBadge(text: String) {
+    val colors = settingsToneColors(SettingsTone.Brand)
+    Box(Modifier.size(32.dp).background(colors.container, CircleShape), contentAlignment = Alignment.Center) {
+        Text(text, style = MaterialTheme.typography.labelLarge, color = colors.content)
+    }
+}
+
+@Composable
 private fun ReminderStepRow(
     index: Int,
     minutes: Int,
@@ -306,28 +307,82 @@ private fun ReminderStepRow(
     onChange: (Int) -> Unit,
     onRemove: () -> Unit,
 ) {
-    ListItem(
-        modifier = Modifier.testTag("reminder-step-$index"),
-        headlineContent = { Text(stringFilled(R.string.reminderSettings_step, "index" to index + 1)) },
-        supportingContent = {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("reminder-step-$index").padding(start = Space.x4, end = Space.x1, top = Space.x1, bottom = Space.x1),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StepBadge("${index + 1}")
+        Spacer(Modifier.width(Space.x3))
+        Column(Modifier.weight(1f)) {
+            Text(stringFilled(R.string.reminderSettings_step, "index" to index + 1), style = MaterialTheme.typography.titleMedium)
             Text(
                 if (minutes == 0) stringResource(R.string.reminderSettings_immediately) else stringFilled(R.string.reminderSettings_atInstant, "minutes" to minutes),
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        },
-        trailingContent = {
-            Row {
-                IconButton(onClick = { onChange(minutes - 1) }, enabled = canDecrease, modifier = Modifier.testTag("reminder-step-$index-minus")) {
-                    Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = stringResource(R.string.reminderSettings_stepEarlier))
-                }
-                IconButton(onClick = { onChange(minutes + 1) }, enabled = canIncrease, modifier = Modifier.testTag("reminder-step-$index-plus")) {
-                    Icon(Icons.Outlined.AddCircleOutline, contentDescription = stringResource(R.string.reminderSettings_stepLater))
-                }
-                IconButton(onClick = onRemove, enabled = canRemove, modifier = Modifier.testTag("reminder-step-$index-remove")) {
-                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.reminderSettings_removeStep))
-                }
-            }
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-    )
+        }
+        IconButton(onClick = { onChange(minutes - 1) }, enabled = canDecrease, modifier = Modifier.testTag("reminder-step-$index-minus")) {
+            Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = stringResource(R.string.reminderSettings_stepEarlier))
+        }
+        IconButton(onClick = { onChange(minutes + 1) }, enabled = canIncrease, modifier = Modifier.testTag("reminder-step-$index-plus")) {
+            Icon(Icons.Outlined.AddCircleOutline, contentDescription = stringResource(R.string.reminderSettings_stepLater))
+        }
+        IconButton(onClick = onRemove, enabled = canRemove, modifier = Modifier.testTag("reminder-step-$index-remove")) {
+            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.reminderSettings_removeStep))
+        }
+    }
+}
+
+@Composable
+private fun SnoozeOrderRow(
+    index: Int,
+    id: String,
+    label: String,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onUp: () -> Unit,
+    onDown: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("snooze-order-$id").padding(start = Space.x4, end = Space.x1, top = Space.x1, bottom = Space.x1),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StepBadge("${index + 1}")
+        Spacer(Modifier.width(Space.x3))
+        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        IconButton(onClick = onUp, enabled = canMoveUp, modifier = Modifier.testTag("snooze-up-$id")) {
+            Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.tasks_checklistMoveUp))
+        }
+        IconButton(onClick = onDown, enabled = canMoveDown, modifier = Modifier.testTag("snooze-down-$id")) {
+            Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.tasks_checklistMoveDown))
+        }
+    }
+}
+
+@Preview(name = "Reminder system light")
+@Composable
+private fun ReminderSystemLightPreview() {
+    RemftTheme(darkTheme = false) { PreviewSurface { ReminderSystemPreviewBody() } }
+}
+
+@Preview(name = "Reminder system dark")
+@Composable
+private fun ReminderSystemDarkPreview() {
+    RemftTheme(darkTheme = true) { PreviewSurface { ReminderSystemPreviewBody() } }
+}
+
+@Composable
+private fun ReminderSystemPreviewBody() {
+    Column {
+        SettingsSectionHeader("The alerts")
+        SettingsCard {
+            ReminderStepRow(0, 0, canDecrease = false, canIncrease = true, canRemove = true, onChange = {}, onRemove = {})
+            ReminderStepRow(1, 5, canDecrease = true, canIncrease = true, canRemove = true, onChange = {}, onRemove = {})
+        }
+        SettingsSectionHeader("Snooze buttons")
+        SettingsCard {
+            SnoozeOrderRow(0, "5_min", "5 min", canMoveUp = false, canMoveDown = true, onUp = {}, onDown = {})
+            SnoozeOrderRow(1, "1_hour", "1 hour", canMoveUp = true, canMoveDown = false, onUp = {}, onDown = {})
+        }
+    }
 }

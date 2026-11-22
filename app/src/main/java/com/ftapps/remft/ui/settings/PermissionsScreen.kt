@@ -2,8 +2,9 @@ package com.ftapps.remft.ui.settings
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
@@ -16,23 +17,23 @@ import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import com.ftapps.remft.R
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.PermissionKind
 import com.ftapps.remft.ui.alarm.LocalAlarmEnvironment
+import com.ftapps.remft.ui.components.AppBackground
 import com.ftapps.remft.ui.components.CenteredList
 import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 
 private class PermissionRowSpec(val icon: ImageVector, @param:StringRes val title: Int, @param:StringRes val why: Int)
@@ -66,65 +67,95 @@ fun PermissionsScreen(onBack: () -> Unit) {
 private fun PermissionsContent(env: AlarmEnvironment, padding: PaddingValues) {
     val context = LocalContext.current
     val status = rememberAlarmPermissionProbe(env).status
+    PermissionsBody(
+        padding = padding,
+        loaded = status != null,
+        allowed = { kind -> status?.allowed(kind) },
+        onOpen = { kind -> env.health.open(context, kind) },
+    )
+}
+
+@Composable
+fun PermissionsBody(padding: PaddingValues, loaded: Boolean, allowed: (PermissionKind) -> Boolean?, onOpen: (PermissionKind) -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val semantic = RemftTheme.colors
     CenteredList(padding, Breakpoints.settingsMaxWidth) {
-        item {
-            Text(
-                stringResource(R.string.permissions_intro),
-                style = MaterialTheme.typography.bodyMedium,
-                color = scheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = Space.x2, end = Space.x2, bottom = Space.x3),
-            )
-        }
+        item { SettingsNote(stringResource(R.string.permissions_intro)) }
+        item { Spacer(Modifier.height(Space.x2)) }
         item {
             SettingsCard {
                 PermissionKind.entries.forEach { kind ->
                     val spec = kind.spec()
-                    val loaded = status != null
-                    val allowed = status?.allowed(kind)
-                    val statusText = stringResource(permissionStatusText(kind, allowed))
-                    val blocked = loaded && allowed == false
-                    ListItem(
-                        modifier = Modifier.testTag("permission-${kind.name}").clickable { env.health.open(context, kind) },
-                        leadingContent = { Icon(spec.icon, contentDescription = null) },
-                        headlineContent = {
-                            Text(stringResource(spec.title), color = if (blocked) scheme.error else Color.Unspecified)
+                    val state = if (loaded) allowed(kind) else null
+                    val statusText = stringResource(permissionStatusText(kind, state))
+                    val statusColor = when {
+                        !loaded || state == null -> scheme.onSurfaceVariant
+                        state -> semantic.success.color
+                        else -> semantic.warning.color
+                    }
+                    SettingsItem(
+                        title = stringResource(spec.title),
+                        modifier = Modifier.testTag("permission-${kind.name}").clickable { onOpen(kind) },
+                        icon = spec.icon,
+                        tone = when {
+                            !loaded -> SettingsTone.Brand
+                            state == true -> SettingsTone.Success
+                            state == false -> SettingsTone.Warning
+                            else -> SettingsTone.Neutral
                         },
-                        supportingContent = {
-                            Column {
-                                Text(stringResource(spec.why))
-                                if (loaded) {
-                                    Text(
-                                        statusText,
-                                        color = if (blocked) scheme.error else Color.Unspecified,
-                                        modifier = Modifier.testTag("permission-${kind.name}-status"),
-                                    )
-                                }
-                            }
-                        },
-                        trailingContent = if (loaded) {
+                        subtitle = stringResource(spec.why),
+                        below = if (loaded) {
                             {
-                                Icon(
-                                    when (allowed) {
-                                        true -> Icons.Outlined.CheckCircle
-                                        false -> Icons.Outlined.ErrorOutline
-                                        null -> Icons.AutoMirrored.Outlined.HelpOutline
-                                    },
-                                    contentDescription = statusText,
-                                    tint = when (allowed) {
-                                        true -> scheme.primary
-                                        false -> scheme.error
-                                        null -> scheme.onSurfaceVariant
-                                    },
+                                Text(
+                                    statusText,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = statusColor,
+                                    modifier = Modifier.padding(top = Space.x1).testTag("permission-${kind.name}-status"),
                                 )
                             }
                         } else {
                             null
                         },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        trailing = if (loaded) {
+                            {
+                                Icon(
+                                    when (state) {
+                                        true -> Icons.Outlined.CheckCircle
+                                        false -> Icons.Outlined.ErrorOutline
+                                        null -> Icons.AutoMirrored.Outlined.HelpOutline
+                                    },
+                                    contentDescription = statusText,
+                                    tint = statusColor,
+                                )
+                            }
+                        } else {
+                            null
+                        },
                     )
                 }
             }
         }
     }
+}
+
+@Preview(name = "Permissions light")
+@Composable
+private fun PermissionsLightPreview() {
+    RemftTheme(darkTheme = false) { AppBackground { PermissionsPreviewBody() } }
+}
+
+@Preview(name = "Permissions dark")
+@Composable
+private fun PermissionsDarkPreview() {
+    RemftTheme(darkTheme = true) { AppBackground { PermissionsPreviewBody() } }
+}
+
+@Composable
+private fun PermissionsPreviewBody() {
+    PermissionsBody(
+        padding = PaddingValues(),
+        loaded = true,
+        allowed = { kind -> kind != PermissionKind.BATTERY && kind != PermissionKind.BACKGROUND_DATA },
+        onOpen = {},
+    )
 }

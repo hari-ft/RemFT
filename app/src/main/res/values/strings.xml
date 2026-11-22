@@ -825,4 +825,27 @@
     <string name="emptyx_errorBody">That didn’t load. Try again in a moment.</string>
     <string name="emptyx_startupBody">RemFT couldn’t finish starting up. Try again, and if it keeps happening, restart your phone.</string>
     <string name="searchux_keysHint">↑ ↓ to move · Enter to open · Esc to close</string>
+    <string name="setx_sectionPreferences">Preferences</string>
+    <string name="setx_sectionData">Your data</string>
+    <string name="setx_sectionSupport">Troubleshooting</string>
+    <string name="setx_sectionAbout">About</string>
+    <string name="setx_sectionLook">Look and feel</string>
+    <string name="setx_sectionHelp">Help</string>
+    <string name="setx_sectionAlarms">Alarms</string>
+    <string name="setx_sectionReminders">Reminders</string>
+    <string name="setx_sectionSounds">Sounds</string>
+    <string name="setx_sectionBackUpRestore">Back up and restore</string>
+    <string name="setx_sectionCloud">In the cloud</string>
+    <string name="setx_sectionConnection">Connection</string>
+    <string name="setx_sectionSchedule">Schedule</string>
+    <string name="setx_sectionStorage">Storage</string>
+    <string name="setx_logEntries">Entries</string>
+    <string name="setx_licences">Font licences</string>
+    <string name="setx_licencesSub">The fonts that ship with the app and their licences</string>
+    <string name="setx_licencesIntro">RemFT bundles these fonts. Tap one to read its licence.</string>
+    <string name="setx_licenceKind">SIL Open Font Licence 1.1</string>
+    <string name="setx_licenceFailed">This licence could not be opened.</string>
+    <string name="setx_fontBricolage">Bricolage Grotesque</string>
+    <string name="setx_fontInstrument">Instrument Sans</string>
+    <string name="setx_fontJetBrains">JetBrains Mono</string>
 </resources>

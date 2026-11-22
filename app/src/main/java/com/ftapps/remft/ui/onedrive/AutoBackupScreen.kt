@@ -2,7 +2,7 @@ package com.ftapps.remft.ui.onedrive
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,22 +28,12 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PauseCircleOutline
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -61,6 +51,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -77,11 +68,23 @@ import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.backup.formatBackupDate
 import com.ftapps.remft.ui.components.CenteredList
+import com.ftapps.remft.ui.components.PreviewSurface
+import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftFilledButton
+import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.components.SectionScaffold
 import com.ftapps.remft.ui.components.stringFilled
 import com.ftapps.remft.ui.settings.SettingsCard
+import com.ftapps.remft.ui.settings.SettingsBanner
+import com.ftapps.remft.ui.settings.SettingsItem
+import com.ftapps.remft.ui.settings.SettingsNote
 import com.ftapps.remft.ui.settings.SettingsRow
+import com.ftapps.remft.ui.settings.SettingsSectionHeader
+import com.ftapps.remft.ui.settings.SettingsSwitch
+import com.ftapps.remft.ui.settings.SettingsTone
 import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.theme.MarkedShapes
+import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import java.time.Instant
 
@@ -165,14 +168,8 @@ fun AutoBackupContent(ui: AutoBackupUi, onBack: () -> Unit, actions: AutoBackupA
                 item { PausedCard(pause.previous.items, pause.current.items, enabled = !ui.busy) { dialog = AutoBackupDialog.Paused } }
                 item { Spacer(Modifier.height(Space.x3)) }
             }
-            item {
-                Text(
-                    stringResource(R.string.autoBackup_intro),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = Space.x2, vertical = Space.x2).testTag("auto-backup-intro"),
-                )
-            }
+            item { SettingsNote(stringResource(R.string.autoBackup_intro), Modifier.testTag("auto-backup-intro")) }
+            item { SettingsSectionHeader(stringResource(R.string.setx_sectionConnection)) }
             item {
                 SettingsCard {
                     if (!s.connected) {
@@ -183,6 +180,7 @@ fun AutoBackupContent(ui: AutoBackupUi, onBack: () -> Unit, actions: AutoBackupA
                             if (s.on) "auto-backup-onedrive-reconnect" else "auto-backup-onedrive-connect",
                             enabled = !ui.busy,
                             onClick = actions.onConnect,
+                            tone = if (s.on) SettingsTone.Warning else SettingsTone.Brand,
                         )
                     } else {
                         SettingsRow(
@@ -192,13 +190,14 @@ fun AutoBackupContent(ui: AutoBackupUi, onBack: () -> Unit, actions: AutoBackupA
                             "auto-backup-onedrive",
                             enabled = !ui.busy,
                             trailing = {
-                                Switch(
+                                SettingsSwitch(
                                     checked = s.on,
                                     onCheckedChange = if (ui.busy) null else actions.onSetOn,
                                     modifier = Modifier.testTag("auto-backup-onedrive-switch"),
                                 )
                             },
                             onClick = { actions.onSetOn(!s.on) },
+                            tone = if (s.on) SettingsTone.Success else SettingsTone.Neutral,
                         )
                         if (s.reconnect) {
                             SettingsRow(
@@ -208,6 +207,7 @@ fun AutoBackupContent(ui: AutoBackupUi, onBack: () -> Unit, actions: AutoBackupA
                                 "auto-backup-onedrive-reconnect",
                                 enabled = !ui.busy,
                                 onClick = actions.onConnect,
+                                tone = SettingsTone.Warning,
                             )
                         }
                         SettingsRow(
@@ -218,17 +218,18 @@ fun AutoBackupContent(ui: AutoBackupUi, onBack: () -> Unit, actions: AutoBackupA
                             enabled = !ui.busy,
                             trailing = null,
                             onClick = { dialog = AutoBackupDialog.Disconnect },
+                            tone = if (s.status?.ok == false) SettingsTone.Warning else SettingsTone.Neutral,
                         )
                     }
                 }
             }
-            item { Spacer(Modifier.height(Space.x3)) }
+            item { SettingsSectionHeader(stringResource(R.string.setx_sectionSchedule)) }
             item { ScheduleCard(s, ui, onEdit = { dialog = it }) }
+            item { SettingsSectionHeader(stringResource(R.string.setx_sectionStorage)) }
             if (s.connected) {
-                item { Spacer(Modifier.height(Space.x3)) }
                 item { MirrorStatusCard(ui.counts, ui.downloads, actions.onRetryDownloads) }
+                item { Spacer(Modifier.height(Space.x3)) }
             }
-            item { Spacer(Modifier.height(Space.x3)) }
             item {
                 SettingsCard {
                     SettingsRow(
@@ -242,23 +243,21 @@ fun AutoBackupContent(ui: AutoBackupUi, onBack: () -> Unit, actions: AutoBackupA
                 }
             }
             item {
-                Column(Modifier.fillMaxWidth().padding(top = Space.x4), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Button(
+                Column(Modifier.fillMaxWidth().padding(top = Space.x6), horizontalAlignment = Alignment.CenterHorizontally) {
+                    RemftFilledButton(
+                        stringResource(R.string.autoBackup_now),
                         onClick = actions.onBackUpNow,
                         enabled = !ui.busy && s.on && s.connected,
+                        icon = Icons.Outlined.Backup,
                         modifier = Modifier.testTag("auto-backup-now"),
-                    ) {
-                        Icon(Icons.Outlined.Backup, contentDescription = null)
-                        Spacer(Modifier.width(Space.x2))
-                        Text(stringResource(R.string.autoBackup_now))
-                    }
+                    )
                     Spacer(Modifier.height(Space.x2))
                     Text(
                         AutoBackupText.summary(resources, s, ui.dateFormat),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.testTag("auto-backup-summary"),
+                        modifier = Modifier.padding(horizontal = Space.x4).testTag("auto-backup-summary"),
                     )
                 }
             }
@@ -282,26 +281,23 @@ private fun statusLine(status: DestinationStatus?, format: DateFormatId): String
 
 @Composable
 private fun PausedCard(before: Long, now: Long, enabled: Boolean, onAnyway: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Card(
-        modifier = Modifier.fillMaxWidth().testTag("auto-backup-paused"),
-        colors = CardDefaults.cardColors(containerColor = scheme.errorContainer, contentColor = scheme.onErrorContainer),
-    ) {
-        Column(Modifier.padding(Space.x4)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.PauseCircleOutline, contentDescription = null)
-                Spacer(Modifier.width(Space.x3))
-                Text(stringResource(R.string.autoBackup_pausedTitle), style = MaterialTheme.typography.titleSmall)
-            }
-            Spacer(Modifier.height(Space.x2))
-            Text(stringFilled(R.string.autoBackup_pausedBody, "before" to before, "now" to now), style = MaterialTheme.typography.bodyMedium)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                FilledTonalButton(onClick = onAnyway, enabled = enabled, modifier = Modifier.testTag("auto-backup-paused-anyway")) {
-                    Text(stringResource(R.string.autoBackup_pausedAnyway))
-                }
-            }
-        }
-    }
+    val warning = RemftTheme.colors.warning
+    SettingsBanner(
+        icon = Icons.Outlined.PauseCircleOutline,
+        title = stringResource(R.string.autoBackup_pausedTitle),
+        tone = SettingsTone.Warning,
+        modifier = Modifier.testTag("auto-backup-paused"),
+        body = stringFilled(R.string.autoBackup_pausedBody, "before" to before, "now" to now),
+        actions = {
+            RemftTextButton(
+                stringResource(R.string.autoBackup_pausedAnyway),
+                onClick = onAnyway,
+                enabled = enabled,
+                color = warning.onContainer,
+                modifier = Modifier.testTag("auto-backup-paused-anyway"),
+            )
+        },
+    )
 }
 
 @Composable
@@ -366,7 +362,12 @@ private fun ScheduleCard(s: AutoBackupSnapshot, ui: AutoBackupUi, onEdit: (AutoB
         }
         Column(Modifier.padding(horizontal = Space.x4, vertical = Space.x3)) {
             AutoBackupText.next(resources, s, ui.dateFormat, Instant.now())?.let { next ->
-                Text(next, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("auto-backup-next"))
+                Text(
+                    next,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.testTag("auto-backup-next"),
+                )
                 Spacer(Modifier.height(Space.x1))
             }
             Text(
@@ -389,23 +390,28 @@ private fun MirrorStatusCard(counts: MirrorCounts?, downloads: MirrorDownloadSta
         AutoBackupText.downloadLine(resources, downloads)?.let { add(it) }
     }
     SettingsCard {
-        ListItem(
+        SettingsItem(
+            title = stringResource(R.string.mirror_title),
             modifier = Modifier.testTag("auto-backup-mirror"),
-            leadingContent = { Icon(Icons.Outlined.FolderCopy, contentDescription = null) },
-            headlineContent = { Text(stringResource(R.string.mirror_title)) },
-            supportingContent = {
+            icon = Icons.Outlined.FolderCopy,
+            tone = if (downloads.phase == MirrorDownloadPhase.Waiting) SettingsTone.Warning else SettingsTone.Brand,
+            below = {
                 Column {
-                    if (lines.isNotEmpty()) Text(lines.joinToString("\n"))
+                    if (lines.isNotEmpty()) {
+                        Text(lines.joinToString("\n"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Spacer(Modifier.height(Space.x1))
-                    Text(stringResource(R.string.mirror_reviewNeeded), modifier = Modifier.testTag("auto-backup-mirror-review"))
+                    Text(
+                        stringResource(R.string.mirror_reviewNeeded),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("auto-backup-mirror-review"),
+                    )
                     if (downloads.phase == MirrorDownloadPhase.Waiting) {
-                        TextButton(onClick = onRetry, modifier = Modifier.testTag("auto-backup-mirror-retry")) {
-                            Text(stringResource(R.string.mirror_retry))
-                        }
+                        RemftTextButton(stringResource(R.string.mirror_retry), onClick = onRetry, modifier = Modifier.testTag("auto-backup-mirror-retry"))
                     }
                 }
             },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         )
     }
 }
@@ -490,19 +496,20 @@ private fun AutoBackupDialogs(
 
 @Composable
 private fun ConfirmDialog(title: String, body: String, action: String, tag: String, onClose: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onClose,
-        title = { Text(title) },
-        text = { Text(body) },
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.common_cancel)) } },
+        title = title,
+        text = { Text(body, style = MaterialTheme.typography.bodyMedium) },
+        dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onClose) },
         confirmButton = {
-            Button(
+            RemftFilledButton(
+                action,
                 onClick = {
                     onClose()
                     onConfirm()
                 },
                 modifier = Modifier.testTag(tag),
-            ) { Text(action) }
+            )
         },
     )
 }
@@ -517,33 +524,49 @@ private fun <T> ChoiceDialog(
     onClose: () -> Unit,
     onPick: (T) -> Unit,
 ) {
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onClose,
-        title = { Text(title) },
+        title = title,
         text = {
             LazyColumn(Modifier.heightIn(max = 420.dp)) {
                 items(options) { option ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
+                    ChoiceRow(
+                        label = label(option),
+                        selected = option == selected,
+                        modifier = Modifier
                             .selectable(selected = option == selected, role = Role.RadioButton) {
                                 onClose()
                                 onPick(option)
                             }
                             .testTag("$tagPrefix-$option"),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = option == selected, onClick = null)
-                        Spacer(Modifier.width(Space.x3))
-                        Text(label(option))
-                    }
+                    )
                 }
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.common_cancel)) } },
+        dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onClose) },
     )
+}
+
+@Composable
+private fun ChoiceRow(label: String, selected: Boolean, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .background(if (selected) scheme.primaryContainer else Color.Transparent, MarkedShapes.pill)
+            .padding(horizontal = Space.x2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(Space.x3))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (selected) scheme.onPrimaryContainer else scheme.onSurface,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -554,19 +577,49 @@ private fun TimeDialog(minutes: Int, format: DateFormatId, onClose: () -> Unit, 
         initialMinute = minutes % 60,
         is24Hour = format != DateFormatId.Mdy12h,
     )
-    AlertDialog(
+    RemftDialog(
         onDismissRequest = onClose,
         modifier = Modifier.testTag("auto-backup-time-dialog"),
         text = { TimePicker(state = state) },
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.common_cancel)) } },
+        dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onClose) },
         confirmButton = {
-            TextButton(
+            RemftTextButton(
+                stringResource(R.string.common_save),
                 onClick = {
                     onClose()
                     onPick(state.hour * 60 + state.minute)
                 },
                 modifier = Modifier.testTag("auto-backup-time-save"),
-            ) { Text(stringResource(R.string.common_save)) }
+            )
         },
     )
+}
+
+@Preview(name = "Automatic backup light")
+@Composable
+private fun AutoBackupLightPreview() {
+    RemftTheme(darkTheme = false) { PreviewSurface { AutoBackupPreviewBody() } }
+}
+
+@Preview(name = "Automatic backup dark")
+@Composable
+private fun AutoBackupDarkPreview() {
+    RemftTheme(darkTheme = true) { PreviewSurface { AutoBackupPreviewBody() } }
+}
+
+@Composable
+private fun AutoBackupPreviewBody() {
+    Column {
+        PausedCard(before = 54, now = 7, enabled = true, onAnyway = {})
+        SettingsSectionHeader("Connection")
+        SettingsCard {
+            SettingsRow(Icons.Outlined.Cloud, "OneDrive", "someone@example.com", "p-onedrive", trailing = {
+                SettingsSwitch(checked = true, onCheckedChange = {})
+            }, tone = SettingsTone.Success)
+            SettingsRow(Icons.Outlined.ErrorOutline, "Reconnect OneDrive", "Sign in again", "p-reconnect", tone = SettingsTone.Warning)
+        }
+        Spacer(Modifier.height(Space.x3))
+        ChoiceRow("Every day", selected = true)
+        ChoiceRow("Weekly", selected = false)
+    }
 }

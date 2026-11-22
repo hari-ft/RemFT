@@ -4,47 +4,38 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.HistoryToggleOff
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ftapps.remft.R
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.AlarmEventLog
 import com.ftapps.remft.data.alarm.AlarmLogEvent
 import com.ftapps.remft.data.db.entity.AlarmEventEntity
-import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.ui.alarm.LocalAlarmEnvironment
 import com.ftapps.remft.ui.components.CenteredList
 import com.ftapps.remft.ui.components.EmptyState
+import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.theme.GroupPosition
+import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.groupPosition
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -96,17 +87,10 @@ fun AlarmLogScreen(onBack: () -> Unit) {
 @Composable
 private fun AlarmLogContent(env: AlarmEnvironment, padding: PaddingValues, rows: List<AlarmEventEntity>?) {
     val format = rememberAlarmDateFormat(env)
-    val scheme = MaterialTheme.colorScheme
     CenteredList(padding, Breakpoints.settingsMaxWidth) {
         item {
-            SettingsCard {
-                Row(Modifier.padding(Space.x4)) {
-                    Icon(Icons.Outlined.Info, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(Space.x3))
-                    Text(stringResource(R.string.alarmLog_scope), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-                }
-            }
-            Spacer(Modifier.height(Space.x3))
+            SettingsInfo(stringResource(R.string.alarmLog_scope))
+            Spacer(Modifier.height(Space.x4))
         }
         when {
             rows == null -> Unit
@@ -118,36 +102,38 @@ private fun AlarmLogContent(env: AlarmEnvironment, padding: PaddingValues, rows:
                     Modifier.testTag("alarm-log-empty"),
                 )
             }
-            else -> items(rows, key = { it.id }) { row ->
-                AlarmLogRow(row, env, format)
+            else -> itemsIndexed(rows, key = { _, row -> row.id }) { index, row ->
+                LogEntryRow(
+                    position = groupPosition(index, rows.size),
+                    title = "${alarmEventLabel(row.event)} · ${row.lane}",
+                    stamp = alarmLogStamp(env, row.at, format),
+                    details = AlarmEventLog.formatLine(row),
+                    modifier = Modifier.testTag("alarm-log-row"),
+                )
             }
         }
     }
 }
 
+@Preview(name = "Alarm log light")
 @Composable
-private fun AlarmLogRow(row: AlarmEventEntity, env: AlarmEnvironment, format: DateFormatId) {
-    val scheme = MaterialTheme.colorScheme
-    LogEntryCard {
-        ListItem(
-            modifier = Modifier.fillMaxWidth().testTag("alarm-log-row"),
-            headlineContent = {
-                Text("${alarmEventLabel(row.event)} · ${row.lane}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            },
-            supportingContent = {
-                Text(AlarmEventLog.formatLine(row), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            },
-            trailingContent = {
-                Text(alarmLogStamp(env, row.at, format), style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        )
-    }
+private fun AlarmLogLightPreview() {
+    RemftTheme(darkTheme = false) { PreviewSurface { AlarmLogPreviewBody() } }
+}
+
+@Preview(name = "Alarm log dark")
+@Composable
+private fun AlarmLogDarkPreview() {
+    RemftTheme(darkTheme = true) { PreviewSurface { AlarmLogPreviewBody() } }
 }
 
 @Composable
-fun LogEntryCard(content: @Composable () -> Unit) {
-    Column(Modifier.padding(bottom = Space.x2)) {
-        SettingsCard(content)
+private fun AlarmLogPreviewBody() {
+    Column {
+        SettingsInfo("Sample note about which alarms this log keeps.")
+        Spacer(Modifier.height(Space.x4))
+        LogEntryRow(GroupPosition.First, "Scheduled · urgent", "22 Nov 09:00", details = "task=sample-1 at=09:30")
+        LogEntryRow(GroupPosition.Middle, "Ring shown · urgent", "22 Nov 09:30", details = "task=sample-1")
+        LogEntryRow(GroupPosition.Last, "Cancelled · reminder", "22 Nov 09:31", details = "task=sample-2")
     }
 }
