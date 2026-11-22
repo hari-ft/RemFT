@@ -2,6 +2,7 @@ package com.ftapps.remft.data.backup
 
 import com.ftapps.remft.data.db.DatabaseHolder
 import com.ftapps.remft.data.db.DatabaseSchema
+import com.ftapps.remft.data.db.RemftDatabase
 import com.ftapps.remft.domain.time.UtcText
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.backup.BackupLog
@@ -33,6 +34,8 @@ import kotlin.concurrent.thread
 
 enum class RestoreStage { Tasks, Files, Settings }
 
+class RestoreDatabaseInUse : IllegalStateException("The database is still in use; nothing was restored")
+
 fun interface RestoredFilesFetcher {
     suspend fun fetch(dbFile: File, onProgress: (done: Int, total: Int) -> Unit)
 }
@@ -51,6 +54,7 @@ class BackupService(
     private val closeWait: Duration = Duration.ofSeconds(10),
     private val missingLocalRefs: suspend () -> Map<String, MirrorRef> = { emptyMap() },
     private val restoredFiles: RestoredFilesFetcher? = null,
+    private val closeDb: (RemftDatabase) -> Unit = { it.close() },
 ) {
     private val settler = RestoredDataSettler(store, log, clock)
 
@@ -147,7 +151,10 @@ class BackupService(
         try {
             onStage(RestoreStage.Tasks)
             hold = locks().beginRestore(restoreLockWait)
-            if (!closeDatabase()) log.warn("backup.restore_db_close_timeout")
+            if (!closeDatabase()) {
+                log.warn("backup.restore_db_close_timeout")
+                throw RestoreDatabaseInUse()
+            }
             BackupRestore.restore(
                 backup,
                 dbFile = paths.dbFile,
@@ -177,10 +184,11 @@ class BackupService(
     }
 
     private fun closeDatabase(): Boolean {
+        val closing = holder.detachForRestore() ?: return true
         val closed = CountDownLatch(1)
         thread(name = "restore-close-db", isDaemon = true) {
             try {
-                holder.closeForRestore()
+                closeDb(closing)
             } catch (e: Exception) {
                 log.warn("backup.restore_db_close_failed", e)
             } finally {

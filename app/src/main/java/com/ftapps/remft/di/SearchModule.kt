@@ -1,11 +1,11 @@
 package com.ftapps.remft.di
 
 import com.ftapps.remft.data.db.DatabaseHolder
+import com.ftapps.remft.data.identity.LocalIdentityRepository
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.data.search.SearchDao
 import com.ftapps.remft.data.search.SearchRecentsStore
 import com.ftapps.remft.data.search.SearchRepository
-import com.ftapps.remft.data.tasks.TasksRepository
 import com.ftapps.remft.ui.search.SearchEnvironment
 import dagger.Module
 import dagger.Provides
@@ -22,8 +22,8 @@ object SearchModule {
 
     @Provides
     @Singleton
-    fun searchRepository(dao: SearchDao, tasks: TasksRepository): SearchRepository =
-        SearchRepository(dao, tasks::workspaceId)
+    fun searchRepository(dao: SearchDao, identity: LocalIdentityRepository): SearchRepository =
+        SearchRepository(dao, identity::workspaceId)
 
     @Provides
     @Singleton

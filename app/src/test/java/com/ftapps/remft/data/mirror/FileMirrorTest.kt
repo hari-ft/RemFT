@@ -84,6 +84,16 @@ class FileMirrorTest {
     }
 
     @Test
+    fun catchUpStopsBetweenFilesWhenARestoreStarts() = runBlocking {
+        val stopping = FileMirror(sql, remote, filesDir, rig.store, clock = { now }, log = BackupLog.None, stopRequested = { remote.puts.isNotEmpty() })
+        val result = stopping.catchUp()
+        assertEquals(1, result.uploaded)
+        assertEquals(1, result.remaining)
+        assertEquals(1, remote.puts.size)
+        assertTrue(remote.deletes.isEmpty())
+    }
+
+    @Test
     fun catchUpUploadsEachFileOnceAndVerifiesIt() = runBlocking {
         val result = mirror().catchUp()
         assertEquals(2, result.uploaded)

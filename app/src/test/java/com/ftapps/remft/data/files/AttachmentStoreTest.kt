@@ -201,6 +201,17 @@ class AttachmentStoreTest {
     }
 
     @Test
+    fun sweepKeepsEveryFileWhenTheDatabaseHasNoFileRowsButTheFolderIsNotEmpty() = runBlocking {
+        val r = open()
+        r.dir.mkdirs()
+        val stranded = File(r.dir, "01JDSTRANDED00000000000000.pdf").apply { writeText("s"); setLastModified(0) }
+        val result = r.attachments.sweepOrphans()
+        assertTrue(result.skipped)
+        assertEquals(0, result.removed)
+        assertTrue(stranded.exists())
+    }
+
+    @Test
     fun maintenanceRunsPurgeThenSweep() = runBlocking {
         val r = open()
         val result = FilesMaintenance(r.bin, r.attachments).runAtStart()

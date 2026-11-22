@@ -6,11 +6,13 @@ import com.ftapps.remft.data.mirror.FileMirror
 import com.ftapps.remft.data.mirror.MirrorCatchUp
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.backup.BackupLog
+import com.ftapps.remft.domain.backup.lock.WorkLockHold
 import com.ftapps.remft.domain.backup.lock.WorkLockNames
 import com.ftapps.remft.domain.backup.lock.WorkLocks
 import com.ftapps.remft.domain.backup.restore.ScratchSweep
 import com.ftapps.remft.domain.settings.SettingKeys
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -30,6 +32,7 @@ class AutoBackupTurn(
     private val restoring: () -> Boolean,
     private val clock: () -> Instant = Instant::now,
     private val log: BackupLog = AndroidBackupLog,
+    private val lockWait: Duration = LOCK_WAIT,
 ) {
     private val running = Mutex()
     private val finished = MutableSharedFlow<AutoBackupOutcome>(extraBufferCapacity = 8)
@@ -44,7 +47,7 @@ class AutoBackupTurn(
         if (restoring()) return AutoBackupOutcome.Busy
         if (!running.tryLock()) return AutoBackupOutcome.Busy
         try {
-            val outcome = exclusive {
+            val outcome = exclusive(lockWait) {
                 val deadline = clock().plus(budget)
                 if (!force && mirrorUploadsOn()) catchUpQuietly(deadline)
                 runner(deadline).run(force)
@@ -62,7 +65,7 @@ class AutoBackupTurn(
     suspend fun catchUpMirror(deadline: Instant? = null): MirrorCatchUp? {
         if (restoring() || !mirrorUploadsOn()) return null
         return try {
-            exclusive { mirror.catchUp(deadline) }
+            exclusive(Duration.ZERO) { mirror.catchUp(deadline) }
         } catch (e: Exception) {
             log.warn("mirror.catch_up_failed", e)
             null
@@ -81,10 +84,23 @@ class AutoBackupTurn(
         }
     }
 
-    private suspend fun <T> exclusive(block: suspend () -> T): T? {
+    private suspend fun <T> exclusive(wait: Duration, block: suspend () -> T): T? {
         val set = locks()
-        if (withContext(Dispatchers.IO) { set.isHeld(WorkLockNames.RESTORE) }) return null
-        val hold = withContext(Dispatchers.IO) { set.tryAcquire(WorkLockNames.ONEDRIVE_WORK) } ?: return null
+        val until = System.nanoTime() + wait.toNanos()
+        var acquired: WorkLockHold? = null
+        while (acquired == null) {
+            if (withContext(Dispatchers.IO) { set.isHeld(WorkLockNames.RESTORE) }) return null
+            acquired = withContext(Dispatchers.IO) { set.tryAcquire(WorkLockNames.ONEDRIVE_WORK) }
+            if (acquired == null) {
+                if (System.nanoTime() - until >= 0) return null
+                delay(LOCK_POLL.toMillis())
+            }
+        }
+        val hold: WorkLockHold = acquired
+        if (withContext(Dispatchers.IO) { set.isHeld(WorkLockNames.RESTORE) }) {
+            withContext(Dispatchers.IO) { hold.release() }
+            return null
+        }
         try {
             return block()
         } finally {
@@ -94,6 +110,8 @@ class AutoBackupTurn(
 
     companion object {
         val BUDGET: Duration = Duration.ofMinutes(4)
+        val LOCK_WAIT: Duration = Duration.ofSeconds(30)
+        private val LOCK_POLL: Duration = Duration.ofMillis(250)
 
         fun scratch(cacheDir: File): File = File(cacheDir, ScratchSweep.AUTO_BACKUP_SCRATCH_FOLDER)
     }

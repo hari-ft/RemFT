@@ -18,7 +18,17 @@ class LocalIdentityRepository(
     private val mutex = Mutex()
     private var sessionId: String? = null
 
-    suspend fun resolve(): LocalIdentity = mutex.withLock {
+    @Volatile
+    private var confirmed: LocalIdentity? = null
+
+    private var generation = 0L
+
+    suspend fun workspaceId(): String = resolve().workspaceId
+
+    suspend fun resolve(): LocalIdentity = confirmed ?: mutex.withLock { confirmed ?: decide() }
+
+    private suspend fun decide(): LocalIdentity {
+        val started = synchronized(this) { generation }
         val name = SettingKeys.LocalWorkspaceId.name
         var readable = true
         val stored = try {
@@ -31,16 +41,27 @@ class LocalIdentityRepository(
         val decision = WorkspaceIdentity.decide(stored, readable, counts, sessionId) { Ulid.next() }
         val persisted = decision.persist && store.set(name, decision.workspaceId)
         sessionId = if (persisted || (stored != null && stored == decision.workspaceId)) null else decision.workspaceId
-        LocalIdentity(decision.workspaceId, decision.reliable)
+        val identity = LocalIdentity(decision.workspaceId, decision.reliable)
+        if (identity.reliable) synchronized(this) { if (started == generation) confirmed = identity }
+        return identity
     }
 
     suspend fun adoptFromDatabase(): String? = mutex.withLock {
+        forgetConfirmed()
         val owner = WorkspaceIdentity.dominant(dao().workspaceCounts().associate { it.ws to it.n }) ?: return@withLock null
         if (store.set(SettingKeys.LocalWorkspaceId.name, owner)) sessionId = null else sessionId = owner
         owner
     }
 
     fun forgetSession() {
+        forgetConfirmed()
         sessionId = null
+    }
+
+    private fun forgetConfirmed() {
+        synchronized(this) {
+            generation++
+            confirmed = null
+        }
     }
 }

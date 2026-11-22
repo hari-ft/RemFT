@@ -196,7 +196,11 @@ class AttachmentStore(
         if (!directory.isDirectory) return@withContext SweepResult(0, 0, 0)
         val youngAfter = clock.millis() - orphanGrace.toMillis()
         val kept = bin.keptPaths() ?: return@withContext SweepResult(0, 0, 0, skipped = true)
-        val referenced = dao.allLocalPaths().map(PathText::basename).toSet() + kept
+        val rows = dao.allLocalPaths()
+        if (rows.isEmpty() && directory.listFiles().orEmpty().any { it.isFile }) {
+            return@withContext SweepResult(0, 0, 0, skipped = true)
+        }
+        val referenced = rows.map(PathText::basename).toSet() + kept
         var removed = 0
         var young = 0
         var failed = 0

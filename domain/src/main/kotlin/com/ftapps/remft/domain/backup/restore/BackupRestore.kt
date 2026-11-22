@@ -23,6 +23,19 @@ object BackupRestore {
             (paths.filesPrevious.isDirectory && !filesDir.isDirectory)
     }
 
+    fun openBlocked(dbFile: File): Boolean {
+        val paths = RestorePaths(dbFile, dbFile)
+        if (paths.journal.isFile) {
+            val phase = try {
+                RestoreJournal.parse(paths.journal.readText(Charsets.UTF_8)).phase
+            } catch (_: Exception) {
+                null
+            }
+            if (phase != RestorePhase.Done) return true
+        }
+        return paths.previous.isFile && !dbFile.isFile
+    }
+
     fun recoverInterruptedRestore(
         dbFile: File,
         filesDir: File,

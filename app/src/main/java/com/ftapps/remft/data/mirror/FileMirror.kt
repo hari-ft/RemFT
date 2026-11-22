@@ -63,6 +63,7 @@ class FileMirror(
     private val store: SettingsStore,
     private val clock: () -> Instant = Instant::now,
     private val log: BackupLog = AndroidBackupLog,
+    private val stopRequested: () -> Boolean = { false },
 ) : BackupMirror {
     private val catchUpLock = Mutex()
     private val downloadLocks = ConcurrentHashMap<String, Mutex>()
@@ -177,7 +178,7 @@ class FileMirror(
         var uploaded = 0
         var failed = 0
         for ((i, f) in todo.withIndex()) {
-            if (deadline != null && clock().isAfter(deadline)) return MirrorCatchUp(uploaded, failed, todo.size - i)
+            if (stopRequested() || (deadline != null && clock().isAfter(deadline))) return MirrorCatchUp(uploaded, failed, todo.size - i)
             try {
                 if (uploadOne(f.storedName, rows[f.storedName]?.remotePath ?: f.remotePath)) uploaded++ else failed++
             } catch (e: OneDriveException) {
@@ -325,7 +326,7 @@ class FileMirror(
         val need = needed ?: neededFiles()
         val rows = rows()
         val stale = clock().minus(UPLOAD_STALE)
-        fun past() = deadline != null && clock().isAfter(deadline)
+        fun past() = stopRequested() || (deadline != null && clock().isAfter(deadline))
         var folderId: String? = null
         val folder: suspend () -> String = {
             folderId ?: remote.ensureFolder(MirrorPaths.REVIEW_FOLDER).also { folderId = it }

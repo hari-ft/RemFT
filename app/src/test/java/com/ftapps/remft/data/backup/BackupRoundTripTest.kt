@@ -172,6 +172,73 @@ class BackupRoundTripTest {
     }
 
     @Test
+    fun aRunningOneDriveJobLeavesTheDataUntouched() = runBlocking {
+        rig.seed()
+        val before = rig.dump()
+        val built = rig.service().build()
+        val locks = WorkLocks(rig.paths.locksDir, 4242L)
+        val work = locks.tryAcquire(WorkLockNames.ONEDRIVE_WORK)!!
+        val service = BackupService(
+            paths = rig.paths,
+            holder = rig.holder,
+            store = rig.store,
+            locks = { locks },
+            appVersion = "1.1.1",
+            restoreLockWait = java.time.Duration.ofMillis(300),
+        )
+        try {
+            service.restore(service.validate(built.zip.inputStream()))
+            fail("restore ran while a OneDrive job held the database")
+        } catch (_: BackgroundWorkBusy) {
+        } finally {
+            work.release()
+        }
+        assertFalse(rig.holder.isRestoring)
+        assertFalse(locks.isHeld(WorkLockNames.RESTORE))
+        assertEquals(before, rig.dump())
+    }
+
+    @Test
+    fun aDatabaseThatDoesNotCloseInTimeStopsTheRestoreBeforeTheSwap() = runBlocking {
+        rig.seed()
+        val built = rig.service().build()
+        rig.holder.db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO tasks (id, workspace_id, title) VALUES ('01JC00000000000000000000T9', '${BackupRig.WORKSPACE}', 'Only here')",
+        )
+        val before = rig.dump()
+        val release = java.util.concurrent.CountDownLatch(1)
+        val stuck = ArrayList<com.ftapps.remft.data.db.RemftDatabase>()
+        val locks = WorkLocks(rig.paths.locksDir, 4242L)
+        val service = BackupService(
+            paths = rig.paths,
+            holder = rig.holder,
+            store = rig.store,
+            locks = { locks },
+            appVersion = "1.1.1",
+            closeWait = java.time.Duration.ofMillis(200),
+            closeDb = { db ->
+                synchronized(stuck) { stuck.add(db) }
+                release.await()
+                db.close()
+            },
+        )
+        val backup = service.validate(built.zip.inputStream())
+        try {
+            service.restore(backup)
+            fail("the swap ran while the database was still open")
+        } catch (_: RestoreDatabaseInUse) {
+        } finally {
+            release.countDown()
+        }
+        assertEquals(1, stuck.size)
+        assertFalse(File(rig.paths.dbFile.parentFile, RESTORE_JOURNAL_NAME).exists())
+        assertFalse(locks.isHeld(WorkLockNames.RESTORE))
+        assertFalse(locks.isHeld(WorkLockNames.ONEDRIVE_WORK))
+        rig.holder.reopenAfterRestore()
+        assertEquals(before, rig.dump())
+    }
+
+    @Test
     fun aFailedVerifyRollsBackToTheOriginal() = runBlocking {
         rig.seed()
         val built = rig.service().build()

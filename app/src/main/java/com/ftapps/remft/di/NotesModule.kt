@@ -28,7 +28,7 @@ object NotesModule {
         settings: SettingsStore,
     ): NotesRepository = NotesRepository(
         holder = holder,
-        workspaceId = { identity.resolve().workspaceId },
+        workspaceId = identity::workspaceId,
         settings = settings,
         attachmentsDir = File(context.filesDir, "files"),
         untitled = { context.getString(R.string.note_untitled) },

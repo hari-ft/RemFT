@@ -153,6 +153,13 @@ class WorkLocks(
             log.warn("restore.background_busy")
             throw BackgroundWorkBusy()
         }
+        val oneDrive = acquire(WorkLockNames.ONEDRIVE_WORK, wait)
+        if (oneDrive == null) {
+            hold.release()
+            log.warn("restore.onedrive_busy")
+            throw BackgroundWorkBusy()
+        }
+        hold.alsoRelease(oneDrive)
         return hold
     }
 
@@ -193,6 +200,12 @@ class WorkLockHold internal constructor(
     @Volatile
     private var released = false
     private var timer: Timer? = null
+    private val companions = ArrayList<WorkLockHold>()
+
+    @Synchronized
+    internal fun alsoRelease(other: WorkLockHold) {
+        companions.add(other)
+    }
 
     internal fun startHeartbeat() {
         val every = locks.heartbeatEvery.toMillis().coerceAtLeast(1L)
@@ -230,5 +243,7 @@ class WorkLockHold internal constructor(
             if (locks.readOwner(file)?.token == token) locks.delete(file)
         } catch (_: IOException) {
         }
+        companions.forEach { it.release() }
+        companions.clear()
     }
 }
