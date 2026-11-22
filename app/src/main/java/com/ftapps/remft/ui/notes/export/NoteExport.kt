@@ -32,6 +32,7 @@ import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
 import com.ftapps.remft.domain.time.UtcText
+import com.ftapps.remft.ui.files.TempCopies
 import com.ftapps.remft.ui.notes.markdown.decodeSampled
 import com.ftapps.remft.ui.notes.markdown.exifOrientation
 import kotlinx.coroutines.Dispatchers
@@ -83,22 +84,25 @@ class NoteExporter(private val context: Context, private val repository: NotesRe
     ): NoteExportResult = withContext(Dispatchers.IO) {
         val name = NoteMarkdownFile.fileName(title, format.extension)
         val dir = File(context.cacheDir, EXPORT_DIR).apply { mkdirs() }
-        dir.listFiles()?.forEach { it.delete() }
+        TempCopies.pruneStale(dir)
         val out = File(dir, name)
         when (format) {
             NoteExportFormat.Markdown -> out.writeBytes(NoteMarkdownFile.bytes(title, markdown))
             NoteExportFormat.Docx -> {
                 val blocks = MarkdownBlocks.parse(markdown)
-                val images = loadImageBytes(blocks)
-                out.writeBytes(NoteDocx.build(title, editedLabel(updatedAt, dateFormat), blocks, labels()) { images[it] })
+                val files = imageFiles(blocks)
+                FileOutputStream(out).use { stream ->
+                    NoteDocx.write(stream, title, editedLabel(updatedAt, dateFormat), blocks, labels()) { id ->
+                        files[id]?.takeIf { it.length() < MAX_IMAGE_BYTES }?.let { uprightImageBytes(it) }
+                    }
+                }
             }
             NoteExportFormat.Pdf -> {
                 val blocks = MarkdownBlocks.parse(markdown)
                 val files = imageFiles(blocks)
-                val bitmaps = HashMap<String, Bitmap?>()
                 FileOutputStream(out).use { stream ->
                     NotePdfWriter.write(stream, title, editedLabel(updatedAt, dateFormat), blocks, labels()) { id ->
-                        bitmaps.getOrPut(id) { files[id]?.let { decodeSampled(it, 1400) } }
+                        files[id]?.let { decodeSampled(it, 1400) }
                     }
                 }
             }
@@ -110,14 +114,6 @@ class NoteExporter(private val context: Context, private val repository: NotesRe
         val out = HashMap<String, File>()
         blocks.filterIsInstance<NoteBlock.Image>().map { it.fileId }.distinct().forEach { id ->
             repository.attachmentFile(id)?.let { out[id] = it }
-        }
-        return out
-    }
-
-    private suspend fun loadImageBytes(blocks: List<NoteBlock>): Map<String, ByteArray> {
-        val out = HashMap<String, ByteArray>()
-        blocks.filterIsInstance<NoteBlock.Image>().map { it.fileId }.distinct().forEach { id ->
-            repository.attachmentFile(id)?.takeIf { it.length() < MAX_IMAGE_BYTES }?.let { out[id] = uprightImageBytes(it) }
         }
         return out
     }

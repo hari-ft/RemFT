@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -281,7 +282,7 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
         null -> Unit
         BinDialog.Empty -> ConfirmDeleteDialog(
             title = stringResource(R.string.bin_emptyTitle),
-            body = stringResource(R.string.bin_emptyBody).fill("count" to list.size),
+            body = pluralStringResource(R.plurals.lowdt_binEmptyBody, list.size, list.size),
             confirm = stringResource(R.string.bin_empty),
             confirmTag = "bin-empty-confirm",
             onDismiss = { dialog = null },
@@ -291,7 +292,7 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
         }
         BinDialog.TurnOff -> ConfirmDeleteDialog(
             title = stringResource(R.string.bin_turnOffTitle),
-            body = stringResource(R.string.bin_turnOffBody).fill("count" to list.size),
+            body = pluralStringResource(R.plurals.lowdt_binTurnOffBody, list.size, list.size),
             confirm = stringResource(R.string.bin_turnOff),
             confirmTag = "bin-turn-off-confirm",
             onDismiss = { dialog = null },

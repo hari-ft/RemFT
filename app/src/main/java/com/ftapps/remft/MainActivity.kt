@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) deepLink = intent?.dataString
+        if (savedInstanceState == null) deepLink = launchDeepLink(intent)
         startup.start()
         splash.setKeepOnScreenCondition {
             val state = startup.state.value
@@ -139,4 +139,9 @@ class MainActivity : ComponentActivity() {
         }
         AlarmActivitySupport.logTap(alarms, intent)
     }
+}
+
+fun launchDeepLink(intent: Intent?): String? {
+    if (intent == null || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return null
+    return intent.dataString
 }

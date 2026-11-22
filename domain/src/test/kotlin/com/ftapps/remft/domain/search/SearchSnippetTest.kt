@@ -72,4 +72,13 @@ class SearchSnippetTest {
         assertTrue(snippet.contains("target"))
         assertTrue(snippet.replace("…", "").length <= "target".length + 2 * SearchSnippet.RADIUS)
     }
+
+    @Test
+    fun theContextWordIsTheFirstOneTheTitleDoesNotAlreadyShow() {
+        assertEquals("march", SearchSnippet.contextWord(listOf("invoice", "march"), "Invoice for the shop"))
+        assertEquals("invoice", SearchSnippet.contextWord(listOf("invoice", "march"), "Groceries"))
+        assertEquals("invoice", SearchSnippet.contextWord(listOf("invoice"), "Invoice"))
+        assertEquals("cafe", SearchSnippet.contextWord(listOf("rent", "cafe"), "Rent"))
+        assertEquals("", SearchSnippet.contextWord(emptyList(), "Rent"))
+    }
 }

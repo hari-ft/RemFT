@@ -65,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -504,7 +505,7 @@ private fun FoldersLayer(
 @Composable
 private fun FolderRowCard(folder: FolderEntity, count: Int, position: GroupPosition, onOpen: () -> Unit, onMore: () -> Unit) {
     FileCardContainer(position, "folder-row-${folder.id}") {
-        FolderRowContent(folder.name, stringResource(R.string.files_folderSubtitle).fill("count" to count), folder.id, onOpen, onMore)
+        FolderRowContent(folder.name, pluralStringResource(R.plurals.lowdt_folderItems, count, count), folder.id, onOpen, onMore)
     }
 }
 

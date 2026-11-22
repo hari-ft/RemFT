@@ -43,10 +43,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -126,76 +131,91 @@ fun RepeatEditorContent(
 ) {
     var editor by remember(anchor, initial) { mutableStateOf(RepeatEditor.open(anchor, initial)) }
     val sentence = rememberRepeatSentence()
-    val valid = editor.isValid(previewFrom)
-    Column(Modifier.fillMaxWidth().imePadding()) {
-        Column(
-            Modifier
-                .weight(1f, fill = false)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Space.x6, vertical = Space.x1),
-        ) {
-            Text(
-                stringResource(R.string.repeat_dialogTitle),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.semantics { heading() },
-            )
-            Spacer(Modifier.height(Space.x4))
-            BasisSwitch(editor.basis) { editor = editor.copy(basis = it) }
-            Spacer(Modifier.height(Space.x3))
-            if (editor.isAfter) {
-                AfterBody(editor, format, today) { editor = it }
-            } else {
-                CalendarBody(editor, format, previewFrom) { editor = it }
-            }
-            Spacer(Modifier.height(Space.x2))
-            SentenceBanner(
-                sentence.sentence(editor.rule, format, if (editor.isAfter) null else RepeatDays.key(anchor)),
-                Modifier.testTag("repeat-sentence"),
-            )
-            Spacer(Modifier.height(Space.x2))
-            AdvancedToggle(editor.advanced) { editor = editor.copy(advanced = it) }
-            if (editor.advanced) {
-                if (!editor.isAfter) {
-                    NumberField(
-                        value = editor.interval,
-                        label = stringResource(R.string.repeat_intervalLabel),
-                        tag = "repeat-interval",
-                        onValue = { editor = editor.withInterval(it) },
-                    )
-                    FreqFields(editor, sentence::weekdayName) { editor = it }
+    val numberErrors = remember(anchor, initial) { NumberFieldErrors() }
+    val valid = editor.isValid(previewFrom) && !numberErrors.any
+    CompositionLocalProvider(LocalNumberFieldErrors provides numberErrors) {
+        Column(Modifier.fillMaxWidth().imePadding()) {
+            Column(
+                Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Space.x6, vertical = Space.x1),
+            ) {
+                Text(
+                    stringResource(R.string.repeat_dialogTitle),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.semantics { heading() },
+                )
+                Spacer(Modifier.height(Space.x4))
+                BasisSwitch(editor.basis) { editor = editor.copy(basis = it) }
+                Spacer(Modifier.height(Space.x3))
+                if (editor.isAfter) {
+                    AfterBody(editor, format, today) { editor = it }
+                } else {
+                    CalendarBody(editor, format, previewFrom) { editor = it }
                 }
-                EndFields(editor, format, today) { editor = it }
+                Spacer(Modifier.height(Space.x2))
+                SentenceBanner(
+                    sentence.sentence(editor.rule, format, if (editor.isAfter) null else RepeatDays.key(anchor)),
+                    Modifier.testTag("repeat-sentence"),
+                )
+                Spacer(Modifier.height(Space.x2))
+                AdvancedToggle(editor.advanced) { editor = editor.copy(advanced = it) }
+                if (editor.advanced) {
+                    if (!editor.isAfter) {
+                        NumberField(
+                            value = editor.interval,
+                            label = stringResource(R.string.repeat_intervalLabel),
+                            tag = "repeat-interval",
+                            onValue = { editor = editor.withInterval(it) },
+                        )
+                        FreqFields(editor, sentence::weekdayName) { editor = it }
+                    }
+                    EndFields(editor, format, today) { editor = it }
+                }
+                Spacer(Modifier.height(Space.x2))
             }
-            Spacer(Modifier.height(Space.x2))
-        }
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(start = Space.x6, end = Space.x6, top = Space.x2, bottom = Space.x4),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (onTurnOff != null) {
-                RemftTextButton(
-                    stringResource(R.string.repeat_off),
-                    onClick = onTurnOff,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.testTag("repeat-off"),
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(start = Space.x6, end = Space.x6, top = Space.x2, bottom = Space.x4),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (onTurnOff != null) {
+                    RemftTextButton(
+                        stringResource(R.string.repeat_off),
+                        onClick = onTurnOff,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.testTag("repeat-off"),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                RemftTextButton(stringResource(R.string.common_cancel), onClick = onCancel, modifier = Modifier.testTag("repeat-cancel"))
+                Spacer(Modifier.width(Space.x2))
+                RemftFilledButton(
+                    stringResource(R.string.common_save),
+                    onClick = { onSave(editor.rule) },
+                    enabled = valid,
+                    modifier = Modifier.testTag("repeat-save"),
                 )
             }
-            Spacer(Modifier.weight(1f))
-            RemftTextButton(stringResource(R.string.common_cancel), onClick = onCancel, modifier = Modifier.testTag("repeat-cancel"))
-            Spacer(Modifier.width(Space.x2))
-            RemftFilledButton(
-                stringResource(R.string.common_save),
-                onClick = { onSave(editor.rule) },
-                enabled = valid,
-                modifier = Modifier.testTag("repeat-save"),
-            )
         }
     }
 }
+
+private class NumberFieldErrors {
+    private val bad = mutableStateMapOf<String, Boolean>()
+
+    val any: Boolean get() = bad.values.any { it }
+
+    fun report(tag: String, invalid: Boolean) {
+        if (bad[tag] != invalid) bad[tag] = invalid
+    }
+}
+
+private val LocalNumberFieldErrors = staticCompositionLocalOf<NumberFieldErrors?> { null }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -370,6 +390,10 @@ private fun AdvancedToggle(open: Boolean, onChange: (Boolean) -> Unit) {
 private fun NumberField(value: Int, label: String, tag: String, range: IntRange = 1..366, onValue: (Int) -> Unit) {
     var text by remember(tag) { mutableStateOf(value.toString()) }
     if (text.toIntOrNull() != null && text.toInt() != value && text.toInt() in range) text = value.toString()
+    val errors = LocalNumberFieldErrors.current
+    val bad = text.toIntOrNull()?.let { it !in range } ?: true
+    SideEffect { errors?.report(tag, bad) }
+    DisposableEffect(errors, tag) { onDispose { errors?.report(tag, false) } }
     OutlinedTextField(
         value = text,
         onValueChange = { next ->
@@ -378,7 +402,7 @@ private fun NumberField(value: Int, label: String, tag: String, range: IntRange 
             digits.toIntOrNull()?.takeIf { it in range }?.let(onValue)
         },
         label = { Text(label) },
-        isError = text.toIntOrNull()?.let { it !in range } ?: true,
+        isError = bad,
         singleLine = true,
         shape = MarkedShapes.small,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

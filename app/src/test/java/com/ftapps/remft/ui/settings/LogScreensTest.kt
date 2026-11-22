@@ -106,4 +106,18 @@ class LogScreensTest {
         compose.waitFor { compose.textCount("Log cleared") == 1 }
         assertTrue(alarms.env.appLog.read().isEmpty())
     }
+
+    @Test
+    fun aFilterWithNoMatchesSaysSoInsteadOfNothingLogged() {
+        alarms.env.appLog.info("app.launch")
+        alarms.env.appLog.flush()
+        showAppLog()
+        compose.waitFor { compose.tagCount("app-log-row-info") == 1 }
+        compose.onNodeWithTag("app-log-filter-warn").performClick()
+        compose.waitFor { compose.tagCount("app-log-filtered-empty") == 1 }
+        assertEquals(1, compose.textCount("No warnings or errors"))
+        assertEquals(0, compose.tagCount("app-log-empty"))
+        compose.onNodeWithTag("app-log-filter-error").performClick()
+        compose.waitFor { compose.textCount("No errors") == 1 }
+    }
 }

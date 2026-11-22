@@ -142,4 +142,11 @@ class GlobalSearchTest {
         )
         assertEquals(listOf(PaletteEntry.Create("Pay rent")), GlobalSearch.entries("Pay rent", recents, emptyList()))
     }
+
+    @Test
+    fun contextCentresOnTheWordTheTitleDoesNotShow() {
+        val body = "Paid the shop in full before the long weekend, with the receipt kept in the drawer, and the next one is due in march when the lease renews."
+        val snippet = GlobalSearch.context(SearchTier.Body, body, listOf("invoice", "march"), "Invoice for the shop")
+        assertTrue(snippet!!.contains("march"))
+    }
 }

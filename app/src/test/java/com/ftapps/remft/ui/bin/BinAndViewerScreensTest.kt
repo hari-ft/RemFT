@@ -91,6 +91,7 @@ class BinAndViewerScreensTest {
         waitFor { exists("bin-item-${trashId(a)}") }
         compose.onNodeWithTag("bin-empty").performClick()
         waitFor { exists("bin-empty-confirm") }
+        assertEquals(1, compose.onAllNodesWithText("2 items and their attachments will be deleted for good. This cannot be undone.").fetchSemanticsNodes().size)
         assertEquals(2, rig.query("SELECT id FROM trash_items").size)
         compose.onNodeWithTag("bin-empty-confirm").performClick()
         waitFor { rig.query("SELECT id FROM trash_items").isEmpty() }
@@ -151,5 +152,22 @@ class BinAndViewerScreensTest {
         compose.onNodeWithTag("reopen-$id").performClick()
         waitFor { rig.query("SELECT status FROM tasks WHERE id = '$id'").single()["status"] == "open" }
         waitFor { exists("completed-empty") }
+    }
+
+    @Test
+    fun aReopenThatFailsSaysSoInsteadOfCrashing() {
+        val id = runBlocking {
+            rig.tasks.repository.create(TaskDraft(title = "Filed taxes", dueAt = Instant.parse("2026-11-19T10:00:00Z"))).also {
+                rig.tasks.repository.setCompleted(it, true)
+            }
+        }
+        rig.tasks.holder.db.openHelper.writableDatabase.execSQL(
+            "CREATE TRIGGER refuse_reopen BEFORE UPDATE ON tasks BEGIN SELECT RAISE(ABORT, 'refused'); END",
+        )
+        show { CompletedScreen(onBack = {}, onOpenTask = {}) }
+        waitFor { exists("completed-$id") }
+        compose.onNodeWithTag("reopen-$id").performClick()
+        waitFor { compose.onAllNodesWithText("Couldn't update “Filed taxes”").fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(exists("completed-$id"))
     }
 }

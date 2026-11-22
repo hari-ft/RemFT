@@ -41,8 +41,8 @@ object GlobalSearch {
         return out
     }
 
-    fun context(tier: SearchTier?, body: String?, words: List<String>): String? =
-        if (tier == SearchTier.Body && body != null) SearchSnippet.build(body, words.firstOrNull().orEmpty()) else null
+    fun context(tier: SearchTier?, body: String?, words: List<String>, title: String? = null): String? =
+        if (tier == SearchTier.Body && body != null) SearchSnippet.build(body, SearchSnippet.contextWord(words, title)) else null
 
     fun resolveRecents(recents: List<SearchRecent>, lookup: (SearchRecent) -> GlobalSearchItem?): List<GlobalSearchItem> =
         recents.mapNotNull(lookup)

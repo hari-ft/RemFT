@@ -74,6 +74,17 @@ class TaskScreensTest {
     }
 
     @Test
+    fun detailTitleStaysOnOneLineWhenALineBreakIsTypedOrPasted() {
+        val id = create(TaskDraft(title = "Draft title"))
+        show { TaskDetailScreen(taskId = id, onBack = {}) }
+        waitFor { compose.onAllNodesWithTagCount("task-title") == 1 }
+        compose.onNodeWithTag("task-title").performTextReplacement("Buy milk\nand bread\r\n")
+        compose.mainClock.advanceTimeBy(2_000)
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(2))
+        waitFor { column(id, "title") == "Buy milk and bread" }
+    }
+
+    @Test
     fun detailChecklistAddTickAndRemove() {
         val id = create(TaskDraft(title = "Trip"))
         show(dark = true) { TaskDetailScreen(taskId = id, onBack = {}) }

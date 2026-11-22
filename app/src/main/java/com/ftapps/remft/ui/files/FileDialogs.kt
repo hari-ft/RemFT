@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,6 +56,7 @@ import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 data class ExtraAction(val icon: ImageVector, val label: String, val tag: String, val onClick: () -> Unit)
@@ -116,6 +118,7 @@ fun FileDialogsHost(
     val couldNotRename = stringResource(R.string.file_couldNotRename)
     val couldNotDelete = stringResource(R.string.file_couldNotDelete)
     val couldNotMove = stringResource(R.string.files_couldNotMove)
+    val couldNotDeleteFolder = stringResource(R.string.lowdt_folderCouldNotDelete)
     var ruleError by remember { mutableStateOf<String?>(null) }
     val ruleText = ruleError?.let { folderRuleText(it) }
     LaunchedEffect(ruleText) {
@@ -213,12 +216,15 @@ fun FileDialogsHost(
         }
         is FileDialog.DeleteFolder -> {
             val empty = dialog.counts.files == 0 && dialog.counts.folders == 1
-            val counts = arrayOf("folders" to dialog.counts.folders, "files" to dialog.counts.files)
+            val counts = arrayOf(
+                "folders" to pluralStringResource(R.plurals.lowdt_folderCount, dialog.counts.folders, dialog.counts.folders),
+                "files" to pluralStringResource(R.plurals.lowdt_fileCount, dialog.counts.files, dialog.counts.files),
+            )
             val body = when {
                 dialog.toBin && empty -> stringResource(R.string.bin_toBin)
-                dialog.toBin -> stringResource(R.string.files_deleteFolderBodyBin).fill(*counts)
+                dialog.toBin -> stringResource(R.string.lowdt_deleteFolderBodyBin).fill(*counts)
                 empty -> stringResource(R.string.files_deleteFolderEmpty)
-                else -> stringResource(R.string.files_deleteFolderBody).fill(*counts)
+                else -> stringResource(R.string.lowdt_deleteFolderBody).fill(*counts)
             }
             ConfirmDeleteDialog(
                 title = stringResource(R.string.files_deleteFolderTitle).fill("name" to dialog.folder.name),
@@ -228,8 +234,11 @@ fun FileDialogsHost(
                 onDismiss = close,
             ) {
                 close()
-                dialog.onDeleted()
-                scope.launch { runCatching { env.files.deleteFolder(dialog.folder.id) } }
+                scope.launch {
+                    runCatching { env.files.deleteFolder(dialog.folder.id) }
+                        .onSuccess { dialog.onDeleted() }
+                        .onFailure { if (it is CancellationException) throw it else onMessage(couldNotDeleteFolder) }
+                }
             }
         }
     }

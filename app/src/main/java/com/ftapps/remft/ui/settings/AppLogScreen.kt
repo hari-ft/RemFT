@@ -152,6 +152,14 @@ private fun AppLogContent(
         item { AppLogHeader(min, onFilter, onOpenAlarmLog) }
         when {
             rows == null -> Unit
+            rows.isEmpty() && entries.isNotEmpty() -> item {
+                EmptyState(
+                    Icons.AutoMirrored.Outlined.ReceiptLong,
+                    stringResource(if (min == AppLogLevel.ERROR) R.string.lowdt_appLogNoErrors else R.string.lowdt_appLogNoWarnings),
+                    stringResource(R.string.lowdt_appLogFilteredBody),
+                    Modifier.testTag("app-log-filtered-empty"),
+                )
+            }
             rows.isEmpty() -> item {
                 EmptyState(
                     Icons.AutoMirrored.Outlined.ReceiptLong,

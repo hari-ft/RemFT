@@ -52,6 +52,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -84,6 +85,7 @@ import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -325,6 +327,10 @@ fun UndoSnackbarHost(modifier: Modifier = Modifier) {
     val tooLate = stringResource(R.string.common_undoTooLate)
     LaunchedEffect(request) {
         val current = request ?: return@LaunchedEffect
+        launch {
+            snapshotFlow { host.currentSnackbarData?.visuals?.message }.first { it == current.message }
+            env.undo.shown(current)
+        }
         when (host.showSnackbar(current.message, undoLabel, duration = SnackbarDuration.Indefinite)) {
             SnackbarResult.ActionPerformed -> if (!env.undo.resolve(current, undo = true)) host.showSnackbar(tooLate)
             SnackbarResult.Dismissed -> env.undo.resolve(current, undo = false)

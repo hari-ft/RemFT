@@ -249,4 +249,31 @@ class QuickParseTest {
         assertFalse(p.hasSchedule)
         assertEquals(listOf(QuickTokenKind.Priority), p.tokens.map { it.kind })
     }
+
+    @Test
+    fun aForBeforeADateGoesWithTheDateAndLeavesTheTitle() {
+        val weekend = parse("Sample idea for weekend")
+        assertEquals("Sample idea", weekend.title)
+        assertEquals("2026-10-17", day(weekend.dueAt))
+        assertEquals(listOf("for weekend"), weekend.tokens.map { it.text })
+        assertEquals("Shopping list", parse("Shopping list for tomorrow").title)
+        assertEquals("Slides", parse("Slides for next friday").title)
+        assertEquals("Gift", parse("Gift for this weekend").title)
+    }
+
+    @Test
+    fun aForWithoutADateStaysInTheTitle() {
+        val p = parse("Buy food for the cat")
+        assertEquals("Buy food for the cat", p.title)
+        assertNull(p.dueAt)
+        assertEquals("Look for the keys tomorrow".substringBefore(" tomorrow"), parse("Look for the keys tomorrow").title)
+    }
+
+    @Test
+    fun ignoringAForDateChipKeepsEveryWordAsText() {
+        val first = parse("Sample idea for weekend")
+        val p = parse("Sample idea for weekend", ignored = first.tokens.map { it.key }.toSet())
+        assertEquals("Sample idea for weekend", p.title)
+        assertNull(p.dueAt)
+    }
 }

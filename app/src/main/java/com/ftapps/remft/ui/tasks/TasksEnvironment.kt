@@ -45,6 +45,8 @@ class UndoCenter(private val pending: PendingDeletes) {
         state.value = request
     }
 
+    fun shown(request: UndoRequest): Boolean = state.value == request && pending.restartWindow(request.id)
+
     fun resolve(request: UndoRequest, undo: Boolean): Boolean {
         state.compareAndSet(request, null)
         return if (undo) {

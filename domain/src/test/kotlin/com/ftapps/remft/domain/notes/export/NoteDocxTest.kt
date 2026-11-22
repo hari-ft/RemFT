@@ -1,6 +1,7 @@
 package com.ftapps.remft.domain.notes.export
 
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.util.zip.ZipInputStream
 import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertArrayEquals
@@ -52,6 +53,26 @@ class NoteDocxTest {
         assertTrue(xml.contains("a &lt; b &amp; c &gt; d"))
         assertFalse(xml.contains("\u0001"))
         assertTrue(DocxTestSupport.text(DocxTestSupport.parse(parts.getValue("word/document.xml"))).contains("a < b & c > d"))
+    }
+
+    @Test
+    fun writeStreamsEachImageIntoTheOutputInsteadOfHoldingThemAll() {
+        val first = "01HZX3K5V7Q8R9S0T1V2W3X4A1"
+        val second = "01HZX3K5V7Q8R9S0T1V2W3X4B2"
+        val pngA = DocxTestSupport.png(30, 10)
+        val pngB = DocxTestSupport.png(10, 30)
+        val out = ByteArrayOutputStream()
+        val seen = HashMap<String, MutableList<Int>>()
+        val markdown = listOf("![a](remft://file/$first)", "![b](remft://file/$second)").joinToString("\n\n")
+        NoteDocx.write(out, "My note", null, MarkdownBlocks.parse(markdown), DocxTestSupport.labels) { id ->
+            seen.getOrPut(id) { ArrayList() }.add(out.size())
+            if (id == first) pngA else pngB
+        }
+        assertTrue(seen.getValue(second).last() > seen.getValue(first).last())
+        assertTrue(seen.getValue(first).last() > 0)
+        val parts = DocxTestSupport.unzip(out.toByteArray())
+        assertArrayEquals(pngA, parts.getValue("word/media/image1.png"))
+        assertArrayEquals(pngB, parts.getValue("word/media/image2.png"))
     }
 
     @Test

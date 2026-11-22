@@ -7,6 +7,11 @@ object SearchSnippet {
     private const val ELLIPSIS = "…"
     private val whitespaceRun = Regex("[\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]+")
 
+    fun contextWord(words: List<String>, title: String?): String {
+        val foldedTitle = Fold.searchText(title.orEmpty())
+        return words.firstOrNull { Fold.searchText(it) !in foldedTitle } ?: words.firstOrNull().orEmpty()
+    }
+
     fun build(original: String, word: String, radius: Int = RADIUS): String {
         val text = whitespaceRun.replace(original, " ").trim()
         val needle = Fold.searchText(word)
