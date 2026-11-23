@@ -163,6 +163,26 @@ class GraphClientTest {
     }
 
     @Test
+    fun downloadFindsACopyInItsStructuredReviewFolderWithoutCrawling() = runBlocking {
+        server.enqueue(json(404, "{}"))
+        server.enqueue(json(404, "{}"))
+        server.enqueue(json(200, """{"value":[{"id":"R2","name":"bill (F3) (2).pdf","size":5,"file":{}},{"id":"R9","name":"other.pdf","size":5,"file":{}}]}"""))
+        server.enqueue(json(404, "{}"))
+        server.enqueue(json(200, """{"value":[]}"""))
+        server.enqueue(MockResponse().setResponseCode(200).setBody("hello"))
+        val to = File(rig.root, "found.part")
+        assertTrue(client().download("GONE", "Files/Bills/2025/bill (F3).pdf", 5, to))
+        assertEquals("hello", to.readText())
+        assertEquals("/v1.0/me/drive/items/GONE/content", take().path)
+        assertTrue(take().requestUrl!!.encodedPath.endsWith("/Files/Bills/2025/bill%20(F3).pdf:/content"))
+        assertTrue(take().requestUrl!!.encodedPath.endsWith("/Files/reviewneeded/Bills/2025:/children"))
+        assertTrue(take().requestUrl!!.encodedPath.endsWith("/Files/Recycle%20bin/Bills/2025:/children"))
+        assertTrue(take().requestUrl!!.encodedPath.endsWith("/Files/reviewneeded:/children"))
+        assertEquals("/v1.0/me/drive/items/R2/content", take().path)
+        assertEquals(6, server.requestCount)
+    }
+
+    @Test
     fun downloadSaysFalseWhenOneDriveHasNoCopy() = runBlocking {
         server.enqueue(json(404, "{}"))
         assertTrue(!client().download("GONE", null, null, File(rig.root, "x.part")))

@@ -132,13 +132,13 @@ class FileMirrorTest {
         mirror().catchUp()
         val itemId = row("01F2.txt")!!.itemId!!
         sql.exec("DELETE FROM file_rows WHERE id = 'F2'")
-        remote.addFile("Files/reviewneeded/manual (F2).txt", "taken".toByteArray())
+        remote.addFile("Files/reviewneeded/Docs/manual (F2).txt", "taken".toByteArray())
         rig.store.set(SettingKeys.MirrorReviewSweptAt.name, "done")
 
         val moved = mirror().reviewGone()
 
         assertEquals(1, moved)
-        assertEquals("Files/reviewneeded/manual (F2) (2).txt", remote.pathOf(itemId))
+        assertEquals("Files/reviewneeded/Docs/manual (F2) (2).txt", remote.pathOf(itemId))
         assertNull(row("01F2.txt"))
         assertTrue(remote.deletes.isEmpty())
         assertNotNull(row("01F1.png"))
@@ -151,7 +151,7 @@ class FileMirrorTest {
         rig.store.remove(SettingKeys.MirrorReviewSweptAt.name)
         val moved = mirror().reviewGone()
         assertEquals(1, moved)
-        assertTrue(remote.paths().contains("Files/reviewneeded/stray.pdf"))
+        assertTrue(remote.paths().contains("Files/reviewneeded/Old/stray.pdf"))
         assertTrue(remote.paths().contains("Files/Tasks/Pay rent/receipt (F1).png"))
         assertNotNull(rig.store.get(SettingKeys.MirrorReviewSweptAt.name))
         assertTrue(remote.deletes.isEmpty())
@@ -253,16 +253,26 @@ class FakeRemote : MirrorRemote {
     private var next = 0
     val puts = ArrayList<String>()
     val deletes = ArrayList<String>()
+    var moves = 0
+    var lists = 0
     var corruptNextPut = false
 
     fun addFile(path: String, bytes: ByteArray): String {
+        ensureParent(path)
         val id = "I${next++}"
         items[id] = Item(path, bytes)
         return id
     }
 
+    fun addFolder(path: String): String = folder(path)
+
     fun drop(id: String) {
         items.remove(id)
+    }
+
+    fun place(id: String, path: String) {
+        ensureParent(path)
+        items[id]!!.path = path
     }
 
     fun replaceBytes(id: String, bytes: ByteArray) {
@@ -271,20 +281,28 @@ class FakeRemote : MirrorRemote {
 
     fun pathOf(id: String): String? = items[id]?.path
 
+    fun exists(id: String): Boolean = items.containsKey(id)
+
+    fun idOf(path: String): String? = idOfPath(path)
+
     fun paths(): List<String> = items.values.filter { !it.folder }.map { it.path }
+
+    fun folders(): List<String> = items.values.filter { it.folder }.map { it.path }
 
     private fun idOfPath(path: String): String? = items.entries.firstOrNull { it.value.path.equals(path, ignoreCase = true) }?.key
 
     private fun parentPath(path: String) = path.substringBeforeLast('/', "")
 
-    private fun ancestors(path: String): List<String> {
-        val out = ArrayList<String>()
-        var at = parentPath(path)
-        while (at.isNotEmpty()) {
-            out.add(at)
-            at = parentPath(at)
-        }
-        return out
+    private fun ensureParent(path: String) {
+        val parent = parentPath(path)
+        if (parent.isNotEmpty()) folder(parent)
+    }
+
+    private fun folder(path: String): String = idOfPath(path) ?: run {
+        ensureParent(path)
+        val id = "D${next++}"
+        items[id] = Item(path, ByteArray(0), folder = true)
+        id
     }
 
     override suspend fun putFile(file: File, path: String, contentType: String): RemoteItem {
@@ -302,37 +320,44 @@ class FakeRemote : MirrorRemote {
     }
 
     override suspend fun listFolder(path: String): List<RemoteEntry>? {
-        val children = items.entries.filter { parentPath(it.value.path).equals(path, ignoreCase = true) }
+        lists++
+        val at = idOfPath(path)?.let { items[it] } ?: return null
+        if (!at.folder) return null
+        return items.entries.filter { parentPath(it.value.path).equals(at.path, ignoreCase = true) }
             .map { RemoteEntry(it.key, it.value.path.substringAfterLast('/'), it.value.bytes.size.toLong(), it.value.folder) }
-        val folders = items.values.flatMap { ancestors(it.path) }.filter { parentPath(it).equals(path, ignoreCase = true) }
-            .distinct()
-            .filter { f -> children.none { c -> c.isFolder && "$path/${c.name}".equals(f, ignoreCase = true) } }
-            .map { RemoteEntry("folder:$it", it.substringAfterLast('/'), 0, true) }
-        return children + folders
     }
 
-    override suspend fun ensureFolder(path: String): String = idOfPath(path) ?: run {
-        val id = "D${next++}"
-        items[id] = Item(path, ByteArray(0), folder = true)
-        id
-    }
+    override suspend fun ensureFolder(path: String): String = folder(path)
+
+    override suspend fun folderAt(path: String): String? = idOfPath(path)?.takeIf { items[it]!!.folder }
 
     override suspend fun parentOf(itemId: String): String? {
         val item = items[itemId] ?: return null
-        return idOfPath(parentPath(item.path)) ?: "folder:${parentPath(item.path)}"
+        return idOfPath(parentPath(item.path))
     }
 
     override suspend fun moveInto(itemId: String?, path: String?, folderId: String, name: String): MirrorMove {
         val id = itemId?.takeIf { items.containsKey(it) } ?: path?.let { idOfPath(it) } ?: return MirrorMove.Gone
-        val folder = items[folderId] ?: return MirrorMove.Gone
-        val target = "${folder.path}/$name"
-        if (idOfPath(target) != null) return MirrorMove.NameTaken
-        items[id]!!.path = target
+        val into = items[folderId]?.takeIf { it.folder } ?: return MirrorMove.Gone
+        val target = "${into.path}/$name"
+        val taken = idOfPath(target)
+        if (taken != null && taken != id) return MirrorMove.NameTaken
+        val old = items[id]!!.path
+        check(!into.path.equals(old, ignoreCase = true) && !into.path.lowercase().startsWith(old.lowercase() + "/"))
+        moves++
+        for (item in items.values) {
+            if (item.path == old) {
+                item.path = target
+            } else if (item.path.lowercase().startsWith(old.lowercase() + "/")) {
+                item.path = target + item.path.substring(old.length)
+            }
+        }
         return MirrorMove.Moved
     }
 
     override suspend fun download(itemId: String?, path: String?, size: Long?, to: File, onProgress: ((Long) -> Unit)?): Boolean {
         val item = itemId?.let { items[it] } ?: path?.let { p -> idOfPath(p)?.let { items[it] } } ?: return false
+        if (item.folder) return false
         to.parentFile?.mkdirs()
         to.writeBytes(item.bytes)
         onProgress?.invoke(item.bytes.size.toLong())

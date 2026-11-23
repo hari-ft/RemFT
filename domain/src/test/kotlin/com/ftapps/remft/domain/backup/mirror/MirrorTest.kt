@@ -241,4 +241,58 @@ class MirrorTest {
         assertEquals(listOf("away.pdf", "pathonly.pdf"), refs.keys.toList())
         assertEquals(MirrorRef("", "Files/pathonly.pdf", 3, "sha-pathonly.pdf"), refs["pathonly.pdf"])
     }
+
+    @Test
+    fun binAndReviewPathsKeepTheFolderStructure() {
+        assertEquals("Files/Recycle bin/Bills/2025/a (F1).pdf", MirrorPaths.binned("Files/Bills/2025/a (F1).pdf"))
+        assertEquals("Files/Recycle bin/Bills", MirrorPaths.binned("Files/Recycle bin/Bills"))
+        assertEquals("Files/Recycle bin", MirrorPaths.binned("Files"))
+        assertEquals("Files/reviewneeded/Bills/2025/a (F1).pdf", MirrorPaths.reviewPath("Files/Recycle bin/Bills/2025/a (F1).pdf"))
+        assertEquals("Files/reviewneeded/Tasks/X/a.png", MirrorPaths.reviewPath("Files/Tasks/X/a.png"))
+        assertEquals("Files/reviewneeded/a.png", MirrorPaths.reviewPath("Files/reviewneeded/a.png"))
+        assertEquals("Files/reviewneeded/01F1.png", MirrorPaths.reviewPath("01F1.png"))
+        assertEquals("Files/reviewneeded/Recycle binx/a", MirrorPaths.reviewPath("Files/Recycle binx/a"))
+        assertEquals("Files/_Recycle bin/a (F1).pdf", MirrorPaths.pathFor(MirrorPathInput("F1", "a.pdf", "F1.pdf", "workspace", listOf("Recycle bin"))))
+        assertEquals("Files/Docs/2025", MirrorPaths.folderPath(listOf("Docs", "2025")))
+        assertEquals("Files/Tasks/Pay rent", MirrorPaths.ownerPath("task", "Pay rent", "T1"))
+        assertEquals("2025 (2)", MirrorPaths.folderName("2025", 2))
+        assertEquals("v1.2 (3)", MirrorPaths.folderName("v1.2", 3))
+    }
+
+    @Test
+    fun aMissingCopyIsLookedForInAFewFoldersOnly() {
+        assertEquals(
+            listOf("Files/reviewneeded/Bills", "Files/Recycle bin/Bills", "Files/reviewneeded"),
+            MirrorPaths.fallbackFolders("Files/Bills/a (F1).pdf"),
+        )
+        assertEquals(
+            listOf("Files/reviewneeded/Bills", "Files/Bills", "Files/reviewneeded"),
+            MirrorPaths.fallbackFolders("Files/Recycle bin/Bills/a (F1).pdf"),
+        )
+        assertEquals(listOf("Files/reviewneeded", "Files/Recycle bin"), MirrorPaths.fallbackFolders("Files/a (F1).pdf"))
+    }
+
+    @Test
+    fun rebasingFollowsWholeSegmentsOnly() {
+        assertEquals("Files/B/x.pdf", MirrorPaths.rebase("Files/A/x.pdf", "Files/A", "Files/B"))
+        assertEquals("Files/B", MirrorPaths.rebase("files/a", "Files/A", "Files/B"))
+        assertEquals(null, MirrorPaths.rebase("Files/AB/x.pdf", "Files/A", "Files/B"))
+        assertTrue(MirrorPaths.isUnder("Files/Recycle bin/a", MirrorPaths.BIN_FOLDER))
+        assertFalse(MirrorPaths.isUnder("Files/Recycle bins", MirrorPaths.BIN_FOLDER))
+        assertEquals("Files/A", MirrorPaths.parentPath("Files/A/b.pdf"))
+        assertEquals(2, MirrorPaths.depth("Files/A/b"))
+    }
+
+    @Test
+    fun folderStateSurvivesARoundTripAndSkipsBrokenEntries() {
+        val state = linkedMapOf(
+            MirrorFolders.folderKey("D1") to MirrorFolder("I1", "Files/Docs", "Files/Docs"),
+            MirrorFolders.ownerKey("task", "T1") to MirrorFolder("I2", "Files/Tasks/X (2)", "Files/Tasks/X"),
+        )
+        assertEquals(state, MirrorFolders.decode(MirrorFolders.encode(state)))
+        assertTrue(MirrorFolders.decode(null).isEmpty())
+        assertTrue(MirrorFolders.decode("not json").isEmpty())
+        assertEquals(listOf("Files/Recycle bin/A"), MirrorFolders.decodePaths(MirrorFolders.encodePaths(listOf("Files/Recycle bin/A", "../x"))))
+        assertEquals(setOf("a"), MirrorFolders.decode("""{"a":{"i":"I","p":"Files/A"},"b":{"i":"","p":"Files/B"},"c":{"i":"I","p":"../x"}}""").keys)
+    }
 }
