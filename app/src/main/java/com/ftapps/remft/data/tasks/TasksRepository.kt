@@ -98,6 +98,11 @@ class TasksRepository(
         .flatMapLatest { dao.watchInbox(it) }
         .map { rows -> rows.map(TaskMapping::toDomain) }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun watchScheduled(): Flow<List<Task>> = flow { emit(workspaceId()) }
+        .flatMapLatest { dao.watchScheduled(it) }
+        .map { rows -> rows.map(TaskMapping::toDomain) }
+
     fun watchDetail(id: String): Flow<TaskDetail?> = combine(dao.watchTask(id), dao.watchChecklist(id)) { task, checklist ->
         task?.let { TaskDetail(TaskMapping.toDomain(it), checklist.map(TaskMapping::toDomain)) }
     }

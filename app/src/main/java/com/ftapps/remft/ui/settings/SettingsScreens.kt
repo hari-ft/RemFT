@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Tune
@@ -77,6 +78,7 @@ fun SettingsScreen(
     onOpenAppLog: () -> Unit = {},
     onOpenBackup: () -> Unit = {},
     onOpenCompleted: () -> Unit = {},
+    onOpenScheduled: () -> Unit = {},
     onOpenBin: () -> Unit = {},
 ) {
     var licences by remember { mutableStateOf(false) }
@@ -95,6 +97,7 @@ fun SettingsScreen(
                 SettingsCard {
                     SettingsRow(Icons.Outlined.Backup, stringResource(R.string.settings_group_backup), stringResource(R.string.settings_group_backupSub), "settings-backup", onClick = onOpenBackup)
                     SettingsRow(Icons.Outlined.TaskAlt, stringResource(R.string.completed_title), stringResource(R.string.completed_sub), "settings-completed", onClick = onOpenCompleted)
+                    SettingsRow(Icons.Outlined.Schedule, stringResource(R.string.sched_title), stringResource(R.string.sched_sub), "settings-scheduled", onClick = onOpenScheduled)
                     SettingsRow(Icons.Outlined.DeleteOutline, stringResource(R.string.bin_title), null, "settings-bin", onClick = onOpenBin)
                 }
             }
