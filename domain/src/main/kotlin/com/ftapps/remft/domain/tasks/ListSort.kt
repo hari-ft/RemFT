@@ -41,3 +41,27 @@ object TaskSort {
 
     fun priorityRank(priority: String?): Int = TaskPriority.rankOf(priority)
 }
+
+object InboxSort {
+    val choices: List<SortChoice> = listOf(
+        SortChoice("added"),
+        SortChoice("title", descendingByDefault = false),
+        SortChoice("priority"),
+        SortChoice("updated"),
+    )
+
+    const val DEFAULT = "added:desc"
+
+    fun comparator(state: SortState): Comparator<Task> {
+        val byId = Comparator<Task> { a, b -> a.id.compareTo(b.id) }
+        val primary: Comparator<Task> = when (state.id) {
+            "title" -> compareBy { TaskSort.titleKey(it.title) }
+            "priority" -> compareBy { TaskSort.priorityRank(it.priority) }
+            "updated" -> compareBy(nullsFirst()) { it.updatedAt }
+            else -> Comparator { _, _ -> 0 }
+        }
+        return state.comparator(primary.then(byId))
+    }
+
+    fun sort(tasks: List<Task>, state: SortState): List<Task> = tasks.sortedWith(comparator(state))
+}

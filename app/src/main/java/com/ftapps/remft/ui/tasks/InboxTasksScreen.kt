@@ -52,6 +52,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ftapps.remft.R
 import com.ftapps.remft.data.tasks.PendingDeletes
 import com.ftapps.remft.domain.search.SearchMatch
+import com.ftapps.remft.domain.settings.SettingKeys
+import com.ftapps.remft.domain.tasks.InboxSort
+import com.ftapps.remft.domain.tasks.SortChoice
+import com.ftapps.remft.domain.tasks.SortState
 import com.ftapps.remft.domain.tasks.Task
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.MarkedCard
@@ -73,18 +77,25 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class InboxUiState(val load: ListLoad<List<Task>> = ListLoad.Loading, val total: Int = 0, val query: String = "")
+data class InboxUiState(
+    val load: ListLoad<List<Task>> = ListLoad.Loading,
+    val total: Int = 0,
+    val query: String = "",
+    val sort: SortState = SortState.parse(InboxSort.DEFAULT, InboxSort.choices),
+)
 
 class InboxViewModel(private val env: TasksEnvironment) : ViewModel() {
     private val repository = env.repository
     private val query = MutableStateFlow("")
     private val retry = MutableStateFlow(0)
+    private val sortFlow = env.settings.flow(SettingKeys.InboxSort).map { SortState.parse(it, InboxSort.choices) }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val tasks = retry.flatMapLatest {
@@ -94,13 +105,14 @@ class InboxViewModel(private val env: TasksEnvironment) : ViewModel() {
             .catch { emit(ListLoad.Failed) }
     }
 
-    val state: StateFlow<InboxUiState> = combine(tasks, env.pendingDeletes.ids, query) { load, pending, q ->
+    val state: StateFlow<InboxUiState> = combine(tasks, env.pendingDeletes.ids, query, sortFlow) { load, pending, q, sort ->
         when (load) {
             is ListLoad.Ready -> {
                 val visible = PendingDeletes.without(load.items, pending) { it.id }
-                InboxUiState(ListLoad.Ready(visible.filter { SearchMatch.matchesSearch(q, listOf(it.title, it.description)) }), visible.size, q)
+                val matching = visible.filter { SearchMatch.matchesSearch(q, listOf(it.title, it.description)) }
+                InboxUiState(ListLoad.Ready(InboxSort.sort(matching, sort)), visible.size, q, sort)
             }
-            else -> InboxUiState(load, 0, q)
+            else -> InboxUiState(load, 0, q, sort)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InboxUiState())
 
@@ -110,6 +122,18 @@ class InboxViewModel(private val env: TasksEnvironment) : ViewModel() {
 
     fun retry() {
         retry.value += 1
+    }
+
+    fun chooseSort(choice: SortChoice) {
+        saveSort { it.select(choice) }
+    }
+
+    fun reverseSort() {
+        saveSort { it.reversed() }
+    }
+
+    private fun saveSort(change: (SortState) -> SortState) {
+        viewModelScope.launch { env.settings.set(SettingKeys.InboxSort.name, change(sortFlow.first()).encode()) }
     }
 
     fun delete(task: Task, message: String) {
@@ -155,6 +179,7 @@ fun InboxTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit) {
                     contentDescription = stringResource(if (searching) R.string.common_close else R.string.common_search),
                 )
             }
+            ListSortMenu(state.sort, InboxSort.choices, SortLabels::inbox, "inbox-sort", vm::chooseSort, vm::reverseSort)
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()).testTag("screen-inbox"), contentAlignment = Alignment.TopCenter) {

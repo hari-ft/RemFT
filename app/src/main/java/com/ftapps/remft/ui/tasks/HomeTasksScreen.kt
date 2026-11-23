@@ -25,22 +25,16 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CalendarViewMonth
 import androidx.compose.material.icons.outlined.CalendarViewWeek
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
@@ -121,8 +115,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
-import com.ftapps.remft.ui.components.menuChoice
-import com.ftapps.remft.ui.components.menuToggle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.contentDescription
@@ -212,7 +204,9 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                                     contentDescription = stringResource(if (searchOpen) R.string.common_close else R.string.lowui_filter),
                                 )
                             }
-                            if (!searchOpen) SortMenu(state, vm)
+                            if (!searchOpen) {
+                                ListSortMenu(state.sort, TaskSort.choices, SortLabels::home, "home-sort", vm::chooseSort, vm::reverseSort)
+                            }
                             if (!wide && state.calendarVisible && !searching) {
                                 RemftIconButton(label = stringResource(if (monthOpen) R.string.home_showWeek else R.string.home_showMonth), onClick = { monthOpen = !monthOpen }, modifier = Modifier.testTag("calendar-expand")) {
                                     Icon(
@@ -475,54 +469,6 @@ fun bucketLabel(bucket: HomeBucket): Int = when (bucket) {
     HomeBucket.Tomorrow -> R.string.home_bucket_tomorrow
     HomeBucket.ThisWeek -> R.string.home_bucket_thisWeek
     HomeBucket.Next30Days -> R.string.home_bucket_next30Days
-}
-
-@Composable
-private fun SortMenu(state: HomeUiState, vm: HomeViewModel) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        RemftIconButton(label = stringResource(R.string.sort_tooltip), onClick = { open = true }, modifier = Modifier.testTag("home-sort")) {
-            Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = stringResource(R.string.sort_tooltip))
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            Text(
-                stringResource(R.string.sort_sectionTitle),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = Space.x4, vertical = Space.x2),
-            )
-            TaskSort.choices.forEach { choice ->
-                val label = when (choice.id) {
-                    "priority" -> R.string.sort_taskPriority
-                    "title" -> R.string.sort_title
-                    else -> R.string.sort_taskDate
-                }
-                DropdownMenuItem(
-                    text = { Text(stringResource(label)) },
-                    leadingIcon = {
-                        if (state.sort.id == choice.id) Icon(Icons.Outlined.Check, contentDescription = null) else Box(Modifier.width(24.dp))
-                    },
-                    onClick = {
-                        open = false
-                        vm.chooseSort(choice)
-                    },
-                    modifier = Modifier.menuChoice(state.sort.id == choice.id).testTag("sort-${choice.id}"),
-                )
-            }
-            HorizontalDivider()
-            val natural = TaskSort.choices.firstOrNull { it.id == state.sort.id }?.descendingByDefault ?: false
-            val reversed = state.sort.descending != natural
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.sort_reverse)) },
-                leadingIcon = { Checkbox(checked = reversed, onCheckedChange = null) },
-                onClick = {
-                    open = false
-                    vm.reverseSort()
-                },
-                modifier = Modifier.menuToggle(reversed).testTag("sort-reverse"),
-            )
-        }
-    }
 }
 
 @Preview(name = "Home light", widthDp = 411, heightDp = 1000)
