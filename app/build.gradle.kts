@@ -10,7 +10,7 @@ plugins {
 
 val appMajor = 1
 val appMinor = 1
-val appBugfix = 2
+val appBugfix = 3
 require(appMajor in 1..99 && appMinor in 1..9 && appBugfix in 1..9) {
     "Version out of range: major 1-99, minor 1-9, bugfix 1-9"
 }
@@ -183,6 +183,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit)
+    testImplementation(testFixtures(project(":domain")))
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.test.ext.junit)

@@ -27,10 +27,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.DialogProperties
 import com.ftapps.remft.R
+import com.ftapps.remft.domain.backup.oldapp.OldAppImport
 import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RemftBottomSheet
 import com.ftapps.remft.ui.components.RemftTextButton
@@ -96,14 +98,19 @@ fun RestoreSourceOptions(oneDriveConnected: Boolean, onFile: () -> Unit, onOneDr
 }
 
 @Composable
-fun RestoreConfirmDialog(date: String, onCancel: () -> Unit, onGo: () -> Unit) {
+fun RestoreConfirmDialog(date: String, onCancel: () -> Unit, onGo: () -> Unit, oldApp: OldAppImport? = null) {
     val scheme = MaterialTheme.colorScheme
     AlertDialog(
         modifier = Modifier.testTag("restore-confirm"),
         onDismissRequest = onCancel,
         icon = { Icon(Icons.Outlined.SettingsBackupRestore, contentDescription = null) },
         title = { Text(stringResource(R.string.backup_restoreTitle), style = MaterialTheme.typography.titleLarge) },
-        text = { Text(stringFilled(R.string.backup_restoreBody, "date" to date), style = MaterialTheme.typography.bodyMedium) },
+        text = {
+            Column {
+                if (oldApp != null) OldAppSummary(oldApp)
+                Text(stringFilled(R.string.backup_restoreBody, "date" to date), style = MaterialTheme.typography.bodyMedium)
+            }
+        },
         dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onCancel) },
         confirmButton = {
             Button(
@@ -117,6 +124,34 @@ fun RestoreConfirmDialog(date: String, onCancel: () -> Unit, onGo: () -> Unit) {
         containerColor = scheme.surfaceContainerLow,
         iconContentColor = scheme.error,
     )
+}
+
+@Composable
+private fun OldAppSummary(oldApp: OldAppImport) {
+    val counts = oldApp.counts
+    val lines = buildList {
+        add(stringFilled(R.string.oldbk_confirmSource, "version" to oldApp.appVersion))
+        add(
+            stringFilled(
+                R.string.oldbk_confirmCounts,
+                "tasks" to pluralStringResource(R.plurals.oldbk_taskCount, counts.tasks, counts.tasks),
+                "notes" to pluralStringResource(R.plurals.oldbk_noteCount, counts.notes, counts.notes),
+                "files" to pluralStringResource(R.plurals.lowui_fileCount, counts.files, counts.files),
+            ),
+        )
+        if (oldApp.listedOnly > 0) {
+            add(stringFilled(R.string.oldbk_confirmOneDrive, "files" to pluralStringResource(R.plurals.lowui_fileCount, oldApp.listedOnly, oldApp.listedOnly)))
+        }
+        if (oldApp.unavailable > 0) {
+            add(stringFilled(R.string.oldbk_confirmMissing, "files" to pluralStringResource(R.plurals.lowui_fileCount, oldApp.unavailable, oldApp.unavailable)))
+        }
+    }
+    Column(Modifier.testTag("restore-confirm-old-app")) {
+        for (line in lines) {
+            Text(line, style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(Space.x2))
+        }
+    }
 }
 
 @Composable

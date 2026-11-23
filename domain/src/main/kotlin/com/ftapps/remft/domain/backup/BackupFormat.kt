@@ -11,6 +11,9 @@ import com.ftapps.remft.domain.time.UtcText
 
 object BackupFormat {
     const val CURRENT = 1
+    const val NEXT_FORMAT = 4
+    val OLD_APP_FORMATS: Set<Int> = setOf(2, 3)
+    const val OLD_APP_SCHEMA = 3
     const val APP = "remft"
     const val MANIFEST_NAME = "manifest.json"
     const val DB_NAME = "remft.sqlite"
@@ -32,8 +35,10 @@ object BackupErrorCode {
     const val NEWER_VERSION = "newer_version"
     const val DAMAGED = "damaged"
     const val NOT_A_DATABASE = "not_a_database"
+    const val OLD_APP_SCHEMA = "old_app_schema"
+    const val OLD_APP_UNSUPPORTED = "old_app_unsupported"
 
-    val all: List<String> = listOf(NOT_A_BACKUP, NEWER_VERSION, DAMAGED, NOT_A_DATABASE)
+    val all: List<String> = listOf(NOT_A_BACKUP, NEWER_VERSION, DAMAGED, NOT_A_DATABASE, OLD_APP_SCHEMA, OLD_APP_UNSUPPORTED)
 
     fun stringKey(code: String): String = "backup.error.$code"
 }

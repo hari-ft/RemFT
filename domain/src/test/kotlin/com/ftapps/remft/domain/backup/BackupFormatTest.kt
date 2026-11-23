@@ -266,7 +266,7 @@ class BackupFormatTest {
 
     @Test
     fun errorCodesHaveStringKeys() {
-        assertEquals(4, BackupErrorCode.all.size)
+        assertEquals(6, BackupErrorCode.all.size)
         assertEquals("backup.error.not_a_backup", BackupErrorCode.stringKey(BackupErrorCode.NOT_A_BACKUP))
     }
 }

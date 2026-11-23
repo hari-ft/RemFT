@@ -912,4 +912,18 @@
     <string name="sched_completed">“{title}” completed</string>
     <string name="sched_reminder">Reminder {time}</string>
     <string name="sched_snoozed">Snoozed</string>
+    <string name="oldbk_errorSchema">This backup is from a version of the old RemFT app whose data cannot be converted. Back up again with old RemFT 2.3.7 and restore that file. Nothing on this phone was changed.</string>
+    <string name="oldbk_errorUnsupported">This backup from the old RemFT app cannot be restored here. Nothing on this phone was changed.</string>
+    <string name="oldbk_confirmSource">This backup was made by the old RemFT app (version {version}). Its data will be converted for this app.</string>
+    <string name="oldbk_confirmCounts">It holds {tasks}, {notes} and {files}.</string>
+    <string name="oldbk_confirmOneDrive">Only in OneDrive: {files}. They download after the restore once OneDrive is connected in this app.</string>
+    <string name="oldbk_confirmMissing">Already missing when this backup was made, so they cannot be restored: {files}.</string>
+    <plurals name="oldbk_taskCount">
+        <item quantity="one">%d task</item>
+        <item quantity="other">%d tasks</item>
+    </plurals>
+    <plurals name="oldbk_noteCount">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
 </resources>

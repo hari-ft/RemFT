@@ -6,6 +6,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -48,8 +51,12 @@ class FilesScreenTest {
     private val downloads = MutableSharedFlow<String>(extraBufferCapacity = 8)
     private val rig = TestFiles(downloaded = downloads)
 
+    private var showing by mutableStateOf(true)
+
     @After
     fun tearDown() {
+        showing = false
+        runCatching { compose.waitForIdle() }
         rig.close()
     }
 
@@ -57,7 +64,7 @@ class FilesScreenTest {
         compose.setContent {
             RemftTheme {
                 CompositionLocalProvider(LocalTasksEnvironment provides rig.tasks.environment, LocalFilesEnvironment provides rig.environment) {
-                    content()
+                    if (showing) content()
                 }
             }
         }
