@@ -103,6 +103,7 @@ import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.files.AttachmentsSection
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import java.time.LocalDateTime
 
@@ -258,7 +259,7 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
                     null
                 } else {
                     {
-                        Box(Modifier.size(40.dp).background(RemftTheme.tonal.level2, MarkedShapes.pill).testTag("mute-alarms-icon"), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(Sizes.avatar + 4.dp).background(RemftTheme.tonal.level2, MarkedShapes.pill).testTag("mute-alarms-icon"), contentAlignment = Alignment.Center) {
                             Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -290,7 +291,7 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
                 clearDescription = stringResource(R.string.task_clearDue),
                 onChanged = { scoped(TaskPatch(dueAt = Change(it?.toInstant(zone))), true) },
                 modifier = Modifier.padding(vertical = Space.x2),
-                leadingInset = Space.x4,
+                leadingInset = 16.dp,
             )
             DateTimeField(
                 tag = "remind-row",
@@ -302,7 +303,7 @@ private fun TaskDetailBody(detail: TaskDetail, vm: TaskDetailViewModel, asker: S
                 clearDescription = stringResource(R.string.task_clearReminder),
                 onChanged = { scoped(TaskPatch(remindAt = Change(it?.toInstant(zone))), true) },
                 modifier = Modifier.padding(vertical = Space.x2),
-                leadingInset = Space.x4,
+                leadingInset = 16.dp,
             )
             SectionDivider()
             TaskRepeatRow(task)

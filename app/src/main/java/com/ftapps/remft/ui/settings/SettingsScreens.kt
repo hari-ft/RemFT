@@ -300,7 +300,7 @@ private fun SelectedMark() {
 @Composable
 private fun StylingOption(sample: AnnotatedString, label: String, selected: Boolean, modifier: Modifier = Modifier) {
     Row(
-        modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = Space.x4, end = Space.x3, top = Space.x3, bottom = Space.x3),
+        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = Space.x4, end = Space.x3, top = Space.x2 + 2.dp, bottom = Space.x2 + 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

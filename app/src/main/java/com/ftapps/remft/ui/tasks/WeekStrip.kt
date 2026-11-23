@@ -162,26 +162,26 @@ private fun WeekDay(day: LocalDate, isToday: Boolean, isSelected: Boolean, hasTa
         isSelected -> scheme.onPrimaryContainer
         else -> scheme.primary
     }
-    Box(modifier.then(tile).then(ring).heightIn(min = Sizes.quickAdd), contentAlignment = Alignment.Center) {
-        Column(Modifier.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Box(modifier.then(tile).then(ring).heightIn(min = Sizes.weekTile), contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 day.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.ENGLISH),
-                style = MaterialTheme.typography.labelMedium.copy(fontSize = cappedSize(12.sp, 1.5f)),
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = cappedSize(11.sp, 1.5f), lineHeight = cappedSize(14.sp, 1.5f)),
                 color = soft,
                 maxLines = 1,
                 softWrap = false,
             )
             Text(
                 day.dayOfMonth.toString(),
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = cappedSize(18.sp, 1.3f)),
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = cappedSize(16.sp, 1.3f), lineHeight = cappedSize(20.sp, 1.3f)),
                 color = ink,
                 maxLines = 1,
                 softWrap = false,
             )
-            Spacer(Modifier.height(2.dp))
-            Box(Modifier.size(6.dp), contentAlignment = Alignment.Center) {
+            Spacer(Modifier.height(1.dp))
+            Box(Modifier.size(5.dp), contentAlignment = Alignment.Center) {
                 if (hasTasks) {
-                    Box(Modifier.size(6.dp).background(dot, CircleShape).testTag("calendar-dot-$day"))
+                    Box(Modifier.size(5.dp).background(dot, CircleShape).testTag("calendar-dot-$day"))
                 }
             }
         }

@@ -66,6 +66,7 @@ import com.ftapps.remft.ui.components.stringFilled
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -323,7 +324,7 @@ private fun ReminderStepRow(
     onRemove: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("reminder-step-$index").padding(start = Space.x4, end = Space.x1, top = Space.x1, bottom = Space.x1),
+        Modifier.fillMaxWidth().heightIn(min = Sizes.listRow).testTag("reminder-step-$index").padding(start = Space.x4, end = Space.x1, top = Space.x1, bottom = Space.x1),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StepBadge("${index + 1}")
@@ -361,7 +362,7 @@ private fun SnoozeOrderRow(
     onRemove: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("snooze-order-$id").padding(start = Space.x4, end = Space.x1, top = Space.x1, bottom = Space.x1),
+        Modifier.fillMaxWidth().heightIn(min = Sizes.listRow).testTag("snooze-order-$id").padding(start = Space.x4, end = Space.x1, top = Space.x1, bottom = Space.x1),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StepBadge("${index + 1}")

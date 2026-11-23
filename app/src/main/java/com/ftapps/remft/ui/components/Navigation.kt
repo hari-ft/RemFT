@@ -98,14 +98,14 @@ fun RemftNavItem(
     val iconColor = if (selected) scheme.onPrimaryContainer else scheme.onSurfaceVariant
     Column(
         modifier
-            .heightIn(min = Sizes.listRow)
+            .heightIn(min = Sizes.listRowSingle)
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
             .padding(vertical = Space.x1),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(Modifier.size(width = 56.dp, height = 28.dp).background(pill, MarkedShapes.pill), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(Sizes.iconSmall + 4.dp))
+        Box(Modifier.size(width = 52.dp, height = 26.dp).background(pill, MarkedShapes.pill), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(Sizes.iconNav))
         }
         Spacer(Modifier.height(2.dp))
         Text(

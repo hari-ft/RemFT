@@ -1,12 +1,16 @@
 package com.ftapps.remft.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Search
@@ -16,15 +20,17 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.ui.theme.MarkedShapes
@@ -95,12 +101,23 @@ fun RoundIconButton(
     container: Color = RemftTheme.tonal.level2,
     content: Color = MaterialTheme.colorScheme.onSurface,
 ) {
-    RemftIconButton(
-        onClick = onClick,
-        label = contentDescription,
-        colors = IconButtonDefaults.iconButtonColors(containerColor = container, contentColor = content),
-        modifier = modifier,
-    ) { Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(Sizes.iconSmall + 2.dp)) }
+    Tooltipped(contentDescription) {
+        Box(
+            modifier
+                .size(Sizes.touchTarget)
+                .clickable(
+                    interactionSource = null,
+                    indication = ripple(bounded = false, radius = Sizes.iconButton / 2),
+                    role = Role.Button,
+                    onClick = onClick,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.size(Sizes.iconButton).background(container, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = contentDescription, tint = content, modifier = Modifier.size(Sizes.iconSmall))
+            }
+        }
+    }
 }
 
 @Composable

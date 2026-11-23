@@ -60,6 +60,7 @@ import com.ftapps.remft.domain.tasks.DateInput
 import com.ftapps.remft.domain.tasks.DefaultTime
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import java.time.Instant
 import java.time.LocalDate
@@ -165,7 +166,7 @@ fun DateTimeFieldContent(
                 Icon(icon, contentDescription = null, tint = tint)
             } else {
                 Spacer(Modifier.width(leadingInset))
-                Box(Modifier.size(40.dp).testTag("$tag-icon"), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(Sizes.avatar + 4.dp).testTag("$tag-icon"), contentAlignment = Alignment.Center) {
                     Icon(icon, contentDescription = null, tint = tint)
                 }
             }
@@ -243,7 +244,7 @@ private fun PartButton(
             contentColor = if (isSet) scheme.onSurface else scheme.primary,
         ),
         border = if (isSet) null else BorderStroke(1.dp, scheme.outline),
-        modifier = modifier.heightIn(min = 48.dp).semantics { contentDescription = "$description, $text" }.testTag(tag),
+        modifier = modifier.heightIn(min = Sizes.button + 4.dp).semantics { contentDescription = "$description, $text" }.testTag(tag),
         contentPadding = PaddingValues(horizontal = Space.x3),
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
