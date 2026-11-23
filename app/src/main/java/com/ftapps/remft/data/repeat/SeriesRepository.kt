@@ -34,7 +34,9 @@ import java.time.Clock
 import java.time.Instant
 
 interface TaskSeriesHooks {
-    suspend fun afterTaskUpdate(before: TaskEntity, after: TaskEntity, edit: TaskEdit?, scope: EditScope?)
+    suspend fun afterTaskUpdate(before: TaskEntity, after: TaskEntity, edit: TaskEdit?, scope: EditScope?): List<String>
+
+    fun discardBytes(paths: List<String>)
 }
 
 object SeriesEdits {
@@ -105,7 +107,7 @@ class SeriesRepository(
         }
     }
 
-    suspend fun updateRule(seriesId: String, rule: RepeatRule) = run(seriesId) { engine().updateRule(it, seriesId, rule) }
+    suspend fun updateRule(seriesId: String, rule: RepeatRule) = run(seriesId, binned = false) { engine().updateRule(it, seriesId, rule) }
 
     suspend fun stop(seriesId: String, fromDay: String? = null, keepTaskId: String? = null) =
         run(seriesId, binned = binEnabled()) { engine().stop(it, seriesId, fromDay, keepTaskId) }
@@ -167,25 +169,29 @@ class SeriesRepository(
         }
     }
 
-    override suspend fun afterTaskUpdate(before: TaskEntity, after: TaskEntity, edit: TaskEdit?, scope: EditScope?) {
-        val seriesId = after.seriesId ?: return
+    override suspend fun afterTaskUpdate(before: TaskEntity, after: TaskEntity, edit: TaskEdit?, scope: EditScope?): List<String> {
+        val seriesId = after.seriesId ?: return emptyList()
         val statusChanged = before.status != after.status
-        if (!statusChanged && scope == null) return
+        if (!statusChanged && scope == null) return emptyList()
         val db = database()
-        db.withTransaction {
+        return db.withTransaction {
             val beforeRow = SeriesMapping.toRow(before, false)
             if (statusChanged) {
                 val snapshot = load(db, seriesId)
-                val current = snapshot.state.task(after.id) ?: return@withTransaction
+                val current = snapshot.state.task(after.id) ?: return@withTransaction emptyList()
                 apply(db, snapshot, engine().onStatusChange(snapshot.state, beforeRow, current))
             }
+            val removedPaths = mutableListOf<String>()
             if (scope != null && edit != null) {
                 val snapshot = load(db, seriesId)
-                val current = snapshot.state.task(after.id) ?: return@withTransaction
-                apply(db, snapshot, engine().propagateScope(snapshot.state, current, edit, scope, beforeRow))
+                val current = snapshot.state.task(after.id) ?: return@withTransaction emptyList()
+                apply(db, snapshot, engine().propagateScope(snapshot.state, current, edit, scope, beforeRow), binned = false, removedPaths)
             }
+            unreferenced(db, removedPaths)
         }
     }
+
+    override fun discardBytes(paths: List<String>) = deleteBytes(paths)
 
     private suspend fun run(seriesId: String, binned: Boolean = true, change: (SeriesState) -> SeriesChangeSet) {
         val db = database()
