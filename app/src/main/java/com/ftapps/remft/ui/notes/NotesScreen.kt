@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.notes
 
+import com.ftapps.remft.ui.theme.Sizes
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -172,7 +173,7 @@ fun NotesScreen(
                     } else {
                         Text(
                             stringResource(R.string.nav_notes),
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.W700),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.W700),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -236,11 +237,11 @@ fun NotesScreen(
                             selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         ),
                         border = null,
-                        modifier = Modifier.heightIn(min = 48.dp).testTag("filter-${filter.name.lowercase()}"),
+                        modifier = Modifier.testTag("filter-${filter.name.lowercase()}"),
                     )
                 }
             }
-            val listPadding = PaddingValues(start = Space.x4, end = Space.x4, top = Space.x2, bottom = bottomPadding + 88.dp)
+            val listPadding = PaddingValues(start = Space.x4, end = Space.x4, top = Space.x2, bottom = bottomPadding + Sizes.fab + Space.x5)
             when (val current = state) {
                 NotesListState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 NotesListState.Failed -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { IllustratedErrorState(onRetry = viewModel::retry) }
@@ -300,7 +301,7 @@ private fun NoteTileContent(note: NoteRow, meta: String, actions: NoteRowActions
             Modifier.padding(start = Space.x4, top = Space.x1, bottom = Space.x1, end = Space.x1),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f).padding(vertical = Space.x2), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.weight(1f).padding(vertical = Space.x1), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     note.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -357,7 +358,7 @@ private fun NoteCard(note: NoteRow, dateFormat: DateFormatId, actions: NoteRowAc
 
 @Composable
 private fun NoteCardContent(note: NoteRow, edited: String, actions: NoteRowActions, modifier: Modifier = Modifier) {
-    MarkedCard(modifier.aspectRatio(210f / 297f), onClick = { actions.open(note) }) {
+    MarkedCard(modifier.aspectRatio(3f / 4f), onClick = { actions.open(note) }) {
         Column(Modifier.fillMaxSize().padding(start = Space.x4, end = Space.x1, bottom = Space.x3, top = Space.x1)) {
             Row(verticalAlignment = Alignment.Top) {
                 Text(

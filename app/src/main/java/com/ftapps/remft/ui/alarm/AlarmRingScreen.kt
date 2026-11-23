@@ -50,7 +50,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -82,8 +81,8 @@ import com.ftapps.remft.domain.alarm.SnoozePresets
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.domain.time.DateFormats
-import com.ftapps.remft.ui.components.RemftDialog
 import com.ftapps.remft.ui.components.RemftSnackbar
+import com.ftapps.remft.ui.components.RemftTimePickerDialog
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.MotionSpeed
 import com.ftapps.remft.ui.theme.RemftTheme
@@ -491,13 +490,13 @@ private fun CustomSnoozeDate(now: Instant, zone: ZoneId, onDismiss: () -> Unit, 
 private fun CustomSnoozeTime(now: Instant, zone: ZoneId, onDismiss: () -> Unit, onPicked: (LocalTime) -> Unit) {
     val suggested = SnoozePresets.customSuggestion(now).atZone(zone).toLocalTime()
     val state = rememberTimePickerState(initialHour = suggested.hour, initialMinute = suggested.minute)
-    RemftDialog(
+    RemftTimePickerDialog(
+        state = state,
         onDismissRequest = onDismiss,
         confirmButton = {
             SnoozeDialogButton(stringResource(R.string.tasks_pickerOk), "alarm-custom-time-ok") { onPicked(LocalTime.of(state.hour, state.minute)) }
         },
         dismissButton = { SnoozeDialogButton(stringResource(R.string.common_cancel), null, onDismiss) },
-        text = { TimePicker(state = state) },
     )
 }
 

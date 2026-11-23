@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.tasks
 
+import com.ftapps.remft.ui.theme.Sizes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -288,14 +289,14 @@ private fun CaptureRowContent(id: String, title: String, onPlan: () -> Unit, onC
     val scheme = MaterialTheme.colorScheme
     MarkedCard(Modifier.fillMaxWidth().testTag("capture-row-$id")) {
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(onClick = onPlan).padding(start = Space.x3, end = Space.x1, top = Space.x2, bottom = Space.x2),
+            Modifier.fillMaxWidth().heightIn(min = Sizes.listRow).clickable(onClick = onPlan).padding(start = Space.x3, end = Space.x1, top = Space.x2, bottom = Space.x2),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.size(40.dp).background(scheme.primaryContainer, MarkedShapes.pill),
+                Modifier.size(Sizes.avatar).background(scheme.primaryContainer, MarkedShapes.pill),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Inbox, contentDescription = null, tint = scheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
+                Icon(Icons.Outlined.Inbox, contentDescription = null, tint = scheme.onPrimaryContainer, modifier = Modifier.size(Sizes.iconSmall))
             }
             Spacer(Modifier.width(Space.x3))
             Text(

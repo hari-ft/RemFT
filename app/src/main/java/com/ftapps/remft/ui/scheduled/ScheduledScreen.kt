@@ -233,7 +233,7 @@ private fun ScheduledHeader(label: String, overdue: Boolean, modifier: Modifier 
         modifier = modifier
             .fillMaxWidth()
             .background(RemftTheme.tonal.level0)
-            .padding(start = Space.x1, end = Space.x1, top = Space.x4, bottom = Space.x2)
+            .padding(start = Space.x1, end = Space.x1, top = Space.x3, bottom = Space.x1)
             .semantics { heading() },
     )
 }

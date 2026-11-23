@@ -32,7 +32,7 @@ import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 
-private val ButtonPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+private val ButtonPadding = PaddingValues(horizontal = Space.x4, vertical = Space.x2)
 
 @Composable
 fun RemftFilledButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, icon: ImageVector? = null) {
@@ -41,7 +41,7 @@ fun RemftFilledButton(text: String, onClick: () -> Unit, modifier: Modifier = Mo
         enabled = enabled,
         shape = MarkedShapes.pill,
         contentPadding = ButtonPadding,
-        modifier = modifier.heightIn(min = Sizes.touchTarget),
+        modifier = modifier.heightIn(min = Sizes.button),
     ) { ButtonLabel(text, icon) }
 }
 
@@ -56,7 +56,7 @@ fun RemftTonalButton(text: String, onClick: () -> Unit, modifier: Modifier = Mod
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         ),
-        modifier = modifier.heightIn(min = Sizes.touchTarget),
+        modifier = modifier.heightIn(min = Sizes.button),
     ) { ButtonLabel(text, icon) }
 }
 
@@ -73,14 +73,14 @@ fun RemftTextButton(
         enabled = enabled,
         shape = MarkedShapes.pill,
         colors = ButtonDefaults.textButtonColors(contentColor = color),
-        modifier = modifier.heightIn(min = Sizes.touchTarget),
-    ) { Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = MaterialTheme.typography.titleMedium.fontSize)) }
+        modifier = modifier.heightIn(min = Sizes.button),
+    ) { Text(text, style = MaterialTheme.typography.labelLarge) }
 }
 
 @Composable
 private fun ButtonLabel(text: String, icon: ImageVector?) {
     if (icon != null) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Icon(icon, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall))
         Spacer(Modifier.size(Space.x2))
     }
     Text(text, style = MaterialTheme.typography.labelLarge)
@@ -99,8 +99,8 @@ fun RoundIconButton(
         onClick = onClick,
         label = contentDescription,
         colors = IconButtonDefaults.iconButtonColors(containerColor = container, contentColor = content),
-        modifier = modifier.size(Sizes.touchTarget),
-    ) { Icon(icon, contentDescription = contentDescription) }
+        modifier = modifier,
+    ) { Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(Sizes.iconSmall + 2.dp)) }
 }
 
 @Composable
@@ -120,9 +120,9 @@ private fun SquareFabBody(icon: ImageVector, contentDescription: String, onClick
         contentColor = scheme.onPrimary,
         elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
         modifier = modifier
-            .shadow(10.dp, MarkedShapes.fab, ambientColor = scheme.primary.copy(alpha = 0.35f), spotColor = scheme.primary.copy(alpha = 0.35f))
+            .shadow(6.dp, MarkedShapes.fab, ambientColor = scheme.primary.copy(alpha = 0.35f), spotColor = scheme.primary.copy(alpha = 0.35f))
             .size(Sizes.fab),
-    ) { Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(28.dp)) }
+    ) { Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(Sizes.icon)) }
 }
 
 @Preview(name = "Buttons light")

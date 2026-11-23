@@ -207,7 +207,7 @@ fun SlashSuggestions(matches: List<MdActionId>, onPick: (MdActionId) -> Unit) {
                     iconContentColor = note.onContainer,
                 ),
                 border = null,
-                modifier = Modifier.heightIn(min = 48.dp).testTag("slash-${id.name.lowercase()}"),
+                modifier = Modifier.testTag("slash-${id.name.lowercase()}"),
             )
         }
     }

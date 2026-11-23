@@ -73,7 +73,7 @@ fun BellMark(
 @Composable
 fun NameMark(modifier: Modifier = Modifier) {
     Row(modifier.testTag("name-mark"), verticalAlignment = Alignment.CenterVertically) {
-        BellMark(size = 36.dp)
+        BellMark(size = 30.dp)
         Spacer(Modifier.width(6.dp))
         Text(
             stringResource(R.string.app_title),

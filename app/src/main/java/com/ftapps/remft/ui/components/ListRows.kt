@@ -55,10 +55,10 @@ fun CircleCheckbox(checked: Boolean, description: String, onToggle: () -> Unit, 
             Modifier
                 .size(Sizes.checkbox)
                 .background(fill, CircleShape)
-                .border(2.dp, ring, CircleShape),
+                .border(Sizes.stroke, ring, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            if (checked) Icon(Icons.Filled.Check, contentDescription = null, tint = done.onColor, modifier = Modifier.size(16.dp))
+            if (checked) Icon(Icons.Filled.Check, contentDescription = null, tint = done.onColor, modifier = Modifier.size(Sizes.iconChip))
         }
     }
 }
@@ -79,7 +79,7 @@ fun RemftListRow(
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = 64.dp)
+            .heightIn(min = Sizes.listRow)
             .then(click)
             .padding(start = Space.x1, end = Space.x3, top = Space.x2, bottom = Space.x2),
         verticalAlignment = Alignment.CenterVertically,
@@ -90,7 +90,7 @@ fun RemftListRow(
         } else {
             Spacer(Modifier.width(Space.x3))
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.x1)) {
             Text(
                 headline,
                 style = MaterialTheme.typography.titleMedium.copy(textDecoration = if (struck) TextDecoration.LineThrough else null),

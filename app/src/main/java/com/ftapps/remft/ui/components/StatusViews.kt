@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 
 @Composable
@@ -31,12 +32,12 @@ fun EmptyState(icon: ImageVector, title: String, message: String, modifier: Modi
         verticalArrangement = Arrangement.Center,
     ) {
         Box(
-            Modifier.size(72.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            Modifier.size(Sizes.emptyBadge).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(32.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(Sizes.icon))
         }
-        Spacer(Modifier.height(Space.x4))
+        Spacer(Modifier.height(Space.x3))
         Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(Space.x2))
         Text(

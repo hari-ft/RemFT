@@ -53,12 +53,12 @@ import com.ftapps.remft.ui.theme.Space
 @Composable
 fun RemftNavigationBar(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     Column(modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow)) {
-        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(thickness = Sizes.hairline, color = MaterialTheme.colorScheme.outlineVariant)
         Row(
             Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .heightIn(min = Sizes.navBarHeight - 1.dp)
+                .heightIn(min = Sizes.navBarHeight)
                 .padding(horizontal = Space.x2),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
@@ -68,7 +68,7 @@ fun RemftNavigationBar(modifier: Modifier = Modifier, content: @Composable RowSc
 }
 
 @Composable
-fun RemftNavigationRail(modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp = 88.dp, content: @Composable ColumnScope.() -> Unit) {
+fun RemftNavigationRail(modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp = 80.dp, content: @Composable ColumnScope.() -> Unit) {
     Row(modifier.fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainerLow)) {
         Column(
             Modifier
@@ -80,7 +80,7 @@ fun RemftNavigationRail(modifier: Modifier = Modifier, width: androidx.compose.u
             verticalArrangement = Arrangement.spacedBy(Space.x2),
             content = content,
         )
-        VerticalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        VerticalDivider(thickness = Sizes.hairline, color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
@@ -98,16 +98,16 @@ fun RemftNavItem(
     val iconColor = if (selected) scheme.onPrimaryContainer else scheme.onSurfaceVariant
     Column(
         modifier
-            .heightIn(min = 64.dp)
+            .heightIn(min = Sizes.listRow)
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
             .padding(vertical = Space.x1),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(Modifier.size(width = 64.dp, height = 32.dp).background(pill, MarkedShapes.pill), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = iconColor)
+        Box(Modifier.size(width = 56.dp, height = 28.dp).background(pill, MarkedShapes.pill), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(Sizes.iconSmall + 4.dp))
         }
-        Spacer(Modifier.height(Space.x1))
+        Spacer(Modifier.height(2.dp))
         Text(
             label,
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (selected) FontWeight.W600 else FontWeight.W500),
@@ -133,7 +133,7 @@ fun RemftNavRowItem(
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .heightIn(min = Sizes.touchTarget)
             .background(pill, MarkedShapes.pill)
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
             .padding(horizontal = Space.x4),

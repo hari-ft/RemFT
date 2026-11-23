@@ -652,7 +652,7 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                     header = {
                         Text(
                             viewModel.title.text.ifBlank { stringResource(R.string.note_untitled) },
-                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.W700),
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.W700),
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = Space.x4).testTag("reading-title"),
                         )
@@ -711,7 +711,7 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
 
 @Composable
 private fun TitleField(viewModel: NoteEditorViewModel) {
-    val style = MaterialTheme.typography.headlineLarge.copy(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.W700)
+    val style = MaterialTheme.typography.headlineSmall.copy(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.W700)
     BasicTextField(
         value = viewModel.title,
         onValueChange = viewModel::onTitleChange,

@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.empty
 
+import com.ftapps.remft.ui.theme.Sizes
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -65,7 +66,7 @@ private fun EmptyIllustration.ink(): Color = when (this) {
 }
 
 @Composable
-fun BrandIllustration(illustration: EmptyIllustration, modifier: Modifier = Modifier, size: Dp = 144.dp) {
+fun BrandIllustration(illustration: EmptyIllustration, modifier: Modifier = Modifier, size: Dp = Sizes.emptyIllustration) {
     val disc = RemftTheme.tonal.level2
     val ring = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
     Box(modifier.size(size).testTag("illustration-${illustration.name.lowercase()}")) {
@@ -100,7 +101,7 @@ fun IllustratedEmptyState(
     action: (@Composable () -> Unit)? = null,
 ) {
     Column(
-        modifier.fillMaxWidth().padding(horizontal = Space.x8, vertical = Space.x8),
+        modifier.fillMaxWidth().padding(horizontal = Space.x6, vertical = Space.x6),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -108,7 +109,7 @@ fun IllustratedEmptyState(
         Spacer(Modifier.height(Space.x4))
         Text(
             title,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier.widthIn(max = TextMaxWidth).semantics { heading() },
@@ -122,7 +123,7 @@ fun IllustratedEmptyState(
             modifier = Modifier.widthIn(max = TextMaxWidth),
         )
         if (action != null) {
-            Spacer(Modifier.height(Space.x5))
+            Spacer(Modifier.height(Space.x4))
             action()
         }
     }

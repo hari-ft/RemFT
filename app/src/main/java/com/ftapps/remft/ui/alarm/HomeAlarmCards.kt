@@ -194,22 +194,22 @@ private fun UpcomingUrgentCard(env: AlarmEnvironment, upcoming: UpcomingUrgent, 
 fun UrgentAlarmCardContent(title: String, time: String, ringsIn: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val urgent = RemftTheme.colors.urgent
-    val titleStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.W700, fontSize = 24.sp, lineHeight = 30.sp)
+    val titleStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.W700)
     GradientCard(
         brush = RemftTheme.gradients.urgent.diagonal,
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().padding(vertical = Space.x2).testTag("urgent-alarm-card"),
+        modifier = modifier.fillMaxWidth().padding(vertical = Space.x1).testTag("urgent-alarm-card"),
     ) {
-        Column(Modifier.padding(start = Space.x5, end = Space.x5, top = Space.x4, bottom = Space.x5)) {
+        Column(Modifier.padding(horizontal = Space.x4, vertical = Space.x3)) {
             FlowRow(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalArrangement = Arrangement.spacedBy(Space.x2),
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(Modifier.heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.NotificationsNone, contentDescription = null, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(Space.x3))
+                Row(Modifier.heightIn(min = 28.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.NotificationsNone, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall + 2.dp))
+                    Spacer(Modifier.width(Space.x2))
                     Text(stringResource(R.string.home_urgentAlarm), style = MaterialTheme.typography.titleMedium)
                 }
                 Text(
@@ -218,11 +218,11 @@ fun UrgentAlarmCardContent(title: String, time: String, ringsIn: String, onClick
                     color = if (dark) urgent.container else urgent.onContainer,
                     modifier = Modifier
                         .background(if (dark) urgent.onContainer else Color.White, MarkedShapes.pill)
-                        .padding(horizontal = Space.x4, vertical = Space.x2)
+                        .padding(horizontal = Space.x3, vertical = Space.x1)
                         .testTag("urgent-alarm-rings-in"),
                 )
             }
-            Spacer(Modifier.height(Space.x3))
+            Spacer(Modifier.height(Space.x2))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = titleStyle, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 Spacer(Modifier.width(Space.x3))
@@ -260,12 +260,12 @@ fun AlarmProblemBannerContent(problem: AlarmProblem, onClick: () -> Unit, modifi
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = Space.x2)
+            .padding(vertical = Space.x1)
             .heightIn(min = Sizes.touchTarget)
             .testTag("alarm-banner"),
     ) {
-        Row(Modifier.padding(start = Space.x4, top = Space.x3, end = Space.x3, bottom = Space.x3), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.WarningAmber, contentDescription = null, modifier = Modifier.size(22.dp))
+        Row(Modifier.padding(start = Space.x4, top = Space.x2, end = Space.x3, bottom = Space.x2), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.WarningAmber, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall + 2.dp))
             Spacer(Modifier.width(Space.x3))
             Text(stringResource(problemText(problem)), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(Space.x2))
@@ -301,7 +301,7 @@ private fun AlarmFixSheetContent(problem: AlarmProblem, onOpen: () -> Unit, onDi
     RemftBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("alarm-fix-sheet")) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = Space.x6, vertical = Space.x2)) {
             Box(
-                Modifier.size(Sizes.touchTarget).background(warning.container, MarkedShapes.pill),
+                Modifier.size(Sizes.iconButton).background(warning.container, MarkedShapes.pill),
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = warning.onContainer) }
             Spacer(Modifier.height(Space.x4))
@@ -344,17 +344,17 @@ fun MissedAlarmCardContent(title: String, whenText: String, moreCount: Int, onCl
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = Space.x2)
+            .padding(vertical = Space.x1)
             .testTag("missed-alarm-card"),
     ) {
         Row(
-            Modifier.heightIn(min = 72.dp).padding(start = Space.x4, top = Space.x3, end = Space.x2, bottom = Space.x3),
+            Modifier.heightIn(min = Sizes.listRow).padding(start = Space.x4, top = Space.x2, end = Space.x2, bottom = Space.x2),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.size(40.dp).background(urgent.color, MarkedShapes.pill),
+                Modifier.size(Sizes.avatar).background(urgent.color, MarkedShapes.pill),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.NotificationsPaused, contentDescription = null, tint = urgent.onColor, modifier = Modifier.size(22.dp)) }
+            ) { Icon(Icons.Outlined.NotificationsPaused, contentDescription = null, tint = urgent.onColor, modifier = Modifier.size(Sizes.iconSmall + 2.dp)) }
             Spacer(Modifier.width(Space.x3))
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.alarm_missed_cardTitle), style = MaterialTheme.typography.labelLarge)

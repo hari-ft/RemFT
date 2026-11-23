@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.search
 
+import com.ftapps.remft.ui.theme.Sizes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -481,7 +482,7 @@ private fun PaletteRow(entry: PaletteEntry, active: Boolean, query: String, posi
         Row(
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 60.dp)
+                .heightIn(min = Sizes.listRow)
                 .clickable(onClickLabel = semantic, onClick = onClick)
                 .padding(start = Space.x3, end = Space.x3, top = Space.x2, bottom = Space.x2)
                 .testTag(tag),
