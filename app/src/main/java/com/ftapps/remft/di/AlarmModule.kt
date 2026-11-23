@@ -5,6 +5,7 @@ import com.ftapps.remft.app.AppStartup
 import com.ftapps.remft.app.StartupState
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.AlarmStartup
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.alarm.BackgroundTurn
 import com.ftapps.remft.data.db.DatabaseHolder
 import com.ftapps.remft.data.identity.LocalIdentityRepository
@@ -50,6 +51,7 @@ object AlarmModule {
         settings = settings,
         tasks = tasks,
         clock = LiveZoneClock,
+        appLog = AppLogs.of(context),
         ready = {
             val app = startup.get()
             app.start()

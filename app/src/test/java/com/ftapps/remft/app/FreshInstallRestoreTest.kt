@@ -11,6 +11,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.AlarmStartup
 import com.ftapps.remft.data.alarm.AndroidAlarmGateway
+import com.ftapps.remft.data.alarm.AppLog
+import com.ftapps.remft.data.alarm.AppLogCategory
+import com.ftapps.remft.data.alarm.AppLogLevel
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.backup.BackupPaths
 import com.ftapps.remft.data.backup.StartupRestoreRecovery
 import com.ftapps.remft.data.bin.RecycleBin
@@ -222,6 +226,74 @@ class FreshInstallRestoreTest {
         assertTrue(bookedTimes().isEmpty())
         assertNull(store.read(SettingKeys.LastBackupAt.name))
         assertFalse(BackupReminder.isDue(ZonedDateTime.now(clock), hasData = false))
+    }
+
+    @Test
+    fun aRestoreAndABackupAreRecordedInTheAppLogAndSurviveTheSwap() = runBlocking {
+        val previous = AppLogs.current
+        val logDir = File(dataDir, AppLogs.FOLDER)
+        val log = AppLog(logDir, clock)
+        AppLogs.install(log)
+        try {
+            startup.start()
+            awaitReady()
+            AppLogs.info("startup.before_restore")
+            log.flush()
+
+            val zip = sourceZip()
+            val titles = readSourceTitles()
+            backup.restore(backup.validate(zip.inputStream()))
+            startup.restartAfterRestore()
+            awaitReady()
+            val built = backup.build()
+
+            log.flush()
+            val events = AppLog(logDir, clock).read().reversed()
+            val names = events.map { it.event }
+            assertTrue(names.toString(), names.containsAll(listOf("startup.before_restore", "backup.validated", "backup.restore_started", "backup.restored", "backup.created")))
+            assertEquals(
+                listOf("staged", "swapping-db", "swapping-files", "done"),
+                events.filter { it.event == "backup.restore_phase" }.map { it.fields["phase"] },
+            )
+            assertTrue(names.indexOf("startup.before_restore") < names.indexOf("backup.restore_started"))
+            assertTrue(names.indexOf("backup.restored") < names.indexOf("backup.created"))
+
+            val validated = events.single { it.event == "backup.validated" }
+            assertEquals(AppLogCategory.RESTORE, validated.category)
+            assertEquals(SOURCE_FILES.size.toString(), validated.fields["files"])
+            val restored = events.single { it.event == "backup.restored" }
+            assertEquals(AppLogLevel.INFO, restored.level)
+            assertEquals("Restore finished", restored.message)
+            assertTrue(names.toString(), "restore.settings_applied" in names)
+
+            val created = events.single { it.event == "backup.created" }
+            assertEquals(AppLogCategory.BACKUP, created.category)
+            val counted = holder.db.openHelper.readableDatabase.query("SELECT (SELECT COUNT(*) FROM tasks), (SELECT COUNT(*) FROM notes)").use {
+                it.moveToFirst()
+                it.getLong(0).toString() to it.getLong(1).toString()
+            }
+            assertEquals(counted.first, created.fields["tasks"])
+            assertEquals(counted.second, created.fields["notes"])
+            assertEquals(built.zip.length().toString(), created.fields["bytes"])
+            assertTrue(created.message, created.message.startsWith("Backup created: ${counted.first} tasks, ${counted.second} notes, "))
+
+            val text = log.exportText()
+            assertTrue(titles.isNotEmpty())
+            titles.forEach { assertFalse(it, text.contains(it)) }
+        } finally {
+            AppLogs.install(previous)
+        }
+    }
+
+    private fun readSourceTitles(): List<String> {
+        val db = SQLiteDatabase.openDatabase(File(root, "source/remft.sqlite").path, null, SQLiteDatabase.OPEN_READONLY)
+        return try {
+            db.rawQuery("SELECT title FROM tasks UNION SELECT title FROM notes", null).use { cursor ->
+                buildList { while (cursor.moveToNext()) cursor.getString(0)?.takeIf { it.length >= 4 }?.let(::add) }
+            }
+        } finally {
+            db.close()
+        }
     }
 
     @Test

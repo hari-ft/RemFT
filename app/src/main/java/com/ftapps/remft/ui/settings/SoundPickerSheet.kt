@@ -46,6 +46,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.data.alarm.AlarmEnvironment
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.alarm.RingtoneFile
 import com.ftapps.remft.domain.alarm.AlarmSounds
 import com.ftapps.remft.domain.alarm.SoundChoice
@@ -101,7 +102,8 @@ private class AlarmSoundPreview(private val context: Context) {
                 true
             }
             next.prepareAsync()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLogs.warn("settings.sound_preview_failed", e)
             stop()
             onFail()
         }
@@ -146,7 +148,7 @@ fun SoundPickerSheet(env: AlarmEnvironment, lane: SoundLane, onMessage: (String)
         if (uri == null) return@rememberLauncherForActivityResult
         busy = true
         scope.launch {
-            val id = runCatching { env.sounds.upload(env.identity.resolve().workspaceId, uri) }.getOrNull()
+            val id = runCatching { env.sounds.upload(env.identity.resolve().workspaceId, uri) }.onFailure { AppLogs.warn("settings.sound_upload_failed", it) }.getOrNull()
             busy = false
             if (id == null) onMessage(uploadFailed) else reload++
         }
@@ -157,7 +159,7 @@ fun SoundPickerSheet(env: AlarmEnvironment, lane: SoundLane, onMessage: (String)
         scope.launch {
             if (next is SoundChoice.File) {
                 busy = true
-                val installed = runCatching { env.sounds.ensureInstalled(next.fileId) }.getOrDefault(false)
+                val installed = runCatching { env.sounds.ensureInstalled(next.fileId) }.onFailure { AppLogs.warn("settings.sound_install_failed", it) }.getOrDefault(false)
                 busy = false
                 if (!installed) {
                     onMessage(installFailed)

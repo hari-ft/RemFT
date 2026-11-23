@@ -1,6 +1,7 @@
 package com.ftapps.remft.data.notes
 
 import androidx.room.withTransaction
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.bin.BinMapping
 import com.ftapps.remft.data.bin.BinMapping.toBin
 import com.ftapps.remft.data.db.DatabaseHolder
@@ -134,12 +135,12 @@ class NotesRepository(
     suspend fun <T> outliving(block: suspend () -> T): T = background.async { block() }.await()
 
     fun detached(block: suspend () -> Unit) {
-        background.launch { runCatching { block() } }
+        background.launch { runCatching { block() }.onFailure { AppLogs.warn("notes.background_failed", it) } }
     }
 
     fun deleteInBackground(id: String, then: suspend () -> Unit = {}) {
         background.launch {
-            runCatching { delete(id) }
+            runCatching { delete(id) }.onFailure { AppLogs.error("notes.delete_failed", it) }
             then()
         }
     }

@@ -9,6 +9,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.AlarmStartup
 import com.ftapps.remft.data.alarm.AndroidAlarmGateway
+import com.ftapps.remft.data.alarm.AppLog
+import com.ftapps.remft.data.alarm.AppLogCategory
+import com.ftapps.remft.data.alarm.AppLogLevel
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.backup.AndroidSqlPort
 import com.ftapps.remft.data.backup.BackupPaths
 import com.ftapps.remft.data.backup.StartupRestoreRecovery
@@ -188,6 +192,36 @@ class OldAppRestoreTest {
             booked.isNotEmpty() && booked == runBlocking { plannedTimes() }
         }
         waitFor("the custom sound is installed from its imported file") { File(dataDir, "Sounds/F4.m4a").exists() }
+    }
+
+    @Test
+    fun anOldAppRestoreLogsItsConversionSummaryInTheAppLog() = runBlocking {
+        val previous = AppLogs.current
+        val log = AppLog(File(dataDir, AppLogs.FOLDER), clock)
+        AppLogs.install(log)
+        try {
+            startup.start()
+            awaitReady()
+            val zip = OldAppFixture.buildZip(File(root, "in"), AndroidSqlPort.opener).zip
+            backup.restore(backup.validate(zip.inputStream()))
+            startup.restartAfterRestore()
+            awaitReady()
+
+            val events = log.read()
+            val converted = events.single { it.event == "oldbackup.converted" }
+            assertEquals(AppLogCategory.IMPORT, converted.category)
+            assertEquals(AppLogLevel.INFO, converted.level)
+            assertEquals(OldAppFixture.attachments.size.toString(), converted.fields["files"])
+            val restored = events.single { it.event == "oldbackup.restored" }
+            assertEquals(OldAppFixture.APP_VERSION, restored.fields["appVersion"])
+            assertEquals("Restored from old RemFT backup ${OldAppFixture.APP_VERSION}", restored.message)
+            assertTrue(events.any { it.event == "oldbackup.found" })
+            val text = log.exportText()
+            assertFalse(text, text.contains("MILK"))
+            assertFalse(text, text.contains("İstanbul"))
+        } finally {
+            AppLogs.install(previous)
+        }
     }
 
     @Test

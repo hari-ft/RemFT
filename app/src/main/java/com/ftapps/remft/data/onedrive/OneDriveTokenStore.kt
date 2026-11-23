@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import androidx.core.content.edit
 import android.security.keystore.KeyProperties
+import com.ftapps.remft.data.backup.AndroidBackupLog
 import java.security.KeyStore
 import java.util.Base64
 import javax.crypto.Cipher
@@ -111,7 +112,7 @@ class KeystoreTokenCipher(private val alias: String = ALIAS) : TokenCipher {
     }
 
     override fun forget() {
-        runCatching { keyStore().deleteEntry(alias) }
+        runCatching { keyStore().deleteEntry(alias) }.onFailure { AndroidBackupLog.warn("autobackup.onedrive_key_forget_failed", it) }
     }
 
     companion object {

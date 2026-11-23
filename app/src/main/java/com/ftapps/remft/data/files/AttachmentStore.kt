@@ -1,6 +1,7 @@
 package com.ftapps.remft.data.files
 
 import androidx.room.withTransaction
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.bin.RecycleBin
 import com.ftapps.remft.data.db.RemftDatabase
 import com.ftapps.remft.data.db.entity.FileRowEntity
@@ -121,6 +122,7 @@ class AttachmentStore(
             target.delete()
             throw e
         }
+        AppLogs.info("files.attached", mapOf("bytes" to written, "kind" to targetType))
         id
     }
 
@@ -201,10 +203,12 @@ class AttachmentStore(
     }
 
     fun deleteBytes(names: Iterable<String?>) {
+        var failed = 0
         names.forEach { raw ->
             val name = raw?.let(::safeName) ?: return@forEach
-            runCatching { File(directory, name).takeIf { it.isFile }?.delete() }
+            if (!runCatching { File(directory, name).takeIf { it.isFile }?.delete() ?: true }.getOrDefault(false)) failed++
         }
+        if (failed > 0) AppLogs.warn("files.delete_failed", fields = mapOf("files" to failed))
     }
 
     suspend fun sweepOrphans(): SweepResult = withContext(Dispatchers.IO) {

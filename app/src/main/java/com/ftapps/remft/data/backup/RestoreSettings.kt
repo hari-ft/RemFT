@@ -1,5 +1,6 @@
 package com.ftapps.remft.data.backup
 
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.data.prefs.SettingsUnavailable
 import com.ftapps.remft.domain.backup.BackupSettings
@@ -15,6 +16,7 @@ object RestoreSettings {
         val raw = store.snapshot()[BackupSettings.pendingKey] ?: return false
         val parsed = BackupSettings.parse(raw)
         if (parsed == null) {
+            AppLogs.warn("restore.settings_unreadable")
             store.remove(BackupSettings.pendingKey)
             return false
         }
@@ -25,6 +27,7 @@ object RestoreSettings {
         }
         removing.add(BackupSettings.pendingKey)
         if (!store.setAll(values, removing)) throw SettingsUnavailable(IllegalStateException("settings not applied"))
+        AppLogs.info("restore.settings_applied", mapOf("changed" to values.size, "cleared" to removing.size - 1))
         return true
     }
 }

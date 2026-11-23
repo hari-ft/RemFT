@@ -2,6 +2,7 @@ package com.ftapps.remft.ui.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.tasks.DefaultTime
 import com.ftapps.remft.domain.tasks.HomeGroup
@@ -121,7 +122,7 @@ class HomeViewModel(private val env: TasksEnvironment) : ViewModel() {
 
     fun toggle(task: Task, onFailed: () -> Unit) {
         viewModelScope.launch {
-            runCatching { repository.setCompleted(task.id, !task.isCompleted) }.onFailure { onFailed() }
+            runCatching { repository.setCompleted(task.id, !task.isCompleted) }.onFailure { AppLogs.warn("tasks.complete_failed", it); onFailed() }
         }
     }
 

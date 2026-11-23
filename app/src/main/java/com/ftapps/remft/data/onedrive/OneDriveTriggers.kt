@@ -14,6 +14,7 @@ import com.ftapps.remft.domain.backup.auto.BackupSchedule
 import com.ftapps.remft.domain.backup.lock.WorkLocks
 import com.ftapps.remft.domain.backup.restore.ScratchSweep
 import com.ftapps.remft.domain.settings.SettingKeys
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -49,9 +50,10 @@ class OneDriveTriggers(
 
     fun onReady() {
         scope.launch {
-            runCatching { auth.isConnected() }
+            runCatching { auth.isConnected() }.onFailure { if (it !is CancellationException) AndroidBackupLog.warn("autobackup.onedrive_state_failed", it) }
             withContext(Dispatchers.IO) {
                 runCatching { ScratchSweep.autoBackupScratch(cacheDir, locks(), AndroidBackupLog) }
+                    .onFailure { AndroidBackupLog.warn("autobackup.scratch_sweep_failed", it) }
             }
             watchFileRows()
             check()
@@ -82,7 +84,7 @@ class OneDriveTriggers(
             if (watched === db) return
             watched = db
         }
-        runCatching { db.invalidationTracker.addObserver(fileRowsObserver) }
+        runCatching { db.invalidationTracker.addObserver(fileRowsObserver) }.onFailure { AndroidBackupLog.warn("mirror.watch_failed", it) }
     }
 
     fun afterSettingsChanged() {
@@ -96,12 +98,13 @@ class OneDriveTriggers(
         turn.planWake()
         armSlotTimer()
         synchronized(this) { if (pending?.isActive == true) return }
-        if (!runCatching { turn.isDue() }.getOrDefault(false)) return
+        val due = runCatching { turn.isDue() }.onFailure { if (it !is CancellationException) AndroidBackupLog.warn("autobackup.due_check_failed", it) }
+        if (!due.getOrDefault(false)) return
         synchronized(this) {
             if (pending?.isActive == true) return
             pending = scope.launch {
                 delay(DUE_DELAY.toMillis())
-                runCatching { turn.run(force = false) }
+                runCatching { turn.run(force = false) }.onFailure { if (it !is CancellationException) AndroidBackupLog.error("autobackup.run_failed", it) }
                 armSlotTimer()
             }
         }
@@ -130,7 +133,7 @@ class OneDriveTriggers(
             mirrorPending = scope.launch {
                 delay(MIRROR_DELAY.toMillis())
                 if (holder.isRestoring) return@launch
-                runCatching { turn.catchUpMirror() }
+                runCatching { turn.catchUpMirror() }.onFailure { if (it !is CancellationException) AndroidBackupLog.warn("mirror.catch_up_failed", it) }
             }
         }
     }

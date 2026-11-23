@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.domain.settings.SettingKey
 import com.ftapps.remft.domain.settings.SettingKeys
 import kotlinx.coroutines.CancellationException
@@ -20,15 +21,27 @@ class SettingsUnavailable(cause: Throwable) : Exception(cause)
 class SettingsStore(private val dataStore: DataStore<Preferences>) {
     private fun key(name: String) = stringPreferencesKey(name)
 
+    @Volatile
+    private var lastReadWarning = 0L
+
+    private fun readFailed(e: Throwable) {
+        val now = System.currentTimeMillis()
+        if (now - lastReadWarning < READ_WARNING_GAP_MS) return
+        lastReadWarning = now
+        AppLogs.warn("settings.read_failed", e)
+    }
+
     suspend fun snapshot(): Map<String, String> = try {
         withTimeout(READ_TIMEOUT_MS) {
             dataStore.data.first().asMap().mapNotNull { (k, v) -> (v as? String)?.let { k.name to it } }.toMap()
         }
     } catch (e: TimeoutCancellationException) {
+        readFailed(e)
         throw SettingsUnavailable(e)
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
+        readFailed(e)
         throw SettingsUnavailable(e)
     }
 
@@ -45,7 +58,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     suspend fun set(name: String, value: String): Boolean = try {
         dataStore.edit { it[key(name)] = value }
         true
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        if (e !is CancellationException) AppLogs.warn("settings.write_failed", e, mapOf("key" to name))
         false
     }
 
@@ -55,14 +69,16 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
             values.forEach { (name, value) -> prefs[key(name)] = value }
         }
         true
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        if (e !is CancellationException) AppLogs.warn("settings.write_failed", e, mapOf("count" to values.size + removing.size))
         false
     }
 
     suspend fun remove(name: String): Boolean = try {
         dataStore.edit { it.remove(key(name)) }
         true
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        if (e !is CancellationException) AppLogs.warn("settings.remove_failed", e, mapOf("key" to name))
         false
     }
 
@@ -80,5 +96,6 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     companion object {
         const val FILE_NAME = "remft_settings"
         private const val READ_TIMEOUT_MS = 3_000L
+        private const val READ_WARNING_GAP_MS = 60_000L
     }
 }

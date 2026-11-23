@@ -1,6 +1,10 @@
 package com.ftapps.remft.data.onedrive
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ftapps.remft.data.alarm.AppLog
+import com.ftapps.remft.data.alarm.AppLogCategory
+import com.ftapps.remft.data.alarm.AppLogLevel
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.domain.backup.BackupLog
 import com.ftapps.remft.domain.backup.auto.StoredBackup
 import com.ftapps.remft.domain.settings.SettingKeys
@@ -11,6 +15,7 @@ import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -282,6 +287,34 @@ class GraphClientTest {
             fail()
         } catch (e: OneDriveException) {
             assertEquals(OneDriveErrors.OFFLINE, e.code)
+        }
+    }
+
+    @Test
+    fun oneDriveFailuresAreWarnedInTheAppLog() = runBlocking {
+        val previous = AppLogs.current
+        val log = AppLog(File(rig.root, AppLogs.FOLDER))
+        AppLogs.install(log)
+        try {
+            server.enqueue(json(507, """{"error":{"code":"insufficientStorage"}}"""))
+            val refused = GraphClient(auth, rig.http, baseUrl = server.url("/v1.0").toString(), sleeper = {})
+            runCatching { refused.putFile(file(ByteArray(3)), "Files/Other/Secret plan (F1).txt") }
+            val dead = GraphClient(auth, rig.http, baseUrl = "http://127.0.0.1:1/v1.0", sleeper = {})
+            runCatching { dead.list() }
+
+            val entries = log.read()
+            val full = entries.single { it.event == "autobackup.onedrive_refused" }
+            assertEquals(AppLogLevel.WARN, full.level)
+            assertEquals(AppLogCategory.ONEDRIVE, full.category)
+            assertEquals("507", full.fields["status"])
+            assertEquals("insufficientStorage", full.fields["code"])
+            val offline = entries.single { it.event == "autobackup.onedrive_offline" }
+            assertEquals(AppLogLevel.WARN, offline.level)
+            assertEquals(AppLogCategory.ONEDRIVE, offline.category)
+            assertFalse(log.exportText().contains("Secret"))
+            assertFalse(log.exportText().contains("Bearer"))
+        } finally {
+            AppLogs.install(previous)
         }
     }
 

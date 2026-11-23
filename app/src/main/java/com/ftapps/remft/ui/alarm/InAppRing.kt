@@ -143,7 +143,6 @@ class InAppRing(
             env.scope.launch {
                 for (note in notes) {
                     env.log.record(AlarmLogEvent.DEGRADED, AlarmLogLane.INAPP, kind = alarm.kind, urgent = alarm.urgent, taskId = alarm.taskId, reminderId = alarm.reminderId, detail = note)
-                    env.appLog.warn("alarm.sound_trouble", mapOf("note" to LogCode(if (note.startsWith("chosen")) "fallback" else "blocked")))
                 }
             }
         }

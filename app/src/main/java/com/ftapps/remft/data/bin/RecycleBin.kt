@@ -1,6 +1,7 @@
 package com.ftapps.remft.data.bin
 
 import androidx.room.withTransaction
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.bin.BinMapping.toEntity
 import com.ftapps.remft.data.db.RemftDatabase
 import com.ftapps.remft.data.db.entity.FileRowEntity
@@ -55,7 +56,8 @@ class RecycleBin(
             snapshot[SettingKeys.BinAutoDelete.name],
             snapshot[SettingKeys.BinDays.name],
         )
-    } catch (_: SettingsUnavailable) {
+    } catch (e: SettingsUnavailable) {
+        AppLogs.warn("bin.settings_unreadable", e)
         null
     }
 
@@ -86,10 +88,11 @@ class RecycleBin(
                 dao.deleteTrash(trashId)
                 payload
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLogs.warn("bin.restore_failed", e)
             null
         } ?: return@withContext false
-        runCatching { afterRestore(restored) }
+        runCatching { afterRestore(restored) }.onFailure { AppLogs.warn("bin.after_restore_failed", it) }
         true
     }
 
@@ -198,11 +201,14 @@ class RecycleBin(
             ?: runCatching { BinPayload.parse(item.payload).localPaths }.getOrDefault(emptyList())
 
     private fun deleteBytes(names: List<String>) {
+        var failed = 0
         names.forEach { name ->
             val base = PathText.basename(name)
             if (base.isEmpty() || base == "." || base == "..") return@forEach
-            runCatching { File(attachmentsDir, base).takeIf { it.isFile }?.delete() }
+            val ok = runCatching { File(attachmentsDir, base).takeIf { it.isFile }?.delete() ?: true }.getOrDefault(false)
+            if (!ok) failed++
         }
+        if (failed > 0) AppLogs.warn("bin.bytes_delete_failed", fields = mapOf("files" to failed))
     }
 
     companion object {

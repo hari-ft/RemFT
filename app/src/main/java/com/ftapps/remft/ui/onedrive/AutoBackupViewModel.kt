@@ -26,6 +26,7 @@ import com.ftapps.remft.domain.backup.auto.PauseRule
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.settings.SettingKeys
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,20 +76,21 @@ class AutoBackupViewModel @Inject constructor(
     val messages: Flow<AutoBackupMessage> = messageChannel.receiveAsFlow()
 
     init {
-        viewModelScope.launch { runCatching { auth.isConnected() } }
+        viewModelScope.launch { runCatching { auth.isConnected() }.onFailure { if (it !is CancellationException) AndroidBackupLog.warn("autobackup.onedrive_state_failed", it) } }
         refreshCounts()
         viewModelScope.launch { turn.outcomes.collect { refreshCounts() } }
     }
 
     private fun refreshCounts() {
         viewModelScope.launch {
-            mutableCounts.value = runCatching { mirror.counts() }.getOrNull()
+            mutableCounts.value = runCatching { mirror.counts() }.onFailure { if (it !is CancellationException) AndroidBackupLog.warn("mirror.counts_failed", it) }.getOrNull()
         }
     }
 
     fun signInIntent(): Intent? = try {
         signIn.intent(snapshot.value?.account)
     } catch (e: OneDriveException) {
+        AndroidBackupLog.warn("autobackup.onedrive_sign_in_failed", e)
         messageChannel.trySend(AutoBackupMessage.Error(e.code))
         null
     } catch (e: Exception) {
@@ -111,11 +113,17 @@ class AutoBackupViewModel @Inject constructor(
                 } catch (e: OneDriveException) {
                     AndroidBackupLog.warn("autobackup.onedrive_account_failed", fields = mapOf("code" to e.code))
                 }
+                AndroidBackupLog.info("onedrive.connected")
                 downloads.startIfPending()
                 triggers.afterSettingsChanged()
                 triggers.mirrorSoon()
             } catch (e: OneDriveException) {
-                if (e.code != OneDriveErrors.CANCELLED) messageChannel.trySend(AutoBackupMessage.Error(e.code))
+                if (e.code == OneDriveErrors.CANCELLED) {
+                    AndroidBackupLog.info("onedrive.sign_in_cancelled")
+                } else {
+                    AndroidBackupLog.warn("autobackup.onedrive_connect_failed", e)
+                    messageChannel.trySend(AutoBackupMessage.Error(e.code))
+                }
             } catch (e: Exception) {
                 AndroidBackupLog.error("autobackup.onedrive_connect_failed", e)
                 messageChannel.trySend(AutoBackupMessage.Error(OneDriveErrors.UNKNOWN))
@@ -128,6 +136,7 @@ class AutoBackupViewModel @Inject constructor(
     fun setOn(on: Boolean) {
         viewModelScope.launch {
             store.set(SettingKeys.OneDriveOn.name, on.toString())
+            AndroidBackupLog.info("autobackup.switched", mapOf("on" to on))
             triggers.afterSettingsChanged()
         }
     }
@@ -145,6 +154,7 @@ class AutoBackupViewModel @Inject constructor(
                 store.remove(SettingKeys.OneDriveOn.name)
                 store.remove(SettingKeys.OneDriveAccount.name)
                 store.remove(DestinationStatus.key(OneDriveConfig.DESTINATION_ID))
+                AndroidBackupLog.info("onedrive.disconnected")
                 triggers.afterSettingsChanged()
                 messageChannel.trySend(AutoBackupMessage.Disconnected)
             } finally {

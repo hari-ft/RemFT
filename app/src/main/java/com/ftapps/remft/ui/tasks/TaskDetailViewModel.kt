@@ -2,11 +2,13 @@ package com.ftapps.remft.ui.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.tasks.TaskDetail
 import com.ftapps.remft.domain.repeat.EditScope
 import com.ftapps.remft.domain.tasks.Change
 import com.ftapps.remft.domain.tasks.Task
 import com.ftapps.remft.domain.tasks.TaskPatch
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,8 +49,12 @@ class TaskDetailViewModel(private val env: TasksEnvironment, val taskId: String)
 
     var scopeAsker: ((Task, Boolean, (EditScope?) -> Unit) -> Unit)? = null
 
+    private fun writeFailed(error: Throwable) {
+        if (error !is CancellationException) AppLogs.warn("tasks.write_failed", error)
+    }
+
     fun apply(patch: TaskPatch, scope: EditScope? = null) {
-        writes.launch { runCatching { repository.update(taskId, patch, scope) } }
+        writes.launch { runCatching { repository.update(taskId, patch, scope) }.onFailure(::writeFailed) }
     }
 
     private fun saveTitleQuietly(task: Task?, patch: TaskPatch) {
@@ -60,7 +66,7 @@ class TaskDetailViewModel(private val env: TasksEnvironment, val taskId: String)
             runCatching {
                 val afterCompletion = env.series?.isAfterCompletion(task.seriesId) ?: true
                 repository.update(taskId, patch, if (afterCompletion) null else EditScope.Future)
-            }
+            }.onFailure(::writeFailed)
         }
     }
 
@@ -116,11 +122,11 @@ class TaskDetailViewModel(private val env: TasksEnvironment, val taskId: String)
 
     fun toggleComplete() {
         val task = current() ?: return
-        writes.launch { runCatching { repository.setCompleted(taskId, !task.isCompleted) } }
+        writes.launch { runCatching { repository.setCompleted(taskId, !task.isCompleted) }.onFailure(::writeFailed) }
     }
 
     fun setMuted(muted: Boolean) {
-        writes.launch { runCatching { repository.muteAlarms(taskId, muted) } }
+        writes.launch { runCatching { repository.muteAlarms(taskId, muted) }.onFailure(::writeFailed) }
     }
 
     fun delete(message: String) {
@@ -130,23 +136,23 @@ class TaskDetailViewModel(private val env: TasksEnvironment, val taskId: String)
     }
 
     fun addItem(title: String) {
-        writes.launch { runCatching { repository.addChecklistItem(taskId, title) } }
+        writes.launch { runCatching { repository.addChecklistItem(taskId, title) }.onFailure(::writeFailed) }
     }
 
     fun renameItem(id: String, title: String) {
-        writes.launch { runCatching { repository.renameChecklistItem(id, title) } }
+        writes.launch { runCatching { repository.renameChecklistItem(id, title) }.onFailure(::writeFailed) }
     }
 
     fun setItemDone(id: String, done: Boolean) {
-        writes.launch { runCatching { repository.setChecklistItemDone(id, done) } }
+        writes.launch { runCatching { repository.setChecklistItemDone(id, done) }.onFailure(::writeFailed) }
     }
 
     fun deleteItem(id: String) {
-        writes.launch { runCatching { repository.deleteChecklistItem(id) } }
+        writes.launch { runCatching { repository.deleteChecklistItem(id) }.onFailure(::writeFailed) }
     }
 
     fun moveItem(id: String, offset: Int) {
-        writes.launch { runCatching { repository.moveChecklistItem(taskId, id, offset) } }
+        writes.launch { runCatching { repository.moveChecklistItem(taskId, id, offset) }.onFailure(::writeFailed) }
     }
 
     override fun onCleared() {

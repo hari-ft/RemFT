@@ -72,7 +72,12 @@ class BackupWake(
     suspend fun plan(book: Boolean = true) {
         try {
             val slots = upcoming()
-            store.set(SettingKeys.AutoBackupWakeSlots.name, slots.joinToString(",") { it.toEpochMilli().toString() })
+            val encoded = slots.joinToString(",") { it.toEpochMilli().toString() }
+            val before = store.get(SettingKeys.AutoBackupWakeSlots.name)
+            store.set(SettingKeys.AutoBackupWakeSlots.name, encoded)
+            if (book && before != encoded) {
+                if (slots.isEmpty()) log.info("autobackup.unscheduled") else log.info("autobackup.scheduled", mapOf("next" to slots.first(), "slots" to slots.size))
+            }
             if (!book) return
             val first = slots.firstOrNull()
             val delay = first?.let { Duration.between(clock(), it).coerceAtLeast(Duration.ZERO) }
@@ -102,6 +107,7 @@ class BackupWakeWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         startup.start()
         val state = withTimeoutOrNull(STARTUP_WAIT.toMillis()) { startup.state.first { it !is StartupState.Starting } }
+        if (state !is StartupState.Ready) AndroidBackupLog.warn("autobackup.wake_not_ready", fields = mapOf("starting" to (state == null)))
         if (state is StartupState.Ready) {
             try {
                 turn.run(force = false)

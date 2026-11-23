@@ -49,7 +49,6 @@ object NotificationActions {
     const val REASON_NOT_THE_ONE = "the alarm is no longer the one that rang"
 
     const val LOG_NOT_OURS = "alarm.event_not_ours"
-    const val LOG_STALE = "alarm.action_stale"
 
     fun snooze(preset: String): String = "$SNOOZE_PREFIX$preset"
 

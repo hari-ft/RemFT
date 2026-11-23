@@ -2,6 +2,7 @@ package com.ftapps.remft.ui.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.domain.repeat.RepeatRule
 import com.ftapps.remft.domain.repeat.SeriesTooDenseException
 import com.ftapps.remft.domain.tasks.TaskDraft
@@ -45,6 +46,7 @@ class TaskSheetViewModel(
                 } catch (dense: SeriesTooDenseException) {
                     SheetSave.TooDense
                 } catch (error: Exception) {
+                    AppLogs.error("tasks.save_failed", error)
                     SheetSave.Failed
                 }
             }

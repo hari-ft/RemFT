@@ -110,7 +110,6 @@ class AlarmActionHandler(
     }
 
     private suspend fun notApplied(decision: NotificationDecision.NotApplied, notificationId: Int?): ActionResult {
-        appLog.info(NotificationActions.LOG_STALE, mapOf("action" to LogCode(decision.action)))
         log.record(AlarmLogEvent.ACTION, AlarmLogLane.NOTIFICATION, taskId = decision.taskId, reminderId = decision.reminderId, detail = decision.detail)
         notificationId?.let { runCatching { gateway.cancelShown(it) } }
         return ActionResult.NOT_APPLIED

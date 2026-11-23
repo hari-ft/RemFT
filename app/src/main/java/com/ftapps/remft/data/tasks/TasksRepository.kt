@@ -1,6 +1,7 @@
 package com.ftapps.remft.data.tasks
 
 import androidx.room.withTransaction
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.bin.BinMapping
 import com.ftapps.remft.data.bin.BinMapping.toBin
 import com.ftapps.remft.data.db.RemftDatabase
@@ -180,7 +181,8 @@ class TasksRepository(
         }
         if (!toBin) {
             val dir = attachmentsDir ?: return
-            removedPaths.forEach { name -> runCatching { File(dir, name).delete() } }
+            val failed = removedPaths.count { name -> !runCatching { File(dir, name).let { !it.exists() || it.delete() } }.getOrDefault(false) }
+            if (failed > 0) AppLogs.warn("files.delete_failed", fields = mapOf("files" to failed))
         }
     }
 

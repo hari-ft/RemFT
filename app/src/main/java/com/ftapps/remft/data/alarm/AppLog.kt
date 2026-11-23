@@ -33,9 +33,13 @@ data class AppLogEntry(
     val event: String,
     val fields: Map<String, String> = emptyMap(),
     val errorType: String? = null,
+    val category: AppLogCategory = AppLogCategory.of(event),
 ) {
+    val message: String get() = AppLogText.message(this)
+
     fun format(): String = buildString {
-        append(at.toString()).append(' ').append(level.name).append(' ').append(event)
+        append(at.toString()).append(' ').append(level.name).append(' ').append(category.label).append(' ').append(event)
+        append(": ").append(message)
         fields.forEach { (k, v) -> append(' ').append(k).append('=').append(v) }
         errorType?.let { append(" error=").append(it) }
     }
@@ -49,6 +53,7 @@ class AppLog(
 ) {
     private val writer = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "remft-app-log").apply { isDaemon = true } }
     private val lock = Any()
+    private val unwritten = ArrayDeque<AppLogEntry>()
 
     fun info(event: String, fields: Map<String, Any?> = emptyMap()) = add(AppLogLevel.INFO, event, fields, null)
 
@@ -58,15 +63,27 @@ class AppLog(
     fun error(event: String, error: Throwable?, fields: Map<String, Any?> = emptyMap()) =
         add(AppLogLevel.ERROR, event, fields, error)
 
-    private fun add(level: AppLogLevel, event: String, fields: Map<String, Any?>, error: Throwable?) {
-        val entry = AppLogEntry(
-            at = clock.instant(),
-            level = level,
-            event = LogCode(event).safe,
-            fields = fields.entries.associate { (k, v) -> LogCode(k).safe to redact(v) },
-            errorType = error?.javaClass?.simpleName,
-        )
-        writer.execute { runCatching { write(entry) } }
+    fun add(
+        level: AppLogLevel,
+        event: String,
+        fields: Map<String, Any?>,
+        error: Throwable?,
+        category: AppLogCategory? = null,
+        at: Instant? = null,
+    ) {
+        try {
+            val code = LogCode(event).safe
+            val entry = AppLogEntry(
+                at = at ?: clock.instant(),
+                level = level,
+                event = code,
+                fields = fields.entries.associate { (k, v) -> LogCode(k).safe to redact(v) },
+                errorType = error?.let { errorName(it) },
+                category = category ?: AppLogCategory.of(code),
+            )
+            writer.execute { runCatching { write(entry) } }
+        } catch (_: Throwable) {
+        }
     }
 
     fun flush() {
@@ -77,8 +94,17 @@ class AppLog(
     private val previous: File get() = File(directory, PREVIOUS)
 
     private fun write(entry: AppLogEntry) = synchronized(lock) {
+        unwritten.addLast(entry)
+        while (unwritten.size > MAX_UNWRITTEN) unwritten.removeFirst()
         directory.mkdirs()
         expire()
+        while (unwritten.isNotEmpty()) {
+            append(unwritten.first())
+            unwritten.removeFirst()
+        }
+    }
+
+    private fun append(entry: AppLogEntry) {
         val line = encode(entry) + "\n"
         val bytes = line.toByteArray(Charsets.UTF_8)
         if (current.exists() && current.length() + bytes.size > maxBytes) {
@@ -106,6 +132,7 @@ class AppLog(
                     decode(line)?.takeIf { it.at.isAfter(cutoff) }?.let(out::add)
                 }
             }
+            out.addAll(unwritten)
             out.reversed()
         }
     }
@@ -113,6 +140,7 @@ class AppLog(
     fun clear() {
         flush()
         synchronized(lock) {
+            unwritten.clear()
             current.delete()
             previous.delete()
         }
@@ -123,6 +151,7 @@ class AppLog(
     companion object {
         const val CURRENT = "app.log"
         const val PREVIOUS = "app.1.log"
+        private const val MAX_UNWRITTEN = 256
 
         fun redact(value: Any?): String = when (value) {
             null -> "null"
@@ -136,6 +165,8 @@ class AppLog(
 
         fun filter(entries: List<AppLogEntry>, min: AppLogLevel): List<AppLogEntry> = entries.filter { it.level >= min }
 
+        private fun errorName(error: Throwable): String = LogCode(error.javaClass.simpleName.ifEmpty { "Throwable" }).safe
+
         private fun encode(entry: AppLogEntry): String {
             val map = LinkedHashMap<String, JsonElement>()
             map["t"] = JsonPrimitive(entry.at.toString())
@@ -143,17 +174,20 @@ class AppLog(
             map["e"] = JsonPrimitive(entry.event)
             if (entry.fields.isNotEmpty()) map["f"] = JsonObject(entry.fields.mapValues { JsonPrimitive(it.value) })
             entry.errorType?.let { map["x"] = JsonPrimitive(it) }
+            if (entry.category != AppLogCategory.of(entry.event)) map["c"] = JsonPrimitive(entry.category.name.lowercase())
             return JsonObject(map).toString()
         }
 
         private fun decode(line: String): AppLogEntry? = try {
             val obj = Json.parseToJsonElement(line).jsonObject
+            val event = obj["e"]!!.jsonPrimitive.content
             AppLogEntry(
                 at = Instant.parse(obj["t"]!!.jsonPrimitive.content),
                 level = AppLogLevel.valueOf(obj["l"]!!.jsonPrimitive.content.uppercase()),
-                event = obj["e"]!!.jsonPrimitive.content,
+                event = event,
                 fields = (obj["f"] as? JsonObject)?.mapValues { (_, v) -> primitiveText(v) }.orEmpty(),
                 errorType = (obj["x"] as? JsonPrimitive)?.contentOrNull,
+                category = (obj["c"] as? JsonPrimitive)?.contentOrNull?.let { AppLogCategory.parse(it) } ?: AppLogCategory.of(event),
             )
         } catch (_: Exception) {
             null

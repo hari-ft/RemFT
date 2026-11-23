@@ -94,6 +94,24 @@ class LogScreensTest {
     }
 
     @Test
+    fun appLogRowsShowTheirCategoryAndAReadableMessageAndFilterByLevel() {
+        alarms.env.appLog.info("backup.restored", mapOf("files" to 2))
+        alarms.env.appLog.warn("autobackup.onedrive_offline", emptyMap(), java.io.IOException())
+        alarms.env.appLog.error("oldbackup.convert_failed", IllegalStateException())
+        alarms.env.appLog.info("bin.purged", mapOf("items" to 3))
+        alarms.env.appLog.flush()
+        showAppLog()
+        compose.waitFor { compose.tagCount("app-log-row-info") == 2 && compose.tagCount("app-log-row-warn") == 1 && compose.tagCount("app-log-row-error") == 1 }
+        assertEquals(1, compose.textCount("Restore · Restore finished"))
+        assertEquals(1, compose.textCount("OneDrive · Onedrive offline"))
+        assertEquals(1, compose.textCount("Import · Convert failed"))
+        assertEquals(1, compose.textCount("Bin · Purged"))
+        compose.onNodeWithTag("app-log-filter-warn").performClick()
+        compose.waitFor { compose.tagCount("app-log-row-info") == 0 && compose.tagCount("app-log-row-warn") == 1 && compose.tagCount("app-log-row-error") == 1 }
+        assertEquals(1, compose.textCount("OneDrive · Onedrive offline"))
+    }
+
+    @Test
     fun aFilterWithNoMatchesSaysSoInsteadOfNothingLogged() {
         alarms.env.appLog.info("app.launch", mapOf("cold" to true))
         alarms.env.appLog.flush()
