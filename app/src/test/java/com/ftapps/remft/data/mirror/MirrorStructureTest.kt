@@ -3,6 +3,7 @@ package com.ftapps.remft.data.mirror
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.data.onedrive.OneDriveRig
+import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.backup.BackupLog
 import com.ftapps.remft.domain.backup.bin.BinFile
 import com.ftapps.remft.domain.backup.bin.BinFolder
@@ -11,6 +12,10 @@ import com.ftapps.remft.domain.backup.bin.BinTask
 import com.ftapps.remft.domain.backup.mirror.MirrorState
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.testing.TestDatabases
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -22,6 +27,8 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.IOException
+import java.time.Duration
 import java.time.Instant
 
 @RunWith(AndroidJUnit4::class)
@@ -30,7 +37,7 @@ class MirrorStructureTest {
     private lateinit var filesDir: File
     private lateinit var sql: FileMirrorSql
     private val remote = FakeRemote()
-    private val now: Instant = Instant.parse("2026-11-20T10:00:00Z")
+    private var now: Instant = Instant.parse("2026-11-20T10:00:00Z")
 
     private val bill = BinFile("F3", "WS", "workspace", "WS", "bill.pdf", "application/pdf", 3, folderId = "D3", localPath = "01F3.pdf")
 
@@ -395,7 +402,7 @@ class MirrorStructureTest {
     fun aNeededFileMissingInOneDriveIsKeptAndMovedBackWhenItTurnsUpAgain() {
         catchUp()
         val id = row("01F2.txt")!!.itemId!!
-        sql.exec("UPDATE file_mirrors SET state = 'remote-missing' WHERE local_path = '01F2.txt'")
+        sql.exec("UPDATE file_mirrors SET state = 'remote-missing', updated_at = '2026-11-01T00:00:00.000Z' WHERE local_path = '01F2.txt'")
         File(filesDir, "01F2.txt").delete()
         remote.place(id, "Files/reviewneeded/Docs/manual (F2).txt")
         catchUp()
@@ -515,7 +522,7 @@ class MirrorStructureTest {
         catchUp()
         val old = row("01F2.txt")!!.itemId!!
         remote.drop(old)
-        sql.exec("UPDATE file_mirrors SET state = 'remote-missing' WHERE local_path = '01F2.txt'")
+        sql.exec("UPDATE file_mirrors SET state = 'remote-missing', updated_at = '2026-11-01T00:00:00.000Z' WHERE local_path = '01F2.txt'")
         File(filesDir, "01F2.txt").delete()
         val copy = remote.addFile("Files/Recycle bin/01F2.txt", "manual".toByteArray())
         catchUp()
@@ -531,7 +538,7 @@ class MirrorStructureTest {
         catchUp()
         val old = row("01F2.txt")!!.itemId!!
         remote.drop(old)
-        sql.exec("UPDATE file_mirrors SET state = 'remote-missing' WHERE local_path = '01F2.txt'")
+        sql.exec("UPDATE file_mirrors SET state = 'remote-missing', updated_at = '2026-11-01T00:00:00.000Z' WHERE local_path = '01F2.txt'")
         File(filesDir, "01F2.txt").delete()
         remote.addFile("Files/reviewneeded/Docs/manual (F2).txt", "other text".toByteArray())
         val copy = remote.addFile("Files/reviewneeded/Docs/manual (F2) (2).txt", "manual".toByteArray())
@@ -539,5 +546,125 @@ class MirrorStructureTest {
         assertEquals("Files/Docs/manual (F2).txt", remote.pathOf(copy))
         assertEquals(copy, row("01F2.txt")!!.itemId)
         assertTrue(remote.paths().contains("Files/reviewneeded/Docs/manual (F2).txt"))
+    }
+
+    @Test
+    fun anOldFolderStillHoldingALiveFileIsNotSentToReviewNeeded() {
+        catchUp()
+        val manual = row("01F2.txt")!!.itemId!!
+        val oldDocs = remote.idOf("Files/Docs")!!
+        val bills = remote.idOf("Files/Bills")!!
+        sql.exec("UPDATE file_rows SET folder_id = 'D2' WHERE id = 'F2'")
+        sql.exec("DELETE FROM folders WHERE id = 'D1'")
+        sql.exec("UPDATE folders SET name = 'Docs' WHERE id = 'D2'")
+        catchUp()
+        catchUp()
+        assertTrue(remote.history[manual].orEmpty().none { it.startsWith("Files/reviewneeded") })
+        assertEquals("Files/Docs/manual (F2).txt", remote.pathOf(manual))
+        assertEquals("Files/Docs", remote.pathOf(bills))
+        assertEquals("Files/Docs/2025/bill (F3).pdf", row("01F3.pdf")!!.remotePath)
+        assertEquals("Files/reviewneeded/Docs", remote.pathOf(oldDocs))
+    }
+
+    @Test
+    fun aDeletedFolderWhoseLiveFileCouldNotMoveOutStaysWhereItIs() {
+        catchUp()
+        val manual = row("01F2.txt")!!.itemId!!
+        val oldDocs = remote.idOf("Files/Docs")!!
+        remote.failMoves.add(manual)
+        sql.exec("UPDATE file_rows SET folder_id = 'D2' WHERE id = 'F2'")
+        sql.exec("DELETE FROM folders WHERE id = 'D1'")
+        catchUp()
+        assertEquals("Files/Docs/manual (F2).txt", remote.pathOf(manual))
+        assertEquals("Files/Docs", remote.pathOf(oldDocs))
+        remote.failMoves.clear()
+        catchUp()
+        assertEquals("Files/Bills/manual (F2).txt", remote.pathOf(manual))
+        assertEquals("Files/reviewneeded/Docs", remote.pathOf(oldDocs))
+    }
+
+    @Test
+    fun aMergeMovesTheFolderContentsFoundByIdNotByAStalePath() {
+        catchUp()
+        val folder = remote.idOf("Files/Bills/2025")!!
+        val file = row("01F3.pdf")!!.itemId!!
+        remote.relocate(folder, "Files/Elsewhere/2025")
+        remote.addFolder("Files/Bills/2026")
+        sql.exec("UPDATE folders SET name = '2026' WHERE id = 'D3'")
+        catchUp()
+        assertEquals("Files/Bills/2026/bill (F3).pdf", remote.pathOf(file))
+        assertEquals("Files/Bills/2026/bill (F3).pdf", row("01F3.pdf")!!.remotePath)
+        catchUp()
+        assertEquals("Files/Bills/2026/bill (F3).pdf", remote.pathOf(file))
+    }
+
+    @Test
+    fun anUnreadableBinEntryKeepsItsFilesOutOfReviewNeeded() {
+        catchUp()
+        val id = row("01F3.pdf")!!.itemId!!
+        sql.exec("DELETE FROM file_rows WHERE id = 'F3'")
+        sql.exec(
+            "INSERT INTO trash_items (id, workspace_id, kind, entity_id, title, payload, local_paths, size_bytes, deleted_at) VALUES ('B9', 'WS', 'file', 'F3', 'x', '{broken', 'broken', 0, '2026-11-20T09:00:00.000Z')",
+        )
+        catchUp()
+        assertEquals("Files/Bills/2025/bill (F3).pdf", remote.pathOf(id))
+        assertNotNull(row("01F3.pdf"))
+    }
+
+    @Test
+    fun aLostFileIsLookedForWithGrowingPauses() {
+        catchUp()
+        val id = row("01F2.txt")!!.itemId!!
+        remote.drop(id)
+        File(filesDir, "01F2.txt").delete()
+        sql.exec("UPDATE file_mirrors SET state = 'remote-missing', attempts = 3, updated_at = '2026-11-20T10:00:00.000Z' WHERE local_path = '01F2.txt'")
+        val calls = remote.moveCalls
+        val lists = remote.lists
+        catchUp()
+        assertEquals(calls, remote.moveCalls)
+        assertEquals(lists, remote.lists)
+        now = now.plus(Duration.ofHours(2))
+        catchUp()
+        assertTrue(remote.moveCalls > calls)
+        assertEquals(4, row("01F2.txt")!!.attempts)
+        assertEquals(now, row("01F2.txt")!!.updatedAt)
+        val again = remote.moveCalls
+        catchUp()
+        assertEquals(again, remote.moveCalls)
+    }
+
+    @Test
+    fun withFolderStateUnreadableFilesAreNotMoved() {
+        catchUp()
+        sql.exec("UPDATE file_rows SET name = 'guide.txt' WHERE id = 'F2'")
+        val broken = SettingsStore(object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow { throw IOException("unreadable") }
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = throw IOException("unwritable")
+        })
+        val moves = remote.moves
+        runBlocking { FileMirror(sql, remote, filesDir, broken, clock = { now }, log = BackupLog.None).catchUp() }
+        assertEquals(moves, remote.moves)
+        assertEquals("Files/Docs/manual (F2).txt", row("01F2.txt")!!.remotePath)
+    }
+
+    @Test
+    fun aStaleFolderIdIsReplacedInsteadOfCallingTheFileGone() {
+        catchUp()
+        val manual = row("01F2.txt")!!.itemId!!
+        remote.drop(remote.idOf("Files/Docs")!!)
+        val puts = remote.puts.size
+        sql.exec("UPDATE file_rows SET name = 'guide.txt' WHERE id = 'F2'")
+        catchUp()
+        assertEquals("Files/Docs/guide (F2).txt", remote.pathOf(manual))
+        assertEquals(MirrorState.MIRRORED, row("01F2.txt")!!.state)
+        assertEquals(puts, remote.puts.size)
+    }
+
+    @Test
+    fun aTopFolderNamedLikeTheAttachmentFoldersGetsItsOwnPlace() {
+        sql.exec("UPDATE folders SET name = 'Tasks' WHERE id = 'D1'")
+        catchUp()
+        assertEquals("Files/_Tasks/manual (F2).txt", row("01F2.txt")!!.remotePath)
+        assertEquals("Files/Tasks/Pay rent/receipt (F1).png", row("01F1.png")!!.remotePath)
     }
 }
