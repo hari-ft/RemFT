@@ -45,6 +45,8 @@ import com.ftapps.remft.ui.onedrive.oneDriveDestinations
 import com.ftapps.remft.ui.onedrive.openAutoBackup
 import com.ftapps.remft.ui.files.SettingsBinRoute
 import com.ftapps.remft.ui.files.SettingsCompletedRoute
+import com.ftapps.remft.ui.scheduled.SettingsScheduledRoute
+import com.ftapps.remft.ui.scheduled.scheduledDestinations
 import com.ftapps.remft.ui.files.filesDestinations
 import com.ftapps.remft.ui.screens.FilesScreen
 import com.ftapps.remft.ui.screens.HomeScreen
@@ -156,6 +158,7 @@ private fun RemftNavHost(navController: NavHostController, showBottomBar: Boolea
                 onOpenPermissions = { navController.openAlarmSettings(PermissionsRoute) },
                 onOpenAppLog = { navController.openAlarmSettings(AppLogRoute) },
                 onOpenCompleted = { navController.navigate(SettingsCompletedRoute) },
+                onOpenScheduled = { navController.navigate(SettingsScheduledRoute) },
                 onOpenBin = { navController.navigate(SettingsBinRoute) },
             )
         }
@@ -167,6 +170,7 @@ private fun RemftNavHost(navController: NavHostController, showBottomBar: Boolea
         oneDriveDestinations(navController)
         alarmSettingsDestinations(navController)
         filesDestinations(onBack = { navController.popBackStack() }, onOpenTask = { navController.openTask(it) })
+        scheduledDestinations(onBack = { navController.popBackStack() }, onOpenTask = { navController.openTask(it) })
     }
 }
 

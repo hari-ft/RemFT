@@ -25,6 +25,15 @@ interface TasksDao {
     )
     fun watchOpen(workspaceId: String, since: String): Flow<List<TaskEntity>>
 
+    @Query(
+        "SELECT * FROM tasks WHERE workspace_id = :workspaceId " +
+            "AND status IN ('open', 'scheduled', 'in_progress', 'waiting') " +
+            "AND (due_at IS NOT NULL OR remind_at IS NOT NULL) " +
+            "ORDER BY CASE WHEN snoozed_until IS NOT NULL AND snoozed_until > COALESCE(due_at, remind_at) " +
+            "THEN snoozed_until ELSE COALESCE(due_at, remind_at) END ASC, id ASC",
+    )
+    fun watchScheduled(workspaceId: String): Flow<List<TaskEntity>>
+
     @Query("SELECT * FROM tasks WHERE workspace_id = :workspaceId AND status = 'inbox' ORDER BY id DESC")
     fun watchInbox(workspaceId: String): Flow<List<TaskEntity>>
 

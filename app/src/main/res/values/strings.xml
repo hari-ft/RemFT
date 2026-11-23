@@ -904,4 +904,12 @@
     <string name="lowdt_folderCouldNotDelete">Could not delete the folder</string>
     <string name="lowdt_weekSelectedDay">Showing {date}</string>
     <string name="lowdt_weekClearDay">Show all days</string>
+    <string name="sched_title">Scheduled</string>
+    <string name="sched_sub">Every open task with a time, soonest first</string>
+    <string name="sched_emptyTitle">Nothing scheduled</string>
+    <string name="sched_emptyBody">Open tasks with a date or a reminder time show up here, soonest first.</string>
+    <string name="sched_dayHeader">{weekday}, {date}</string>
+    <string name="sched_completed">“{title}” completed</string>
+    <string name="sched_reminder">Reminder {time}</string>
+    <string name="sched_snoozed">Snoozed</string>
 </resources>
