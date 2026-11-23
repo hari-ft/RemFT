@@ -11,6 +11,7 @@ import com.ftapps.remft.domain.backup.bin.BinSettings
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.settings.NoteSourceStyling
 import com.ftapps.remft.domain.settings.SettingKeys
+import com.ftapps.remft.domain.tasks.InboxSort
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
@@ -28,6 +29,7 @@ object OldAppSettings {
     )
     private val sortFields: Map<String, Set<String>> = mapOf(
         SettingKeys.TasksSort.name to setOf("date", "priority", "title"),
+        SettingKeys.InboxSort.name to InboxSort.choices.map { it.id }.toSet(),
         SettingKeys.NotesSort.name to setOf("updated", "created", "title"),
         SettingKeys.FilesSort.name to setOf("date", "name", "size"),
     )

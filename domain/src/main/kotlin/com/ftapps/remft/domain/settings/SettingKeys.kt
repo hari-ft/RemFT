@@ -17,6 +17,7 @@ object SettingKeys {
     val AutoBackupKeepDays = SettingKey("remft_auto_backup_keep_days", "7", true)
     val HomeCalendarVisible = SettingKey("remft_home_calendar_visible", "true", true)
     val TasksSort = SettingKey("remft_tasks_sort", "date:asc", true)
+    val InboxSort = SettingKey("remft_inbox_sort", "added:desc", true)
     val NotesSort = SettingKey("remft_notes_sort", "updated:desc", true)
     val FilesSort = SettingKey("remft_files_sort", "date:desc", true)
     val NotesViewMode = SettingKey("remft_notes_view_mode", "list", true)
@@ -46,7 +47,7 @@ object SettingKeys {
     val all: List<SettingKey> = listOf(
         AlarmSound, ReminderSound, ReminderProfile, SnoozePresets, NotificationPrivacy, DateFormat,
         NoteSourceStyling, BinEnabled, BinAutoDelete, BinDays, AutoBackupSchedule, AutoBackupKeepDays,
-        HomeCalendarVisible, TasksSort, NotesSort, FilesSort, NotesViewMode, OnboardingSeen,
+        HomeCalendarVisible, TasksSort, InboxSort, NotesSort, FilesSort, NotesViewMode, OnboardingSeen,
         LocalWorkspaceId, LastBackupAt, BackupReminderDismissed, OneDriveOn, OneDriveAccount,
         OneDriveReconnect, AutoBackupLastOk, AutoBackupLastSize, AutoBackupPaused, AutoBackupDropAccepted,
         AutoBackupUnavailable, AutoBackupStatusOneDrive, AutoBackupWakeSlots, MirrorDownloadsPending,

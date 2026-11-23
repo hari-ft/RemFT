@@ -20,6 +20,7 @@ object BackupSettings {
         "remft_auto_backup_keep_days",
         "remft_home_calendar_visible",
         "remft_tasks_sort",
+        "remft_inbox_sort",
         "remft_notes_sort",
         "remft_files_sort",
         "remft_notes_view_mode",
