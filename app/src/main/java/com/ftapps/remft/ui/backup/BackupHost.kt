@@ -131,6 +131,7 @@ fun RestoreFlow(
         RestoreUiState.Checking -> BlockingProgressDialog(stringResource(R.string.backup_checking), "restore-checking")
         is RestoreUiState.Confirm -> RestoreConfirmDialog(
             date = formatBackupDate(restore.createdAt, dateFormat),
+            oldApp = restore.oldApp,
             onCancel = { onConfirm(false) },
             onGo = { onConfirm(true) },
         )

@@ -136,7 +136,7 @@ class BackupService(
         val copy = File(paths.scratch, "picked-${micros(clock())}.zip")
         try {
             input.use { FileOps.copyToFile(it, copy) }
-            BackupValidator.validate(copy, DatabaseSchema.VERSION, paths.scratch, log, clock)
+            BackupValidator.validate(copy, DatabaseSchema.VERSION, paths.scratch, log, clock, oldApp = AndroidSqlPort.opener)
         } finally {
             FileOps.deleteFileIfExists(copy)
         }

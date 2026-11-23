@@ -2,6 +2,7 @@ package com.ftapps.remft.ui.backup
 
 import android.content.Context
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.core.content.FileProvider
 import com.ftapps.remft.BuildConfig
 import com.ftapps.remft.R
@@ -20,6 +21,7 @@ import com.ftapps.remft.domain.backup.BackupErrorCode
 import com.ftapps.remft.domain.backup.BackupException
 import com.ftapps.remft.domain.backup.BuiltBackup
 import com.ftapps.remft.domain.backup.ValidatedBackup
+import com.ftapps.remft.domain.backup.oldapp.OldAppImport
 import com.ftapps.remft.domain.backup.lock.BackgroundWorkBusy
 import com.ftapps.remft.domain.text.fill
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -47,7 +49,7 @@ sealed interface RestoreUiState {
     data object Idle : RestoreUiState
     data object ChoosingSource : RestoreUiState
     data object Checking : RestoreUiState
-    data class Confirm(val createdAt: Instant) : RestoreUiState
+    data class Confirm(val createdAt: Instant, val oldApp: OldAppImport? = null) : RestoreUiState
     data class Running(val stage: RestoreStage, val done: Int = 0, val total: Int = 0) : RestoreUiState
     data class CloudList(val loading: Boolean = true, val failed: Boolean = false, val backups: List<StoredBackup> = emptyList()) : RestoreUiState
     data class CloudDownloading(val received: Long = 0, val total: Long? = null) : RestoreUiState
@@ -214,7 +216,7 @@ class BackupCoordinator @Inject constructor(
         try {
             val backup = withContext(Dispatchers.IO) { service.validate(open()) }
             validated = backup
-            setRestore(RestoreUiState.Confirm(backup.manifest.createdAt))
+            setRestore(RestoreUiState.Confirm(backup.manifest.createdAt, backup.oldApp))
         } catch (e: Exception) {
             AndroidBackupLog.warn("backup.refused", e)
             setRestore(RestoreUiState.Idle)
@@ -260,19 +262,24 @@ class BackupCoordinator @Inject constructor(
 
     private fun errorText(error: Throwable): String {
         if (error is BackupException) {
-            val id = when (error.code) {
-                BackupErrorCode.NOT_A_BACKUP -> R.string.backup_error_not_a_backup
-                BackupErrorCode.NEWER_VERSION -> R.string.backup_error_newer_version
-                BackupErrorCode.DAMAGED -> R.string.backup_error_damaged
-                BackupErrorCode.NOT_A_DATABASE -> R.string.backup_error_not_a_database
-                else -> null
-            }
+            val id = backupErrorRes(error.code)
             if (id != null) return context.getString(id)
         }
         if (error is BackgroundWorkBusy) return context.getString(R.string.backup_error_busy)
         if (error is RestoreDatabaseInUse) return context.getString(R.string.dfx_restore_db_in_use)
         return context.getString(R.string.error_unknown)
     }
+}
+
+@StringRes
+fun backupErrorRes(code: String): Int? = when (code) {
+    BackupErrorCode.NOT_A_BACKUP -> R.string.backup_error_not_a_backup
+    BackupErrorCode.NEWER_VERSION -> R.string.backup_error_newer_version
+    BackupErrorCode.DAMAGED -> R.string.backup_error_damaged
+    BackupErrorCode.NOT_A_DATABASE -> R.string.backup_error_not_a_database
+    BackupErrorCode.OLD_APP_SCHEMA -> R.string.oldbk_errorSchema
+    BackupErrorCode.OLD_APP_UNSUPPORTED -> R.string.oldbk_errorUnsupported
+    else -> null
 }
 
 fun doneMessage(context: Context, zip: BuiltBackup): String {

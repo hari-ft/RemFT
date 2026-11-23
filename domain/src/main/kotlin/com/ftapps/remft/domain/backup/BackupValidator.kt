@@ -8,11 +8,17 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import com.ftapps.remft.domain.backup.oldapp.OldAppArchive
+import com.ftapps.remft.domain.backup.oldapp.OldAppImport
+import com.ftapps.remft.domain.backup.oldapp.OldAppManifest
+import com.ftapps.remft.domain.backup.oldapp.OldAppValidator
+import com.ftapps.remft.domain.backup.oldapp.SqlOpener
 
 class ValidatedBackup internal constructor(
     val manifest: BackupManifest,
     val staging: File,
     val settings: Map<String, String>?,
+    val oldApp: OldAppImport? = null,
 ) {
     val dbFile: File get() = File(staging, BackupFormat.DB_NAME)
     val filesDir: File get() = File(staging, "files")
@@ -29,6 +35,7 @@ object BackupValidator {
         scratch: File,
         log: BackupLog = BackupLog.None,
         clock: () -> Instant = Instant::now,
+        oldApp: SqlOpener? = null,
     ): ValidatedBackup {
         val staging = newStaging(scratch, clock)
         var archive: ZipFile? = null
@@ -45,21 +52,32 @@ object BackupValidator {
             }
             val opened = archive
             val manifestEntry = entries[BackupFormat.MANIFEST_NAME]
-            val dbName = BackupFormat.DB_NAME
-            val dbEntry = entries[dbName]
-            if (manifestEntry == null || dbEntry == null || manifestEntry.isDirectory || dbEntry.isDirectory) {
-                throw BackupException(BackupErrorCode.NOT_A_BACKUP)
-            }
-            if (BackupFormat.MANIFEST_NAME in duplicates || dbName in duplicates) {
-                throw BackupException(BackupErrorCode.NOT_A_BACKUP, "duplicate entry")
-            }
+            if (manifestEntry == null || manifestEntry.isDirectory) throw BackupException(BackupErrorCode.NOT_A_BACKUP)
+            if (BackupFormat.MANIFEST_NAME in duplicates) throw BackupException(BackupErrorCode.NOT_A_BACKUP, "duplicate entry")
             if (manifestEntry.size > BackupFormat.MAX_MANIFEST_BYTES) throw BackupException(BackupErrorCode.NOT_A_BACKUP)
-            val manifest = try {
+            val manifestText = try {
                 val bytes = readCapped(opened, manifestEntry, BackupFormat.MAX_MANIFEST_BYTES)
                     ?: throw IllegalArgumentException("manifest too large")
-                BackupManifest.parse(strictUtf8(bytes))
-            } catch (e: BackupException) {
-                throw e
+                strictUtf8(bytes)
+            } catch (e: Exception) {
+                throw BackupException(BackupErrorCode.NOT_A_BACKUP, e.toString())
+            }
+            if (OldAppManifest.isOldApp(manifestText)) {
+                return OldAppValidator.validate(
+                    OldAppArchive(opened, entries, duplicates),
+                    manifestText,
+                    currentSchema,
+                    staging,
+                    oldApp,
+                    log,
+                )
+            }
+            val dbName = BackupFormat.DB_NAME
+            val dbEntry = entries[dbName]
+            if (dbEntry == null || dbEntry.isDirectory) throw BackupException(BackupErrorCode.NOT_A_BACKUP)
+            if (dbName in duplicates) throw BackupException(BackupErrorCode.NOT_A_BACKUP, "duplicate entry")
+            val manifest = try {
+                BackupManifest.parse(manifestText)
             } catch (e: Exception) {
                 throw BackupException(BackupErrorCode.NOT_A_BACKUP, e.toString())
             }
@@ -141,11 +159,11 @@ object BackupValidator {
         return candidate
     }
 
-    private fun extract(archive: ZipFile, entry: ZipEntry, out: File) {
+    internal fun extract(archive: ZipFile, entry: ZipEntry, out: File) {
         archive.getInputStream(entry).use { FileOps.copyToFile(it, out) }
     }
 
-    private fun readCapped(archive: ZipFile, entry: ZipEntry, cap: Long): ByteArray? {
+    internal fun readCapped(archive: ZipFile, entry: ZipEntry, cap: Long): ByteArray? {
         archive.getInputStream(entry).use { input ->
             val out = ByteArrayOutputStream()
             val buffer = ByteArray(16 * 1024)
@@ -161,7 +179,7 @@ object BackupValidator {
         }
     }
 
-    private fun strictUtf8(bytes: ByteArray): String =
+    internal fun strictUtf8(bytes: ByteArray): String =
         Charsets.UTF_8.newDecoder()
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT)

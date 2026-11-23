@@ -149,7 +149,7 @@ class BackupValidatorTest {
         val built = buildZip(root, "x")
         val schema = rewrite(built.zip, File(root, "s.zip"), { it["schemaVersion"] = JsonPrimitive(9999) })
         assertEquals(BackupErrorCode.NEWER_VERSION, refused(schema))
-        val format = rewrite(built.zip, File(root, "f.zip"), { it["format"] = JsonPrimitive(BackupFormat.CURRENT + 1) })
+        val format = rewrite(built.zip, File(root, "f.zip"), { it["format"] = JsonPrimitive(BackupFormat.NEXT_FORMAT) })
         assertEquals(BackupErrorCode.NEWER_VERSION, refused(format))
     }
 

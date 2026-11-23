@@ -13,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ftapps.remft.data.backup.RestoreStage
+import com.ftapps.remft.domain.backup.oldapp.OldAppCounts
+import com.ftapps.remft.domain.backup.oldapp.OldAppImport
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.ui.theme.RemftTheme
 import org.junit.Assert.assertEquals
@@ -83,6 +85,41 @@ class BackupScreensTest {
         compose.onNodeWithTag("restore-checking").assertIsDisplayed()
         restore = RestoreUiState.Idle
         compose.onNodeWithTag("restore-progress").assertDoesNotExist()
+    }
+
+    @Test
+    fun restoreConfirmSaysTheBackupIsFromTheOldAppWithItsCounts() {
+        val createdAt = Instant.parse("2026-11-03T07:30:00Z")
+        val oldApp = OldAppImport(
+            appVersion = "2.3.7+237",
+            format = 3,
+            counts = OldAppCounts(tasks = 12, notes = 1, files = 3, folders = 2, series = 1, reminders = 4, binEntries = 2),
+            listedOnly = 2,
+            unavailable = 1,
+            adjustments = emptyMap(),
+        )
+        compose.setContent {
+            RemftTheme {
+                RestoreFlow(RestoreUiState.Confirm(createdAt, oldApp), DateFormatId.Iso, onDismissSource = {}, onFile = {}, onConfirm = {})
+            }
+        }
+        compose.onNodeWithTag("restore-confirm-old-app").assertIsDisplayed()
+        compose.onNodeWithText("This backup was made by the old RemFT app (version 2.3.7+237). Its data will be converted for this app.").assertIsDisplayed()
+        compose.onNodeWithText("It holds 12 tasks, 1 note and 3 files.").assertIsDisplayed()
+        compose.onNodeWithText("Only in OneDrive: 2 files.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("so they cannot be restored: 1 file.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText(formatBackupDate(createdAt, DateFormatId.Iso), substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun restoreConfirmForANewAppBackupHasNoOldAppLines() {
+        compose.setContent {
+            RemftTheme {
+                RestoreFlow(RestoreUiState.Confirm(Instant.parse("2026-11-03T07:30:00Z")), DateFormatId.Iso, onDismissSource = {}, onFile = {}, onConfirm = {})
+            }
+        }
+        compose.onNodeWithTag("restore-confirm").assertIsDisplayed()
+        compose.onNodeWithTag("restore-confirm-old-app").assertDoesNotExist()
     }
 
     @Test
