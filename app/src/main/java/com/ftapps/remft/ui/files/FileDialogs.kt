@@ -44,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.data.db.entity.FolderEntity
 import com.ftapps.remft.data.files.FolderRuleException
@@ -162,7 +163,7 @@ fun FileDialogsHost(
             onSave = { name ->
                 close()
                 if (name.isNotEmpty() && name != dialog.row.name) {
-                    scope.launch { runCatching { env.attachments.rename(dialog.row.id, name) }.onFailure { onMessage(couldNotRename) } }
+                    scope.launch { runCatching { env.attachments.rename(dialog.row.id, name) }.onFailure { AppLogs.warn("files.rename_failed", it); onMessage(couldNotRename) } }
                 }
             },
         )
@@ -171,12 +172,12 @@ fun FileDialogsHost(
             scope.launch {
                 runCatching { env.attachments.delete(dialog.row.id) }
                     .onSuccess { dialog.onDeleted() }
-                    .onFailure { onMessage(couldNotDelete) }
+                    .onFailure { AppLogs.warn("files.delete_failed", it); onMessage(couldNotDelete) }
             }
         }
         is FileDialog.MoveFile -> MoveTargetSheet(folders, exclude = null, onDismiss = close) { target ->
             close()
-            scope.launch { runCatching { env.attachments.move(dialog.row.id, target) }.onFailure { onMessage(couldNotMove) } }
+            scope.launch { runCatching { env.attachments.move(dialog.row.id, target) }.onFailure { AppLogs.warn("files.move_failed", it); onMessage(couldNotMove) } }
         }
         is FileDialog.NewFolder -> NameDialog(
             title = stringResource(R.string.files_newFolder),
@@ -237,7 +238,7 @@ fun FileDialogsHost(
                 scope.launch {
                     runCatching { env.files.deleteFolder(dialog.folder.id) }
                         .onSuccess { dialog.onDeleted() }
-                        .onFailure { if (it is CancellationException) throw it else onMessage(couldNotDeleteFolder) }
+                        .onFailure { if (it is CancellationException) throw it else { AppLogs.warn("files.folder_delete_failed", it); onMessage(couldNotDeleteFolder) } }
                 }
             }
         }

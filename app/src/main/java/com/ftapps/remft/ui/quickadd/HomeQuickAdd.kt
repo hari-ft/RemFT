@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.domain.quickadd.QuickParse
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.RemftDialog
@@ -60,7 +61,7 @@ class QuickAddViewModel(env: TasksEnvironment) : ViewModel() {
 
     private fun create(raw: String, parsed: QuickParse, due: LocalDateTime?, capture: Boolean, onFailed: (String) -> Unit) {
         viewModelScope.launch {
-            runCatching { creator.createFromQuickAdd(parsed, due, capture) }.onFailure { onFailed(raw) }
+            runCatching { creator.createFromQuickAdd(parsed, due, capture) }.onFailure { AppLogs.error("tasks.quick_add_failed", it); onFailed(raw) }
         }
     }
 }

@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.repeat.SeriesRepository
 import com.ftapps.remft.data.tasks.TasksRepository
 import com.ftapps.remft.domain.repeat.RepeatEditor
@@ -106,6 +107,7 @@ fun TaskRepeatRow(task: Task, modifier: Modifier = Modifier) {
     val tooDense = stringResource(R.string.repeat_tooDense)
     val failed = stringResource(R.string.repeat_couldNotSave)
     val report: (Throwable) -> Unit = { error ->
+        AppLogs.warn("series.change_failed", error, mapOf("reason" to if (error is SeriesTooDenseException) "too_dense" else "failed"))
         Toast.makeText(context, if (error is SeriesTooDenseException) tooDense else failed, Toast.LENGTH_SHORT).show()
     }
     val on = seriesId != null

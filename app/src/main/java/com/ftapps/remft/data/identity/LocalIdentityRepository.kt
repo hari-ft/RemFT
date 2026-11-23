@@ -1,5 +1,6 @@
 package com.ftapps.remft.data.identity
 
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.db.IdentityDao
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.data.prefs.SettingsUnavailable
@@ -37,7 +38,9 @@ class LocalIdentityRepository(
             readable = false
             null
         }
-        val counts = runCatching { dao().workspaceCounts().associate { it.ws to it.n } }.getOrNull()
+        val counts = runCatching { dao().workspaceCounts().associate { it.ws to it.n } }
+            .onFailure { AppLogs.warn("app.identity_counts_failed", it) }
+            .getOrNull()
         val decision = WorkspaceIdentity.decide(stored, readable, counts, sessionId) { Ulid.next() }
         val persisted = decision.persist && store.set(name, decision.workspaceId)
         sessionId = if (persisted || (stored != null && stored == decision.workspaceId)) null else decision.workspaceId

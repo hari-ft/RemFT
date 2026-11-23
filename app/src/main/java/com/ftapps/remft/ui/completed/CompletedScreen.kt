@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.db.entity.TaskEntity
 import com.ftapps.remft.domain.settings.DateFormatId
 import com.ftapps.remft.domain.text.fill
@@ -188,7 +189,7 @@ fun CompletedScreen(onBack: () -> Unit, onOpenTask: (String) -> Unit) {
                                     onOpen = { onOpenTask(row.task.id) },
                                     onReopen = {
                                         scope.launch {
-                                            val done = runCatching { tasksEnv.repository.setCompleted(row.task.id, false) }.isSuccess
+                                            val done = runCatching { tasksEnv.repository.setCompleted(row.task.id, false) }.onFailure { AppLogs.warn("tasks.complete_failed", it) }.isSuccess
                                             snackbar.showSnackbar((if (done) reopened else couldNotUpdate).fill("title" to row.task.title))
                                         }
                                     },

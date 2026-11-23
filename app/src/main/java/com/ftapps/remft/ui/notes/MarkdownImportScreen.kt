@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.notes.ExternalDocumentStore
 import com.ftapps.remft.data.notes.ImportedMarkdown
 import com.ftapps.remft.data.notes.NotesRepository
@@ -55,7 +56,10 @@ class MarkdownImportViewModel @Inject constructor(
         val pending = document.value
         val id = pending?.let {
             val split = NoteText.splitMarkdownTitle(it.markdown, NoteText.fileStem(it.name))
-            runCatching { repository.create(split.title, split.body) }.getOrNull()
+            runCatching { repository.create(split.title, split.body) }
+                .onSuccess { AppLogs.info("notes.imported", mapOf("count" to 1, "chars" to split.body.length)) }
+                .onFailure { AppLogs.error("notes.import_save_failed", it) }
+                .getOrNull()
         }
         if (id == null) {
             saving.set(false)

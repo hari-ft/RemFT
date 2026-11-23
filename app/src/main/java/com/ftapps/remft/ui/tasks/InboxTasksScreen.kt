@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.tasks.PendingDeletes
 import com.ftapps.remft.domain.search.SearchMatch
 import com.ftapps.remft.domain.settings.SettingKeys
@@ -142,7 +143,7 @@ class InboxViewModel(private val env: TasksEnvironment) : ViewModel() {
 
     fun convertToNote(task: Task, onDone: () -> Unit) {
         viewModelScope.launch {
-            if (runCatching { repository.convertToNote(task.id) }.getOrNull() != null) onDone()
+            if (runCatching { repository.convertToNote(task.id) }.onFailure { AppLogs.warn("tasks.convert_failed", it) }.getOrNull() != null) onDone()
         }
     }
 }

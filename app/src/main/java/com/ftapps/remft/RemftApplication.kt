@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.ftapps.remft.app.AppStartup
 import com.ftapps.remft.data.alarm.AlarmStartup
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.alarm.DirectBoot
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
@@ -25,6 +26,8 @@ class RemftApplication : Application(), Configuration.Provider {
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
+        AppLogs.of(this)
+        AppLogs.watchCrashes()
         super.onCreate()
         if (DirectBoot.isUnlocked(this)) startAll() else DirectBoot.whenUnlocked(this, ::startAll)
     }

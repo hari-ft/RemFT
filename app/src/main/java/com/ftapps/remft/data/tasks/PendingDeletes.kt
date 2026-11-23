@@ -1,5 +1,6 @@
 package com.ftapps.remft.data.tasks
 
+import com.ftapps.remft.data.alarm.AppLogs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -64,7 +65,7 @@ class PendingDeletes(
         }
         scope.launch {
             try {
-                if (runCatching { commit() }.isSuccess) delay(settle)
+                if (runCatching { commit() }.onFailure { AppLogs.error("tasks.delete_failed", it) }.isSuccess) delay(settle)
             } finally {
                 synchronized(this@PendingDeletes) {
                     hiddenBy.remove(token)

@@ -6,6 +6,7 @@ import android.content.Intent
 import androidx.annotation.StringRes
 import androidx.core.content.FileProvider
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.data.files.AttachmentFetchFailed
 import com.ftapps.remft.data.files.FetchProblem
@@ -55,13 +56,15 @@ object FileOpener {
         val file = try {
             prepare(context, env, row)
         } catch (e: AttachmentFetchFailed) {
+            AppLogs.warn("files.fetch_failed", e, mapOf("reason" to e.problem))
             return outcomeOf(e.problem)
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLogs.warn("files.open_failed", e)
             null
         } ?: return if (env.attachments.fileOf(row) == null) OpenOutcome.Missing else OpenOutcome.Failed
-        val uri = runCatching { FileProvider.getUriForFile(context, env.authority, file) }.getOrNull() ?: return OpenOutcome.Failed
+        val uri = runCatching { FileProvider.getUriForFile(context, env.authority, file) }.onFailure { AppLogs.warn("files.open_failed", it) }.getOrNull() ?: return OpenOutcome.Failed
         val view = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, row.mime)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -78,7 +81,8 @@ object FileOpener {
         return try {
             context.startActivity(chooser)
             OpenOutcome.Opened
-        } catch (_: ActivityNotFoundException) {
+        } catch (e: ActivityNotFoundException) {
+            AppLogs.warn("files.no_app_to_open", e)
             OpenOutcome.Failed
         }
     }

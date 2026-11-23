@@ -52,9 +52,13 @@ class AutoBackupTurn(
                 if (!force && mirrorUploadsOn()) catchUpQuietly(deadline)
                 runner(deadline).run(force)
             } ?: AutoBackupOutcome.Busy
+            if (outcome != AutoBackupOutcome.NotDue && outcome != AutoBackupOutcome.NothingOn) {
+                log.info("autobackup.run_finished", mapOf("outcome" to outcome, "force" to force))
+            }
             finished.tryEmit(outcome)
             return outcome
         } catch (_: DatabaseRestoring) {
+            log.info("autobackup.run_finished", mapOf("outcome" to AutoBackupOutcome.Busy, "force" to force))
             return AutoBackupOutcome.Busy
         } finally {
             running.unlock()

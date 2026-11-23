@@ -72,6 +72,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.domain.search.GlobalSearch
 import com.ftapps.remft.domain.search.GlobalSearchGroup
 import com.ftapps.remft.domain.search.GlobalSearchItem
@@ -89,6 +90,7 @@ import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import com.ftapps.remft.ui.theme.groupPosition
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 private const val DEBOUNCE_MS = 150L
@@ -121,7 +123,7 @@ fun GlobalSearchPalette(
         results = if (query.isEmpty()) {
             PaletteResults("", emptyList())
         } else {
-            PaletteResults(query, runCatching { search.repository.global(query) }.getOrDefault(emptyList()))
+            PaletteResults(query, runCatching { search.repository.global(query) }.onFailure { if (it !is CancellationException) AppLogs.warn("app.search_failed", it) }.getOrDefault(emptyList()))
         }
     }
     val searching = query.isNotEmpty()

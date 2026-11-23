@@ -1,6 +1,7 @@
 package com.ftapps.remft.ui.files
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.bin.RecycleBin
 import com.ftapps.remft.data.files.AttachmentStore
 import com.ftapps.remft.data.files.AttachmentTooLarge
@@ -80,7 +81,7 @@ class UploadCenter(
     fun dismiss(localId: Long) {
         val pick = synchronized(sources) { sources.remove(localId) }
         state.update { jobs -> jobs.filterNot { it.localId == localId } }
-        pick?.let { runCatching(it.cleanup) }
+        pick?.let { runCatching(it.cleanup).onFailure { e -> AppLogs.warn("files.pick_cleanup_failed", e) } }
     }
 
     fun unclaimedLinks(targetType: String, targetId: String): Flow<List<UploadDone>> =
@@ -154,6 +155,7 @@ class UploadCenter(
             return id
         }
         val code = if (outcome.exceptionOrNull() is AttachmentTooLarge) "FILE_TOO_LARGE" else "UPLOAD_FAILED"
+        AppLogs.warn("files.attach_failed", outcome.exceptionOrNull(), mapOf("code" to code))
         state.update { jobs -> jobs.map { if (it.localId == localId) it.copy(phase = UploadPhase.Failed, errorCode = code) else it } }
         return null
     }

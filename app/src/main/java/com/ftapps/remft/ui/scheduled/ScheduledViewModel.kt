@@ -2,6 +2,7 @@ package com.ftapps.remft.ui.scheduled
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.tasks.PendingDeletes
 import com.ftapps.remft.domain.tasks.ScheduledList
 import com.ftapps.remft.domain.tasks.ScheduledSection
@@ -50,13 +51,13 @@ class ScheduledViewModel(private val env: TasksEnvironment) : ViewModel() {
         viewModelScope.launch {
             runCatching { repository.setCompleted(task.id, true) }
                 .onSuccess { onDone() }
-                .onFailure { onFailed() }
+                .onFailure { AppLogs.warn("tasks.complete_failed", it); onFailed() }
         }
     }
 
     fun reopen(task: Task, onFailed: () -> Unit) {
         viewModelScope.launch {
-            runCatching { repository.setCompleted(task.id, false) }.onFailure { onFailed() }
+            runCatching { repository.setCompleted(task.id, false) }.onFailure { AppLogs.warn("tasks.complete_failed", it); onFailed() }
         }
     }
 

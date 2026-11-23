@@ -22,6 +22,7 @@ import androidx.core.content.FileProvider
 import androidx.exifinterface.media.ExifInterface
 import com.ftapps.remft.BuildConfig
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.notes.NotesRepository
 import com.ftapps.remft.domain.notes.export.MarkdownBlocks
 import com.ftapps.remft.domain.notes.export.NoteBlock
@@ -135,7 +136,9 @@ class NoteExporter(private val context: Context, private val repository: NotesRe
             context.contentResolver.openOutputStream(target, "wt")?.use { output ->
                 FileInputStream(result.file).use { it.copyTo(output) }
             } != null
-        }.getOrDefault(false)
+        }.onSuccess { if (it) AppLogs.info("notes.export_saved", mapOf("format" to result.format, "bytes" to result.file.length())) }
+            .onFailure { AppLogs.warn("notes.export_save_failed", it, mapOf("format" to result.format)) }
+            .getOrDefault(false)
     }
 
     fun print(activityContext: Context, result: NoteExportResult) {
@@ -193,6 +196,7 @@ private class PdfPrintAdapter(private val file: File, private val name: String) 
             FileInputStream(file).use { input -> FileOutputStream(destination.fileDescriptor).use { input.copyTo(it) } }
             callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
         } catch (e: Exception) {
+            AppLogs.warn("notes.print_failed", e)
             callback.onWriteFailed(e.message)
         }
     }

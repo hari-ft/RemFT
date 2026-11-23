@@ -41,6 +41,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.notes.NotesRepository
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.settings.DateFormatId
@@ -90,7 +91,8 @@ class NoteExportViewModel @Inject constructor(
         val dateFormat = DateFormatId.parse(settings.get(SettingKeys.DateFormat.name))
         mutableState.value = runCatching {
             ExportState.Ready(exporter.export(format, repository.titleFor(title), markdown, updatedAt, dateFormat))
-        }.getOrElse { ExportState.Failed }
+        }.onSuccess { AppLogs.info("notes.exported", mapOf("format" to format, "bytes" to it.result.file.length())) }
+            .getOrElse { AppLogs.warn("notes.export_failed", it, mapOf("format" to format)); ExportState.Failed }
     }
 
     fun dismiss() {

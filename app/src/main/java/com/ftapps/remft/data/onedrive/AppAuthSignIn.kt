@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.net.toUri
+import com.ftapps.remft.data.backup.AndroidBackupLog
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationRequest
@@ -50,7 +51,8 @@ class AppAuthSignIn(private val context: Context) : OneDriveSignIn {
         val service = AuthorizationService(context)
         return try {
             service.getAuthorizationRequestIntent(request)
-        } catch (_: ActivityNotFoundException) {
+        } catch (e: ActivityNotFoundException) {
+            AndroidBackupLog.warn("autobackup.onedrive_no_browser", e)
             throw OneDriveException(OneDriveErrors.NO_BROWSER)
         } finally {
             service.dispose()

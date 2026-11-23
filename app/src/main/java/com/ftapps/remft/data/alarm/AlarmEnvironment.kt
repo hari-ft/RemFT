@@ -31,6 +31,7 @@ class AlarmEnvironment(
     val health: AlarmHealth = AndroidAlarmHealth(context),
     ready: suspend () -> Unit = {},
     val mirror: DirectBootMirror = DirectBootMirror.of(context),
+    val appLog: AppLog = AppLog(File(filesDir, AppLogs.FOLDER), clock),
 ) {
     init {
         snoozeOrder.start(scope)
@@ -38,7 +39,6 @@ class AlarmEnvironment(
 
     val texts = AlarmTextsFactory.from(context)
     val planner = AlarmPlanner(texts)
-    val appLog = AppLog(File(filesDir, "logs"), clock)
     val log = AlarmEventLog(database, clock)
     val store = AlarmStore(database, tasks, clock)
     val pending = PendingAlarms(File(File(filesDir, PendingAlarms.DIRECTORY), PendingAlarms.FILE_NAME))

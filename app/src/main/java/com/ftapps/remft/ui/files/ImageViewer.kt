@@ -55,6 +55,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.data.files.AttachmentFetchFailed
 import com.ftapps.remft.domain.text.fill
@@ -190,7 +191,7 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
         ) {
             confirm = null
             scope.launch {
-                val ok = runCatching { env.attachments.delete(row.id) }.isSuccess
+                val ok = runCatching { env.attachments.delete(row.id) }.onFailure { AppLogs.warn("files.delete_failed", it) }.isSuccess
                 if (!ok) {
                     onMessage(couldNotDelete)
                     return@launch
@@ -233,10 +234,12 @@ private fun ViewerPage(id: String, env: FilesEnvironment, active: Boolean, onZoo
         try {
             fetched = env.attachments.ensureLocal(current)
         } catch (e: AttachmentFetchFailed) {
+            AppLogs.warn("files.fetch_failed", e, mapOf("reason" to e.problem))
             fetchProblem = FileOpener.fetchMessageOf(e.problem)
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLogs.warn("files.fetch_failed", e)
             fetchProblem = R.string.mirror_fetchFailed
         } finally {
             fetching = false

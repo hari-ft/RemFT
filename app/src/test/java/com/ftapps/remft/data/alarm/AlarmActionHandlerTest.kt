@@ -84,6 +84,23 @@ class AlarmActionHandlerTest {
     }
 
     @Test
+    fun answeringAlarmsWritesToTheAlarmLogOnlyNotTheAppLog() = runBlocking {
+        val ring = first()
+        ringNow(ring)
+        assertEquals(ActionResult.APPLIED, t.env.actions.handle(ring.id, "snooze:5_min", ring.payload))
+        val again = first()
+        ringNow(again)
+        assertEquals(ActionResult.APPLIED, t.env.actions.handle(again.id, "acknowledge", again.payload))
+        t.tasks.repository.update(taskId, TaskPatch(remindAt = Change(t.clock.instant().plus(Duration.ofHours(2)))))
+        t.env.scheduler.pass()
+        assertTrue(t.env.log.recent().isNotEmpty())
+        val text = appLogText()
+        assertTrue(text, text.lines().none { it.contains("\"e\":\"alarm.") })
+        assertTrue(t.env.appLog.read().none { it.fields.containsKey("taskId") || it.fields.containsKey("reminderId") })
+        assertTrue(text, !text.contains("plumber"))
+    }
+
+    @Test
     fun snoozeWritesASnoozedRow() = runBlocking {
         val ring = first()
         ringNow(ring)

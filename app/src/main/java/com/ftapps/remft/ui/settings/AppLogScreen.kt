@@ -2,6 +2,7 @@ package com.ftapps.remft.ui.settings
 
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -38,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.ftapps.remft.R
 import com.ftapps.remft.data.alarm.AlarmEnvironment
 import com.ftapps.remft.data.alarm.AppLog
+import com.ftapps.remft.data.alarm.AppLogCategory
 import com.ftapps.remft.data.alarm.AppLogEntry
 import com.ftapps.remft.data.alarm.AppLogLevel
 import com.ftapps.remft.domain.time.DateFormats
@@ -196,15 +198,33 @@ private fun AppLogHeader(min: AppLogLevel, onFilter: (AppLogLevel) -> Unit, onOp
     }
 }
 
+@StringRes
+internal fun appLogCategoryLabel(category: AppLogCategory): Int = when (category) {
+    AppLogCategory.STARTUP -> R.string.alog_category_startup
+    AppLogCategory.BACKUP -> R.string.alog_category_backup
+    AppLogCategory.RESTORE -> R.string.alog_category_restore
+    AppLogCategory.AUTO_BACKUP -> R.string.alog_category_autoBackup
+    AppLogCategory.ONEDRIVE -> R.string.alog_category_oneDrive
+    AppLogCategory.FILES -> R.string.alog_category_files
+    AppLogCategory.IMPORT -> R.string.alog_category_import
+    AppLogCategory.NOTES -> R.string.alog_category_notes
+    AppLogCategory.TASKS -> R.string.alog_category_tasks
+    AppLogCategory.BIN -> R.string.alog_category_bin
+    AppLogCategory.SETTINGS -> R.string.alog_category_settings
+    AppLogCategory.ALARMS -> R.string.alog_category_alarms
+    AppLogCategory.APP -> R.string.alog_category_app
+}
+
 @Composable
 private fun AppLogRow(entry: AppLogEntry, position: GroupPosition, stamp: String) {
+    val category = stringResource(appLogCategoryLabel(entry.category))
     val details = buildList {
         entry.fields.forEach { (key, value) -> add("$key=$value") }
         entry.errorType?.let { add("error=$it") }
     }.joinToString(" ")
     LogEntryRow(
         position = position,
-        title = entry.event,
+        title = "$category · ${entry.message}",
         stamp = stamp,
         details = details.ifEmpty { null },
         icon = when (entry.level) {

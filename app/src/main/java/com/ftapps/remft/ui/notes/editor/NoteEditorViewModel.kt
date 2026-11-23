@@ -9,6 +9,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.db.entity.NoteEntity
 import com.ftapps.remft.data.notes.ExternalDocumentStore
 import com.ftapps.remft.data.notes.ExternalOpenResult
@@ -242,6 +243,7 @@ class NoteEditorViewModel @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            AppLogs.warn("notes.save_failed", e)
             dirty = true
             saveState = SaveState.Failed
         }

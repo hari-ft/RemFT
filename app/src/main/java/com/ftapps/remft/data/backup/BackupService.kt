@@ -88,7 +88,7 @@ class BackupService(
                 log.warn("backup.setting_unreadable", e)
                 null
             }
-            BackupZipWriter.build(
+            val built = BackupZipWriter.build(
                 dbSnapshot = snapshot,
                 out = out,
                 appVersion = appVersion,
@@ -101,9 +101,35 @@ class BackupService(
                 listOnly = listOnly,
                 kind = kind,
             )
+            logCreated(snapshot, built)
+            built
         } finally {
             FileOps.deleteFileIfExists(snapshot)
             for (side in BackupZipWriter.dbSidecars) FileOps.deleteFileIfExists(File(snapshot.path + side))
+        }
+    }
+
+    private fun logCreated(snapshot: File, built: BuiltBackup) {
+        try {
+            val (tasks, notes) = BackupDatabases.withDatabase(snapshot) { db ->
+                db.rawQuery(ROW_COUNTS, null).use { cursor ->
+                    cursor.moveToFirst()
+                    cursor.getLong(0) to cursor.getLong(1)
+                }
+            }
+            log.info(
+                "backup.created",
+                mapOf(
+                    "tasks" to tasks,
+                    "notes" to notes,
+                    "files" to built.manifest.fileCount,
+                    "bytes" to built.zip.length(),
+                    "listedOnly" to built.manifest.listedOnly.size,
+                    "unavailable" to built.unavailable.size,
+                ),
+            )
+        } catch (_: Exception) {
+            log.info("backup.created", mapOf("files" to built.manifest.fileCount, "bytes" to built.zip.length()))
         }
     }
 
@@ -136,7 +162,20 @@ class BackupService(
         val copy = File(paths.scratch, "picked-${micros(clock())}.zip")
         try {
             input.use { FileOps.copyToFile(it, copy) }
-            BackupValidator.validate(copy, DatabaseSchema.VERSION, paths.scratch, log, clock, oldApp = AndroidSqlPort.opener)
+            val bytes = copy.length()
+            BackupValidator.validate(copy, DatabaseSchema.VERSION, paths.scratch, log, clock, oldApp = AndroidSqlPort.opener).also { backup ->
+                log.info(
+                    "backup.validated",
+                    mapOf(
+                        "format" to (backup.oldApp?.format ?: backup.manifest.format),
+                        "schema" to backup.manifest.schemaVersion,
+                        "files" to backup.manifest.fileCount,
+                        "listedOnly" to backup.manifest.listedOnly.size,
+                        "bytes" to bytes,
+                        "oldApp" to (backup.oldApp != null),
+                    ),
+                )
+            }
         } finally {
             FileOps.deleteFileIfExists(copy)
         }
@@ -150,6 +189,7 @@ class BackupService(
         var hold: WorkLockHold? = null
         try {
             onStage(RestoreStage.Tasks)
+            log.info("backup.restore_started", mapOf("files" to backup.manifest.fileCount, "oldApp" to (backup.oldApp != null)))
             hold = locks().beginRestore(restoreLockWait)
             if (!closeDatabase()) {
                 log.warn("backup.restore_db_close_timeout")
@@ -165,6 +205,9 @@ class BackupService(
                 clock = clock,
             )
             log.info("backup.restored", mapOf("schema" to backup.manifest.schemaVersion, "files" to backup.manifest.fileCount))
+            backup.oldApp?.let { old ->
+                log.info("oldbackup.restored", mapOf("appVersion" to old.appVersion, "format" to old.format, "files" to backup.manifest.fileCount))
+            }
             runCatching { recordRestoredBackupDate(backup.manifest.createdAt) }.onFailure { log.warn("backup.restored_date_failed", it) }
             backup.settings?.let { settings ->
                 runCatching { RestoreSettings.hold(store, settings) }.onFailure { log.warn("backup.restore_settings_hold_failed", it) }
@@ -203,6 +246,7 @@ class BackupService(
     private fun micros(at: Instant): Long = ChronoUnit.MICROS.between(Instant.EPOCH, at)
 
     companion object {
+        private const val ROW_COUNTS = "SELECT (SELECT COUNT(*) FROM tasks), (SELECT COUNT(*) FROM notes)"
         private const val DATA_SIZE = "SELECT (SELECT COUNT(*) FROM tasks), (SELECT COUNT(*) FROM notes), " +
             "(SELECT COUNT(*) FROM file_rows), (SELECT COALESCE(SUM(size_bytes), 0) FROM file_rows)"
     }

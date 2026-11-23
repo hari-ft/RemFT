@@ -1,6 +1,7 @@
 package com.ftapps.remft.app
 
 import com.ftapps.remft.data.alarm.AlarmStartup
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.backup.StartupRestoreRecovery
 import com.ftapps.remft.data.db.DatabaseHolder
 import com.ftapps.remft.data.files.FilesMaintenance
@@ -73,13 +74,19 @@ class AppStartup @Inject constructor(
             databaseHolder.db.openHelper.writableDatabase
             StartupState.Ready(identity.resolve()).also { scope.launch { filesMaintenance.runAtStart() } }
         } catch (e: Exception) {
+            AppLogs.error("startup.failed", e, mapOf("afterRestore" to restored))
             StartupState.Failed(e)
         }
-        if (mutableState.value is StartupState.Ready) runCatching { series.rollAll() }
-        if (mutableState.value is StartupState.Ready) runCatching { oneDrive.get().onReady() }
+        if (mutableState.value is StartupState.Ready) {
+            runCatching { series.rollAll() }.onFailure { AppLogs.warn("startup.series_roll_failed", it) }
+        }
+        if (mutableState.value is StartupState.Ready) {
+            runCatching { oneDrive.get().onReady() }.onFailure { AppLogs.warn("startup.onedrive_failed", it) }
+        }
         if (mutableState.value is StartupState.Ready && restored) {
             restored = false
-            runCatching { alarms.get().afterRestore() }
+            AppLogs.info("startup.restarted_after_restore")
+            runCatching { alarms.get().afterRestore() }.onFailure { AppLogs.error("startup.alarms_after_restore_failed", it) }
         }
     }
 }

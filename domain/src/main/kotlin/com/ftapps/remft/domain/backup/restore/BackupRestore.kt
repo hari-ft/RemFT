@@ -103,6 +103,7 @@ object BackupRestore {
         )
         try {
             writeJournal(paths, journal)
+            log.info("backup.restore_phase", mapOf("phase" to journal.phase.wire))
             discardStaged(paths)
             FileOps.move(backup.dbFile, paths.incoming)
             if (backup.filesDir.isDirectory) {
@@ -114,6 +115,7 @@ object BackupRestore {
 
             journal = journal.at(RestorePhase.SwappingDb)
             writeJournal(paths, journal)
+            log.info("backup.restore_phase", mapOf("phase" to journal.phase.wire))
             step("swapping-db")
             if (journal.hadDb) FileOps.rename(dbFile, paths.previous)
             for (sidecar in paths.sidecars) {
@@ -127,6 +129,7 @@ object BackupRestore {
 
             journal = journal.at(RestorePhase.SwappingFiles)
             writeJournal(paths, journal)
+            log.info("backup.restore_phase", mapOf("phase" to journal.phase.wire))
             if (journal.hadFiles) FileOps.rename(filesDir, paths.filesPrevious)
             step("files-parked")
             FileOps.rename(paths.filesIncoming, filesDir)
@@ -134,6 +137,7 @@ object BackupRestore {
 
             journal = journal.at(RestorePhase.Done)
             writeJournal(paths, journal)
+            log.info("backup.restore_phase", mapOf("phase" to journal.phase.wire))
             step("done")
         } catch (kill: SimulatedProcessKill) {
             throw kill
@@ -141,6 +145,7 @@ object BackupRestore {
             try {
                 rollBack(paths, journal)
                 FileOps.deleteFileIfExists(paths.journal)
+                log.warn("backup.restore_rolled_back_now", e, mapOf("phase" to journal.phase.wire))
             } catch (rollbackError: Throwable) {
                 log.error("backup.rollback_failed", rollbackError)
             }
@@ -230,6 +235,7 @@ object BackupRestore {
             return journal
         }
         step?.invoke("settled")
+        log.info("backup.restore_settled", mapOf("kept" to journal.keep.size))
         val next = journal.settledNow()
         try {
             writeJournal(paths, next)

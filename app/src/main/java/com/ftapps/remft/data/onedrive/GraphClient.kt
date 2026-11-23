@@ -503,7 +503,8 @@ class GraphClient(
         throw e
     } catch (_: FileNotFoundException) {
         throw LocalFileGone()
-    } catch (_: IOException) {
+    } catch (e: IOException) {
+        log.warn("autobackup.onedrive_offline", e)
         throw OneDriveException(OneDriveErrors.OFFLINE)
     }
 

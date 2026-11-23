@@ -1,6 +1,7 @@
 package com.ftapps.remft.data.repeat
 
 import androidx.room.withTransaction
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.db.RemftDatabase
 import com.ftapps.remft.data.db.entity.TaskEntity
 import com.ftapps.remft.data.db.entity.TaskSeriesEntity
@@ -149,7 +150,7 @@ class SeriesRepository(
     }
 
     fun launch(block: suspend SeriesRepository.() -> Unit) {
-        background.launch { runCatching { block() } }
+        background.launch { runCatching { block() }.onFailure { AppLogs.warn("series.background_failed", it) } }
     }
 
     suspend fun rollAll(): Int {
@@ -212,11 +213,13 @@ class SeriesRepository(
 
     private fun deleteBytes(paths: List<String>) {
         val dir = attachmentsDir ?: return
+        var failed = 0
         paths.forEach { path ->
             val base = PathText.basename(path)
             if (base.isEmpty() || base == "." || base == "..") return@forEach
-            runCatching { File(dir, base).takeIf { it.isFile }?.delete() }
+            if (!runCatching { File(dir, base).takeIf { it.isFile }?.delete() ?: true }.getOrDefault(false)) failed++
         }
+        if (failed > 0) AppLogs.warn("files.delete_failed", fields = mapOf("files" to failed))
     }
 
     private suspend fun attachedIds(db: RemftDatabase, ids: List<String>): Set<String> =

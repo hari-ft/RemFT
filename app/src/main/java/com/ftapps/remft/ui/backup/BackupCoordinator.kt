@@ -90,7 +90,7 @@ class BackupCoordinator @Inject constructor(
     init {
         scope.launch {
             startup.state.first { it is StartupState.Ready }
-            if (runCatching { recovery.takeRolledBackNotice() }.getOrDefault(false)) {
+            if (runCatching { recovery.takeRolledBackNotice() }.onFailure { AndroidBackupLog.warn("backup.restore_notice_failed", it) }.getOrDefault(false)) {
                 message(context.getString(R.string.backup_restoreRolledBack))
             }
         }
@@ -127,6 +127,7 @@ class BackupCoordinator @Inject constructor(
     }
 
     fun onShareUnavailable() {
+        AndroidBackupLog.warn("backup.share_unavailable")
         built = null
         mutableState.update { it.copy(backingUp = false) }
         message(context.getString(R.string.backup_cancelled))
@@ -136,7 +137,7 @@ class BackupCoordinator @Inject constructor(
         if (mutableState.value.backingUp || mutableState.value.restore != RestoreUiState.Idle) return
         mutableState.update { it.copy(restore = RestoreUiState.ChoosingSource) }
         scope.launch {
-            val connected = runCatching { cloud.connected() }.getOrDefault(false)
+            val connected = runCatching { cloud.connected() }.onFailure { AndroidBackupLog.warn("backup.onedrive_state_failed", it) }.getOrDefault(false)
             mutableState.update { it.copy(oneDriveConnected = connected) }
         }
     }
@@ -228,7 +229,8 @@ class BackupCoordinator @Inject constructor(
         val backup = validated ?: return
         validated = null
         if (!go) {
-            scope.launch(Dispatchers.IO) { runCatching { backup.discard() } }
+            AndroidBackupLog.info("backup.restore_cancelled")
+            scope.launch(Dispatchers.IO) { runCatching { backup.discard() }.onFailure { AndroidBackupLog.warn("backup.restore_discard_failed", it) } }
             setRestore(RestoreUiState.Idle)
             return
         }

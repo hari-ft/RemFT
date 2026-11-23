@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.core.net.toUri
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.notes.ExternalDecoded
 import com.ftapps.remft.domain.notes.ExternalDocHandle
@@ -125,10 +126,13 @@ class ExternalDocumentStore(private val context: Context, private val settings: 
         try {
             val bytes = readBytes(uri, NoteText.MARKDOWN_MAX_BYTES)
             val decoded = ExternalDocuments.decode(bytes)
+            AppLogs.info("notes.import_read", mapOf("bytes" to bytes.size))
             ImportResult.Ok(ImportedMarkdown(displayName(uri), decoded.text))
         } catch (e: TooLargeException) {
+            AppLogs.warn("notes.import_too_large", fields = mapOf("bytes" to e.size))
             ImportResult.TooLarge(String.format(java.util.Locale.ENGLISH, "%.1f", e.size / (1024.0 * 1024.0)))
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLogs.warn("notes.import_failed", e)
             ImportResult.Failed
         }
     }
@@ -151,13 +155,17 @@ class ExternalDocumentStore(private val context: Context, private val settings: 
         val writeGranted = if (fresh) persist(uri) else hasWriteGrant(uri)
         val bytes = try {
             readBytes(uri, NoteText.MARKDOWN_MAX_BYTES)
-        } catch (_: TooLargeException) {
+        } catch (e: TooLargeException) {
+            AppLogs.warn("notes.external_open_refused", fields = mapOf("reason" to "too_large", "bytes" to e.size))
             return@withContext ExternalOpenResult.Refused(ExternalOpenRefusal.TooLarge)
-        } catch (_: SecurityException) {
+        } catch (e: SecurityException) {
+            AppLogs.warn("notes.external_open_refused", e, mapOf("reason" to if (fresh) "denied" else "lost_access"))
             return@withContext ExternalOpenResult.Refused(if (fresh) ExternalOpenRefusal.Denied else ExternalOpenRefusal.LostAccess)
-        } catch (_: FileNotFoundException) {
+        } catch (e: FileNotFoundException) {
+            AppLogs.warn("notes.external_open_refused", e, mapOf("reason" to "gone"))
             return@withContext ExternalOpenResult.Refused(ExternalOpenRefusal.Gone)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLogs.warn("notes.external_open_failed", e)
             return@withContext ExternalOpenResult.Refused(ExternalOpenRefusal.Denied)
         }
         val decoded: ExternalDecoded = ExternalDocuments.decode(bytes)
@@ -192,11 +200,14 @@ class ExternalDocumentStore(private val context: Context, private val settings: 
             val saved = current.copy(markdown = markdown, sha256 = ExternalDocuments.sha256(bytes))
             mutableSession.value = saved
             ExternalSaveOutcome.Saved(saved)
-        } catch (_: SecurityException) {
+        } catch (e: SecurityException) {
+            AppLogs.warn("notes.external_save_failed", e, mapOf("reason" to "lost_access"))
             ExternalSaveOutcome.LostAccess
-        } catch (_: FileNotFoundException) {
+        } catch (e: FileNotFoundException) {
+            AppLogs.warn("notes.external_save_failed", e, mapOf("reason" to "gone"))
             ExternalSaveOutcome.LostAccess
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLogs.error("notes.external_save_failed", e)
             ExternalSaveOutcome.Failed
         }
     }
@@ -210,7 +221,7 @@ class ExternalDocumentStore(private val context: Context, private val settings: 
         val encoding = mutableSession.value?.encoding ?: ExternalEncoding.Utf8
         runCatching {
             resolver.openOutputStream(target, "wt")?.use { it.write(ExternalDocuments.encode(markdown, encoding)) } != null
-        }.getOrDefault(false)
+        }.onFailure { AppLogs.warn("notes.save_copy_failed", it) }.getOrDefault(false)
     }
 
     private suspend fun remember(handle: ExternalDocHandle) {

@@ -46,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.ftapps.remft.R
+import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.files.MimeTypes
 import com.ftapps.remft.ui.components.RemftBottomSheet
 import com.ftapps.remft.ui.components.RemftTonalButton
@@ -130,7 +131,7 @@ fun rememberAttachLauncher(onPicked: (List<PickedFile>) -> Unit, onFailed: () ->
         AttachLauncher { source ->
             val override = env?.pickOverride
             if (override != null) {
-                scope.launch { runCatching { override(source) }.onSuccess { if (it.isNotEmpty()) picked(it) }.onFailure { failed() } }
+                scope.launch { runCatching { override(source) }.onSuccess { if (it.isNotEmpty()) picked(it) }.onFailure { AppLogs.warn("files.pick_failed", it); failed() } }
                 return@AttachLauncher
             }
             try {
@@ -147,10 +148,12 @@ fun rememberAttachLauncher(onPicked: (List<PickedFile>) -> Unit, onFailed: () ->
                         camera.launch(FileProvider.getUriForFile(context, authority, file))
                     }
                 }
-            } catch (_: ActivityNotFoundException) {
+            } catch (e: ActivityNotFoundException) {
+                AppLogs.warn("files.pick_failed", e, mapOf("source" to source))
                 capturePath = null
                 failed()
-            } catch (_: IllegalArgumentException) {
+            } catch (e: IllegalArgumentException) {
+                AppLogs.warn("files.pick_failed", e, mapOf("source" to source))
                 capturePath = null
                 failed()
             }
