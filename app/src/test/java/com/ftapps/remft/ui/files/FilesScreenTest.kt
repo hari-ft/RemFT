@@ -11,6 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -484,5 +486,115 @@ class FilesScreenTest {
         show { AttachmentsSection("note", note, {}) }
         openSheet(file)
         waitFor { nameLine() == "OneDrive: Files › Notes › Trip › map.pdf" }
+    }
+    private fun selectable(tag: String): Boolean = compose.onAllNodes(hasTestTag(tag) and hasAnyAncestor(hasTestTag("onedrive-selectable")), useUnmergedTree = true)
+        .fetchSemanticsNodes().isNotEmpty()
+
+    private fun openFolderDelete(folder: String) {
+        compose.onNodeWithTag("folder-menu-$folder").performClick()
+        waitFor { exists("folder-action-delete") }
+        compose.onNodeWithTag("folder-action-delete").performClick()
+    }
+
+    @Test
+    fun deletingAFolderWithEmptySubfoldersSaysTheyGoWithIt() {
+        val top = runBlocking { rig.files.createFolder("Shell", null) }
+        runBlocking { rig.files.createFolder("Inner", top) }
+        runBlocking { rig.files.createFolder("Deep", rig.files.createFolder("Middle", top)) }
+        val single = runBlocking { rig.files.createFolder("Single", null) }
+        runBlocking { rig.files.createFolder("Only", single) }
+        showFiles()
+        waitFor { exists("folder-row-$top") && exists("folder-row-$single") }
+        openFolderDelete(top)
+        waitFor { textShown("The folder and its 3 empty subfolders go to the recycle bin together — you can restore them from Settings → Your data → Recycle bin.") }
+        compose.onNodeWithText("Cancel").performClick()
+        waitFor { !exists("folder-delete-confirm") }
+        runBlocking { rig.settings.set("remft_bin_enabled", "false") }
+        openFolderDelete(top)
+        waitFor { textShown("The folder and its 3 empty subfolders are deleted. This cannot be undone.") }
+        compose.onNodeWithText("Cancel").performClick()
+        waitFor { !exists("folder-delete-confirm") }
+        openFolderDelete(single)
+        waitFor { textShown("The folder and its 1 empty subfolder are deleted. This cannot be undone.") }
+        compose.onNodeWithText("Cancel").performClick()
+        waitFor { !exists("folder-delete-confirm") }
+        val empty = runBlocking { rig.files.createFolder("Empty", null) }
+        waitFor { exists("folder-row-$empty") }
+        openFolderDelete(empty)
+        waitFor { textShown("The folder is empty. This cannot be undone.") }
+    }
+
+    @Test
+    fun aFolderDeleteCheckThatFailsSaysSoInsteadOfCrashing() {
+        val folder = runBlocking { rig.files.createFolder("Receipts", null) }
+        val entity = runBlocking { rig.holder.db.filesDao().folder(folder)!! }
+        val ui = FileUiState()
+        val messages = ArrayList<String>()
+        ui.dialog = FileDialog.FolderActions(entity)
+        show { FileDialogsHost(ui, rig.environment, emptyList()) { messages.add(it) } }
+        waitFor { exists("folder-action-delete") }
+        rig.failDatabase = true
+        compose.onNodeWithTag("folder-action-delete").performClick()
+        waitFor { messages.isNotEmpty() }
+        rig.failDatabase = false
+        assertEquals(listOf("Could not delete the folder"), messages)
+        assertFalse(exists("folder-delete-confirm"))
+        assertFalse(exists("folder-delete-blocked"))
+        assertEquals(1, rig.query("SELECT id FROM folders").size)
+    }
+
+    @Test
+    fun aFileBeingUploadedAgainShowsItsRecordedPathAsUpdating() {
+        val file = rig.add("invoice.pdf", mime = "application/pdf")
+        val stored = rig.storedName(file)
+        rig.mirror(stored, "failed", "Files/Bills/invoice.pdf")
+        showFiles()
+        openSheet(file)
+        waitFor { nameLine() == "OneDrive: Files › Bills › invoice.pdf (updating)" }
+        rig.mirror(stored, "uploading", null)
+        waitFor { nameLine() == "Not in OneDrive yet" }
+        rig.mirror(stored, "uploading", "Files/Bills/invoice.pdf")
+        waitFor { nameLine() == "OneDrive: Files › Bills › invoice.pdf (updating)" }
+    }
+
+    @Test
+    fun aFolderHoldingOnlyAnAttachmentIsNotCountedAsEmpty() {
+        val folder = runBlocking { rig.files.createFolder("Trips", null) }
+        val task = runBlocking { rig.tasks.repository.create(TaskDraft(title = "Trip")) }
+        rig.add("ticket.pdf", targetType = "task", targetId = task, folderId = folder, mime = "application/pdf")
+        assertEquals(folder, rig.query("SELECT folder_id FROM file_rows").single()["folder_id"])
+        showFiles()
+        waitFor { exists("folder-row-$folder") }
+        waitFor { textShown("1 item") }
+        assertFalse(textShown("0 items"))
+        openFolderDelete(folder)
+        waitFor { exists("folder-delete-blocked") }
+    }
+
+    @Test
+    fun theOneDriveLineIsSelectable() {
+        val file = rig.add("invoice.pdf", mime = "application/pdf")
+        val stored = rig.storedName(file)
+        rig.mirror(stored, "missing", "Files/invoice.pdf")
+        rig.exec("UPDATE file_mirrors SET item_id = 'ITEM-7' WHERE local_path = '$stored'")
+        showFiles()
+        openSheet(file)
+        waitFor { exists("file-onedrive-item") }
+        assertTrue(selectable("file-onedrive-name"))
+        assertTrue(selectable("file-onedrive-item"))
+    }
+
+    @Test
+    fun aMissingFileWithNoLocationAtAllSaysNoneIsRecorded() {
+        val file = rig.add("invoice.pdf", mime = "application/pdf")
+        val row = runBlocking { rig.holder.db.filesDao().file(file)!! }.copy(localPath = "ghost.pdf")
+        rig.mirror("ghost.pdf", "missing", null)
+        val ui = FileUiState()
+        ui.dialog = FileDialog.Actions(row)
+        show { FileDialogsHost(ui, rig.environment, emptyList()) {} }
+        waitFor { exists("file-actions") }
+        waitFor { nameLine() == "Missing in OneDrive. No OneDrive location recorded." }
+        assertFalse(exists("file-onedrive-item"))
+        assertTrue(selectable("file-onedrive-name"))
     }
 }
