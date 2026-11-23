@@ -22,14 +22,15 @@ import java.time.Clock
 
 class FolderRuleException(val code: String) : Exception(code)
 
-data class SubtreeCounts(val folders: Int, val files: Int)
+data class FolderContents(val subfolders: Int, val files: Int, val filesInSubfolders: Int = 0) {
+    val deletable: Boolean get() = files == 0
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FilesRepository(
     private val database: () -> RemftDatabase,
     private val workspaceId: suspend () -> String,
     private val bin: RecycleBin,
-    private val attachments: AttachmentStore,
     private val clock: Clock = Clock.systemUTC(),
 ) {
     private val dao: FilesDao get() = database().filesDao()
@@ -102,37 +103,32 @@ class FilesRepository(
         }
     }
 
-    suspend fun subtreeCounts(folderId: String): SubtreeCounts = withContext(Dispatchers.IO) {
-        val ws = workspaceId()
-        val ids = subtreeIds(dao, ws, folderId)
-        SubtreeCounts(ids.size, dao.workspaceFilesIn(ws, ids).size)
+    suspend fun folderContents(folderId: String): FolderContents = withContext(Dispatchers.IO) {
+        val ids = subtreeIds(dao, workspaceId(), folderId)
+        val files = dao.filesInFolders(ids)
+        FolderContents(ids.size - 1, files, files - dao.filesInFolders(listOf(folderId)))
     }
 
     suspend fun deleteFolder(folderId: String) = withContext(Dispatchers.IO) {
         val ws = workspaceId()
         val toBin = bin.enabled()
-        var removed = emptyList<String?>()
         val db = database()
         db.withTransaction {
             val dao = db.filesDao()
+            val root = dao.folder(folderId) ?: return@withTransaction
             val ids = subtreeIds(dao, ws, folderId)
-            val files = dao.workspaceFilesIn(ws, ids)
-            removed = files.map { it.localPath }
+            if (dao.filesInFolders(ids) > 0) throw FolderRuleException(NOT_EMPTY)
             if (toBin) {
-                val folders = dao.folders(ids)
-                val root = folders.firstOrNull { it.id == folderId }
                 bin.add(
                     kind = "folder",
                     workspaceId = ws,
                     entityId = folderId,
-                    title = root?.name.orEmpty(),
-                    payload = BinPayload(folders = folders.map { it.toBin() }, files = files.map { it.toBin() }),
+                    title = root.name,
+                    payload = BinPayload(folders = dao.folders(ids).map { it.toBin() }, files = emptyList()),
                 )
             }
-            if (files.isNotEmpty()) dao.deleteFiles(files.map { it.id })
             dao.deleteFolders(ids)
         }
-        if (!toBin) attachments.deleteBytes(removed)
     }
 
     private suspend fun assertName(dao: FilesDao, ws: String, parentId: String?, name: String, exceptId: String?) {
@@ -184,6 +180,7 @@ class FilesRepository(
         const val NAME_TAKEN = "FOLDER_NAME_TAKEN"
         const val TOO_DEEP = "FOLDER_TOO_DEEP"
         const val CYCLE = "FOLDER_CYCLE"
+        const val NOT_EMPTY = "FOLDER_NOT_EMPTY"
         private const val UNREACHABLE = 1 shl 20
     }
 }

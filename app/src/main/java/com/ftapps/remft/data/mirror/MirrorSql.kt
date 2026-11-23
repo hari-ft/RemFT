@@ -13,7 +13,10 @@ interface MirrorSql {
     fun <T> inTransaction(block: () -> T): T
 }
 
-class SupportMirrorSql(private val database: () -> SupportSQLiteDatabase) : MirrorSql {
+class SupportMirrorSql(
+    private val changed: () -> Unit = {},
+    private val database: () -> SupportSQLiteDatabase,
+) : MirrorSql {
     override fun <T> query(sql: String, args: Array<out Any?>, row: (Cursor) -> T): List<T> =
         database().query(sql, args).use { cursor ->
             val out = ArrayList<T>()
@@ -22,7 +25,9 @@ class SupportMirrorSql(private val database: () -> SupportSQLiteDatabase) : Mirr
         }
 
     override fun exec(sql: String, args: Array<out Any?>) {
-        if (args.isEmpty()) database().execSQL(sql) else database().execSQL(sql, args)
+        val db = database()
+        if (args.isEmpty()) db.execSQL(sql) else db.execSQL(sql, args)
+        if (!db.inTransaction()) changed()
     }
 
     override fun <T> inTransaction(block: () -> T): T {
@@ -34,6 +39,7 @@ class SupportMirrorSql(private val database: () -> SupportSQLiteDatabase) : Mirr
             return result
         } finally {
             db.endTransaction()
+            if (!db.inTransaction()) changed()
         }
     }
 }
