@@ -200,15 +200,15 @@ fun UrgentAlarmCardContent(title: String, time: String, ringsIn: String, onClick
         onClick = onClick,
         modifier = modifier.fillMaxWidth().padding(vertical = Space.x1).testTag("urgent-alarm-card"),
     ) {
-        Column(Modifier.padding(horizontal = Space.x4, vertical = Space.x3)) {
+        Column(Modifier.padding(horizontal = Space.x4, vertical = Space.x2 + 2.dp)) {
             FlowRow(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalArrangement = Arrangement.spacedBy(Space.x2),
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(Modifier.heightIn(min = 28.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.NotificationsNone, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall + 2.dp))
+                Row(Modifier.heightIn(min = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.NotificationsNone, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall))
                     Spacer(Modifier.width(Space.x2))
                     Text(stringResource(R.string.home_urgentAlarm), style = MaterialTheme.typography.titleMedium)
                 }
@@ -218,11 +218,11 @@ fun UrgentAlarmCardContent(title: String, time: String, ringsIn: String, onClick
                     color = if (dark) urgent.container else urgent.onContainer,
                     modifier = Modifier
                         .background(if (dark) urgent.onContainer else Color.White, MarkedShapes.pill)
-                        .padding(horizontal = Space.x3, vertical = Space.x1)
+                        .padding(horizontal = Space.x3, vertical = 3.dp)
                         .testTag("urgent-alarm-rings-in"),
                 )
             }
-            Spacer(Modifier.height(Space.x2))
+            Spacer(Modifier.height(Space.x1 + 2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = titleStyle, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 Spacer(Modifier.width(Space.x3))

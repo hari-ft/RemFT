@@ -63,6 +63,7 @@ import com.ftapps.remft.domain.tasks.TaskPriority
 import com.ftapps.remft.ui.repeat.CreateSheetRepeatRow
 import com.ftapps.remft.ui.repeat.RepeatDraft
 import com.ftapps.remft.ui.theme.Breakpoints
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -343,7 +344,7 @@ fun SheetSaveButton(text: String, saving: Boolean, onClick: () -> Unit) {
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
             .padding(start = Space.x6, end = Space.x6, top = Space.x2, bottom = Space.x4)
-            .heightIn(min = 48.dp)
+            .heightIn(min = 44.dp)
             .testTag("task-sheet-create"),
     ) {
         if (saving) {
@@ -393,7 +394,7 @@ fun UrgentSwitch(checked: Boolean, onChange: (Boolean) -> Unit, tag: String) {
             {
                 Box(
                     Modifier
-                        .size(40.dp)
+                        .size(Sizes.avatar + 4.dp)
                         .background(if (checked) urgent.container else RemftTheme.tonal.level2, MarkedShapes.pill)
                         .testTag("$tag-icon"),
                     contentAlignment = Alignment.Center,

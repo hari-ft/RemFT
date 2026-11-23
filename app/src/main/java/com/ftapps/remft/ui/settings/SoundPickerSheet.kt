@@ -57,6 +57,7 @@ import com.ftapps.remft.ui.components.RemftBottomSheet
 import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -268,7 +269,7 @@ private fun SoundOption(
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .heightIn(min = Sizes.listRow)
             .testTag(tag)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
             .padding(start = Space.x2, end = Space.x1),

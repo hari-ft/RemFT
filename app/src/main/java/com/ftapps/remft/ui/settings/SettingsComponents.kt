@@ -59,7 +59,7 @@ import com.ftapps.remft.ui.theme.Space
 
 enum class SettingsTone { Brand, Success, Warning, Danger, Neutral }
 
-private val IconCircle = 32.dp
+private val IconCircle = 30.dp
 private val RowStart = Space.x4
 private val DividerInset = RowStart + IconCircle + Space.x4
 
@@ -178,11 +178,11 @@ fun LogEntryRow(
     val scheme = MaterialTheme.colorScheme
     GroupedCardItem(position) {
         Row(
-            modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = Space.x4, vertical = Space.x3),
+            modifier.fillMaxWidth().heightIn(min = Sizes.settingsRow).padding(horizontal = Space.x4, vertical = Space.x2 + 2.dp),
             verticalAlignment = Alignment.Top,
         ) {
             if (icon != null) {
-                SettingsIcon(icon, tone, circle = 32.dp)
+                SettingsIcon(icon, tone, circle = IconCircle)
                 Spacer(Modifier.width(Space.x3))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -211,8 +211,8 @@ fun SettingsItem(
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = Sizes.listRow)
-            .padding(start = RowStart, end = Space.x3, top = Space.x2, bottom = Space.x2),
+            .heightIn(min = Sizes.settingsRow)
+            .padding(start = RowStart, end = Space.x3, top = Space.x2 - 1.dp, bottom = Space.x2 - 1.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -328,7 +328,7 @@ fun SettingsBanner(
     MarkedCard(modifier.fillMaxWidth(), color = colors.container, contentColor = colors.content, shape = MarkedShapes.medium) {
         Column(Modifier.padding(start = Space.x4, top = Space.x4, end = Space.x3, bottom = if (actions != null) Space.x1 else Space.x4)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+                Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
                 Spacer(Modifier.width(Space.x3))
                 Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             }

@@ -51,6 +51,7 @@ import com.ftapps.remft.ui.tasks.rememberDateFormat
 import com.ftapps.remft.ui.tasks.successSwitchColors
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -192,7 +193,7 @@ fun RepeatSwitchRow(
             headlineContent = { Text(stringResource(R.string.repeat_switchTitle), style = MaterialTheme.typography.titleMedium) },
             supportingContent = { Text(stringResource(R.string.repeat_switchSubtitle), color = scheme.onSurfaceVariant) },
             leadingContent = {
-                Box(Modifier.size(40.dp).testTag("$switchTag-icon"), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(Sizes.avatar + 4.dp).testTag("$switchTag-icon"), contentAlignment = Alignment.Center) {
                     Icon(Icons.Outlined.Repeat, contentDescription = null, tint = if (on) repeat.color else scheme.onSurfaceVariant)
                 }
             },

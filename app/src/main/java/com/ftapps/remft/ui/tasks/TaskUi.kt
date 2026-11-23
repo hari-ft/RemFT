@@ -84,6 +84,7 @@ import com.ftapps.remft.ui.components.RemftSnackbar
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.RemftThemeExtras
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -227,7 +228,7 @@ fun <T> ChoiceField(
             shape = MarkedShapes.small,
             color = RemftTheme.tonal.level2,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(tag),
+            modifier = Modifier.fillMaxWidth().heightIn(min = Sizes.listRow).testTag(tag),
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(start = Space.x4, end = Space.x3, top = Space.x2, bottom = Space.x2),

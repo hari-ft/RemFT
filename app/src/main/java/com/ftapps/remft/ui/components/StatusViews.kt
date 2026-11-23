@@ -35,7 +35,7 @@ fun EmptyState(icon: ImageVector, title: String, message: String, modifier: Modi
             Modifier.size(Sizes.emptyBadge).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(Sizes.icon))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(Sizes.iconSmall + 4.dp))
         }
         Spacer(Modifier.height(Space.x3))
         Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
