@@ -10,7 +10,7 @@ plugins {
 
 val appMajor = 1
 val appMinor = 1
-val appBugfix = 8
+val appBugfix = 9
 require(appMajor in 1..99 && appMinor in 1..9 && appBugfix in 1..9) {
     "Version out of range: major 1-99, minor 1-9, bugfix 1-9"
 }
