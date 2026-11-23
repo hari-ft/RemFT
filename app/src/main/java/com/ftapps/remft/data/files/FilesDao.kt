@@ -7,6 +7,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.ftapps.remft.data.db.entity.ChecklistItemEntity
+import com.ftapps.remft.data.db.entity.FileMirrorEntity
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.data.db.entity.FolderEntity
 import com.ftapps.remft.data.db.entity.NoteEntity
@@ -91,8 +92,11 @@ interface FilesDao {
     @Query("SELECT * FROM folders WHERE parent_id IN (:parentIds)")
     suspend fun anyChildrenOf(parentIds: List<String>): List<FolderEntity>
 
-    @Query("SELECT COUNT(*) FROM file_rows WHERE folder_id = :folderId")
-    suspend fun filesInFolder(folderId: String): Int
+    @Query("SELECT * FROM file_mirrors WHERE local_path = :localPath")
+    fun watchMirror(localPath: String): Flow<FileMirrorEntity?>
+
+    @Query("SELECT COUNT(*) FROM file_rows WHERE folder_id IN (:folderIds)")
+    suspend fun filesInFolders(folderIds: List<String>): Int
 
     @Query("SELECT * FROM folders WHERE id IN (:ids)")
     suspend fun folders(ids: List<String>): List<FolderEntity>

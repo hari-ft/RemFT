@@ -97,43 +97,69 @@ class FolderRulesTest {
     }
 
     @Test
-    fun aFolderHoldingOnlyAnEmptySubfolderCannotBeDeleted() = runBlocking {
-        val (top, child) = chain(2)
-        assertEquals(FolderContents(1, 0), rig.files.folderContents(top))
+    fun aFileDeepInsideBlocksEveryFolderAboveIt() = runBlocking {
+        val (top, middle, bottom) = chain(3)
+        val side = rig.files.createFolder("Side", top)
+        val file = rig.add("deep.txt", folderId = bottom)
+        assertEquals(FolderContents(3, 1, 1), rig.files.folderContents(top))
         val before = snapshot()
         refused(FilesRepository.NOT_EMPTY) { rig.files.deleteFolder(top) }
-        assertEquals(before, snapshot())
+        refused(FilesRepository.NOT_EMPTY) { rig.files.deleteFolder(middle) }
+        refused(FilesRepository.NOT_EMPTY) { rig.files.deleteFolder(bottom) }
         rig.settings.set("remft_bin_enabled", "false")
         refused(FilesRepository.NOT_EMPTY) { rig.files.deleteFolder(top) }
         assertEquals(before, snapshot())
-        assertEquals(FolderContents(0, 0), rig.files.folderContents(child))
+        assertTrue(File(rig.dir, "$file.txt").exists())
+        assertEquals(FolderContents(0, 0), rig.files.folderContents(side))
+    }
+
+    @Test
+    fun aFolderHoldingOnlyEmptySubfoldersGoesToTheBinAsOneItemAndRestoresIntact() = runBlocking {
+        val (top, child, grandchild) = chain(3)
+        val sibling = rig.files.createFolder("Sibling", top)
+        val outside = rig.add("c.txt")
+        val folders = rig.query("SELECT * FROM folders ORDER BY id")
+        assertEquals(FolderContents(3, 0), rig.files.folderContents(top))
+        rig.files.deleteFolder(top)
+        assertTrue(rig.query("SELECT id FROM folders").isEmpty())
+        assertEquals(listOf(outside), rig.query("SELECT id FROM file_rows").map { it["id"] })
+        val trash = rig.query("SELECT id, kind, entity_id, title FROM trash_items").single()
+        assertEquals("folder", trash["kind"])
+        assertEquals(top, trash["entity_id"])
+        assertEquals("L0", trash["title"])
+        assertTrue(rig.bin.restore(trash["id"]!!))
+        assertEquals(folders, rig.query("SELECT * FROM folders ORDER BY id"))
+        assertEquals(setOf(top, child, grandchild, sibling), folders.map { it["id"] }.toSet())
     }
 
     @Test
     fun anEmptyFolderGoesToTheBin() = runBlocking {
         val (top, child) = chain(2)
-        val outside = rig.add("c.txt")
         rig.files.deleteFolder(child)
         assertEquals(listOf(top), rig.query("SELECT id FROM folders").map { it["id"] })
-        assertEquals(listOf(outside), rig.query("SELECT id FROM file_rows").map { it["id"] })
         val trash = rig.query("SELECT kind, entity_id, title FROM trash_items").single()
         assertEquals("folder", trash["kind"])
         assertEquals(child, trash["entity_id"])
         assertEquals("L1", trash["title"])
-        rig.files.deleteFolder(top)
-        assertTrue(rig.query("SELECT id FROM folders").isEmpty())
-        assertEquals(2, rig.query("SELECT id FROM trash_items").size)
     }
 
     @Test
-    fun anEmptyFolderWithTheBinOffIsDeletedForGood() = runBlocking {
+    fun anEmptyTreeWithTheBinOffIsDeletedForGood() = runBlocking {
         rig.settings.set("remft_bin_enabled", "false")
-        val top = rig.files.createFolder("Temp", null)
+        val (top) = chain(3)
         val outside = rig.add("a.txt")
         rig.files.deleteFolder(top)
         assertTrue(rig.query("SELECT id FROM folders").isEmpty())
         assertTrue(rig.query("SELECT id FROM trash_items").isEmpty())
         assertEquals(listOf(outside), rig.query("SELECT id FROM file_rows").map { it["id"] })
         assertTrue(File(rig.dir, "$outside.txt").exists())
+    }
+
+    @Test
+    fun aFileAttachedElsewhereButFiledInTheFolderStillBlocksIt() = runBlocking {
+        val top = rig.files.createFolder("Mixed", null)
+        rig.exec("INSERT INTO file_rows (id, workspace_id, target_type, target_id, name, mime, size_bytes, folder_id, name_fold, local_path, created_at, updated_at) SELECT 'X1', workspace_id, 'note', 'N1', 'x.txt', 'text/plain', 1, '$top', 'x.txt', 'X1.txt', created_at, updated_at FROM folders WHERE id = '$top'")
+        refused(FilesRepository.NOT_EMPTY) { rig.files.deleteFolder(top) }
+        assertEquals(1, rig.query("SELECT id FROM folders").size)
     }
 }

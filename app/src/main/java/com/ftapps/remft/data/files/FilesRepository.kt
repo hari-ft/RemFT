@@ -22,8 +22,8 @@ import java.time.Clock
 
 class FolderRuleException(val code: String) : Exception(code)
 
-data class FolderContents(val folders: Int, val files: Int) {
-    val isEmpty: Boolean get() = folders == 0 && files == 0
+data class FolderContents(val subfolders: Int, val files: Int, val filesInSubfolders: Int = 0) {
+    val deletable: Boolean get() = files == 0
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -104,7 +104,9 @@ class FilesRepository(
     }
 
     suspend fun folderContents(folderId: String): FolderContents = withContext(Dispatchers.IO) {
-        FolderContents(dao.anyChildrenOf(listOf(folderId)).size, dao.filesInFolder(folderId))
+        val ids = subtreeIds(dao, workspaceId(), folderId)
+        val files = dao.filesInFolders(ids)
+        FolderContents(ids.size - 1, files, files - dao.filesInFolders(listOf(folderId)))
     }
 
     suspend fun deleteFolder(folderId: String) = withContext(Dispatchers.IO) {
@@ -113,18 +115,19 @@ class FilesRepository(
         val db = database()
         db.withTransaction {
             val dao = db.filesDao()
-            val folder = dao.folder(folderId) ?: return@withTransaction
-            if (dao.anyChildrenOf(listOf(folderId)).isNotEmpty() || dao.filesInFolder(folderId) > 0) throw FolderRuleException(NOT_EMPTY)
+            val root = dao.folder(folderId) ?: return@withTransaction
+            val ids = subtreeIds(dao, ws, folderId)
+            if (dao.filesInFolders(ids) > 0) throw FolderRuleException(NOT_EMPTY)
             if (toBin) {
                 bin.add(
                     kind = "folder",
                     workspaceId = ws,
                     entityId = folderId,
-                    title = folder.name,
-                    payload = BinPayload(folders = listOf(folder.toBin()), files = emptyList()),
+                    title = root.name,
+                    payload = BinPayload(folders = dao.folders(ids).map { it.toBin() }, files = emptyList()),
                 )
             }
-            dao.deleteFolders(listOf(folderId))
+            dao.deleteFolders(ids)
         }
     }
 

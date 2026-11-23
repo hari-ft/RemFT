@@ -217,12 +217,12 @@ class FilesScreenTest {
         compose.onNodeWithTag("folder-menu-$full").performClick()
         waitFor { exists("folder-action-delete") }
         compose.onNodeWithTag("folder-action-delete").performClick()
-        waitFor { textShown("Only empty folders can be deleted. Move or delete its 1 file first.") }
+        waitFor { textShown("Only folders with no files in them can be deleted. Move or delete its 1 file first.") }
         assertFalse(exists("folder-delete-confirm"))
     }
 
     @Test
-    fun aFolderWithFilesAndASubfolderShowsOnlyAnOkAndNothingIsDeleted() {
+    fun aFolderWithFilesShowsOnlyAnOkAndNothingIsDeleted() {
         val full = runBlocking { rig.files.createFolder("Taxes", null) }
         runBlocking { rig.files.createFolder("Old", full) }
         rig.add("a.txt", folderId = full)
@@ -236,12 +236,43 @@ class FilesScreenTest {
         compose.onNodeWithTag("folder-action-delete").performClick()
         waitFor { exists("folder-delete-blocked") }
         assertTrue(textShown("Can’t delete “Taxes”"))
-        assertTrue(textShown("Only empty folders can be deleted. Move or delete its 3 files and 1 folder first."))
+        assertTrue(textShown("Only folders with no files in them can be deleted. Move or delete its 3 files first."))
         assertFalse(exists("folder-delete-confirm"))
         assertFalse(textShown("Cancel"))
         compose.onNodeWithTag("folder-delete-blocked-ok").performClick()
         waitFor { !exists("folder-delete-blocked") }
         assertEquals(before, listOf("folders", "file_rows", "trash_items").map { rig.query("SELECT * FROM $it ORDER BY id") })
+    }
+
+    @Test
+    fun aFileDeepInASubfolderIsCountedInTheBlockedDialog() {
+        val top = runBlocking { rig.files.createFolder("Archive", null) }
+        val deep = runBlocking { rig.files.createFolder("2025", rig.files.createFolder("Bills", top)) }
+        rig.add("x.txt", folderId = deep)
+        rig.add("y.txt", folderId = top)
+        showFiles()
+        waitFor { exists("folder-row-$top") }
+        compose.onNodeWithTag("folder-menu-$top").performClick()
+        waitFor { exists("folder-action-delete") }
+        compose.onNodeWithTag("folder-action-delete").performClick()
+        waitFor { exists("folder-delete-blocked") }
+        assertTrue(textShown("Only folders with no files in them can be deleted. Move or delete the 2 files in it and its subfolders first."))
+    }
+
+    @Test
+    fun aFolderHoldingOnlyEmptySubfoldersGetsTheNormalConfirmAndDeletes() {
+        val top = runBlocking { rig.files.createFolder("Shell", null) }
+        runBlocking { rig.files.createFolder("Inner", top) }
+        showFiles()
+        waitFor { exists("folder-row-$top") }
+        compose.onNodeWithTag("folder-menu-$top").performClick()
+        waitFor { exists("folder-action-delete") }
+        compose.onNodeWithTag("folder-action-delete").performClick()
+        waitFor { exists("folder-delete-confirm") }
+        assertFalse(exists("folder-delete-blocked"))
+        compose.onNodeWithTag("folder-delete-confirm").performClick()
+        waitFor { rig.query("SELECT id FROM folders").isEmpty() }
+        assertEquals(1, rig.query("SELECT id FROM trash_items").size)
     }
 
     @Test
@@ -257,7 +288,7 @@ class FilesScreenTest {
         rig.add("late.txt", folderId = folder)
         compose.onNodeWithTag("folder-delete-confirm").performClick()
         waitFor { messages.isNotEmpty() }
-        assertEquals(listOf("Only empty folders can be deleted."), messages)
+        assertEquals(listOf("Only folders with no files in them can be deleted."), messages)
         assertFalse(deleted)
         assertEquals(1, rig.query("SELECT id FROM folders").size)
         assertTrue(rig.query("SELECT id FROM trash_items").isEmpty())
@@ -361,7 +392,7 @@ class FilesScreenTest {
         val folder = runBlocking { rig.files.createFolder("Receipts", null) }
         rig.add("bill.txt", folderId = folder)
         showFiles()
-        waitFor { exists("folder-row-$folder") }
+        waitFor { exists("folder-row-$folder") && textShown("1 item") }
         assertEquals(1, compose.onAllNodesWithText("1 item", useUnmergedTree = true).fetchSemanticsNodes().size)
     }
 
@@ -382,5 +413,73 @@ class FilesScreenTest {
         assertEquals(listOf("Could not delete the folder"), messages)
         assertFalse(deleted)
         assertEquals(1, rig.query("SELECT id FROM folders").size)
+    }
+
+    private fun openSheet(fileId: String) {
+        waitFor { exists("file-menu-$fileId") }
+        compose.onNodeWithTag("file-menu-$fileId").performClick()
+        waitFor { exists("file-actions") }
+    }
+
+    private fun nameLine(): String? = compose.onAllNodesWithTag("file-onedrive-name", useUnmergedTree = true).fetchSemanticsNodes()
+        .firstOrNull()?.config?.getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }
+
+    @Test
+    fun theFileSheetShowsTheOneDriveSavedNameAndFollowsTheMirror() {
+        val folder = runBlocking { rig.files.createFolder("Bills", null) }
+        val file = rig.add("invoice.pdf", folderId = folder, mime = "application/pdf")
+        val stored = rig.storedName(file)
+        showFiles()
+        waitFor { exists("folder-row-$folder") }
+        compose.onNodeWithTag("folder-row-$folder").performClick()
+        openSheet(file)
+        waitFor { nameLine() == "Not in OneDrive yet" }
+        rig.mirror(stored, "mirrored", "Files/Bills/2025/invoice (ab12cd).pdf")
+        waitFor { nameLine() == "OneDrive: Files › Bills › 2025 › invoice (ab12cd).pdf" }
+        rig.oneDriveOn.value = false
+        waitFor { nameLine() == "OneDrive is off" }
+        assertFalse(exists("file-onedrive-item"))
+    }
+
+    @Test
+    fun aMissingFileShowsWhereItWasLastSavedItsItemIdAndWhenItWasLastSeen() {
+        runBlocking { rig.settings.set("remft_date_format", "iso") }
+        val file = rig.add("invoice.pdf", mime = "application/pdf")
+        val stored = rig.storedName(file)
+        rig.mirror(stored, "remote-missing", "Files/Bills/2025/invoice (ab12cd).pdf")
+        rig.exec("UPDATE file_mirrors SET item_id = 'ITEM-42', mirrored_at = '2026-11-01T10:00:00.000Z', listed_at = '2026-11-12T08:00:00.000Z' WHERE local_path = '$stored'")
+        showFiles()
+        openSheet(file)
+        waitFor { nameLine() == "Missing in OneDrive. Last saved at: Files › Bills › 2025 › invoice (ab12cd).pdf · last seen 2026-11-12" }
+        assertTrue(textShown("OneDrive item id: ITEM-42"))
+    }
+
+    @Test
+    fun aMissingFileWithNoRecordedLocationSaysSo() {
+        val file = rig.add("invoice.pdf", mime = "application/pdf")
+        rig.mirror(rig.storedName(file), "missing", null)
+        showFiles()
+        openSheet(file)
+        waitFor { nameLine() == "Missing in OneDrive. No OneDrive location recorded." }
+    }
+
+    @Test
+    fun aTaskAttachmentSheetShowsTheOneDriveName() {
+        val task = runBlocking { rig.tasks.repository.create(TaskDraft(title = "Trip")) }
+        val file = rig.add("ticket.pdf", targetType = "task", targetId = task, mime = "application/pdf")
+        rig.mirror(rig.storedName(file), "mirrored", "Files/Tasks/Trip/ticket.pdf")
+        show { AttachmentsSection("task", task, {}) }
+        openSheet(file)
+        waitFor { nameLine() == "OneDrive: Files › Tasks › Trip › ticket.pdf" }
+    }
+
+    @Test
+    fun aNoteAttachmentSheetShowsTheOneDriveName() {
+        val note = runBlocking { rig.notes.create("Trip", "body") }
+        val file = rig.add("map.pdf", targetType = "note", targetId = note, mime = "application/pdf")
+        rig.mirror(rig.storedName(file), "mirrored", "Files/Notes/Trip/map.pdf")
+        show { AttachmentsSection("note", note, {}) }
+        openSheet(file)
+        waitFor { nameLine() == "OneDrive: Files › Notes › Trip › map.pdf" }
     }
 }

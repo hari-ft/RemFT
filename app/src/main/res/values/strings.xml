@@ -889,10 +889,6 @@
     </plurals>
     <string name="lowui_appLogFilterEmptyTitle">Nothing at this level</string>
     <string name="lowui_appLogFilterEmptyBody">No warnings or errors match this filter. Choose All to see every entry.</string>
-    <plurals name="lowui_folderCount">
-        <item quantity="one">%d folder</item>
-        <item quantity="other">%d folders</item>
-    </plurals>
     <plurals name="lowui_fileCount">
         <item quantity="one">%d file</item>
         <item quantity="other">%d files</item>
@@ -942,9 +938,15 @@
     <string name="alog_category_alarms">Alarms</string>
     <string name="alog_category_app">App</string>
     <string name="folderblock_title">Can’t delete “{name}”</string>
-    <string name="folderblock_bodyFiles">Only empty folders can be deleted. Move or delete its {files} first.</string>
-    <string name="folderblock_bodyFolders">Only empty folders can be deleted. Move or delete its {folders} first.</string>
-    <string name="folderblock_bodyBoth">Only empty folders can be deleted. Move or delete its {files} and {folders} first.</string>
-    <string name="folderblock_notEmptyError">Only empty folders can be deleted.</string>
+    <string name="folderblock_bodyFiles">Only folders with no files in them can be deleted. Move or delete its {files} first.</string>
+    <string name="folderblock_bodyNested">Only folders with no files in them can be deleted. Move or delete the {files} in it and its subfolders first.</string>
+    <string name="folderblock_notEmptyError">Only folders with no files in them can be deleted.</string>
     <string name="folderblock_ok">OK</string>
+    <string name="onedrivename_saved">OneDrive: {path}</string>
+    <string name="onedrivename_missing">Missing in OneDrive. Last saved at: {path}</string>
+    <string name="onedrivename_missingNoPath">Missing in OneDrive. No OneDrive location recorded.</string>
+    <string name="onedrivename_lastSeen">{text} · last seen {date}</string>
+    <string name="onedrivename_itemId">OneDrive item id: {id}</string>
+    <string name="onedrivename_notYet">Not in OneDrive yet</string>
+    <string name="onedrivename_off">OneDrive is off</string>
 </resources>
