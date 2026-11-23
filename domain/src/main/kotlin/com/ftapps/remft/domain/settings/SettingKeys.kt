@@ -38,6 +38,8 @@ object SettingKeys {
     val AutoBackupWakeSlots = SettingKey("remft_auto_backup_wake_slots", null, false)
     val MirrorDownloadsPending = SettingKey("remft_mirror_downloads_pending", null, false)
     val MirrorReviewSweptAt = SettingKey("remft_mirror_review_swept_at", null, false)
+    val MirrorFolders = SettingKey("remft_mirror_folders", null, false)
+    val MirrorBinLeftovers = SettingKey("remft_mirror_bin_leftovers", null, false)
     val RestorePendingSettings = SettingKey("remft_restore_pending_settings", null, false)
     val RestoreRolledBackAt = SettingKey("remft_restore_rolled_back_at", null, false)
     val ExternalRecents = SettingKey("remft_external_recents", null, false)
@@ -51,7 +53,7 @@ object SettingKeys {
         LocalWorkspaceId, LastBackupAt, BackupReminderDismissed, OneDriveOn, OneDriveAccount,
         OneDriveReconnect, AutoBackupLastOk, AutoBackupLastSize, AutoBackupPaused, AutoBackupDropAccepted,
         AutoBackupUnavailable, AutoBackupStatusOneDrive, AutoBackupWakeSlots, MirrorDownloadsPending,
-        MirrorReviewSweptAt, RestorePendingSettings, RestoreRolledBackAt, ExternalRecents, SearchRecent,
+        MirrorReviewSweptAt, MirrorFolders, MirrorBinLeftovers, RestorePendingSettings, RestoreRolledBackAt, ExternalRecents, SearchRecent,
         DynamicColor,
     )
 

@@ -402,6 +402,13 @@ private fun MirrorStatusCard(counts: MirrorCounts?, downloads: MirrorDownloadSta
                     }
                     Spacer(Modifier.height(Space.x1))
                     Text(
+                        stringResource(R.string.mirrorsync_layout),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("auto-backup-mirror-layout"),
+                    )
+                    Spacer(Modifier.height(Space.x1))
+                    Text(
                         stringResource(R.string.mirror_reviewNeeded),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

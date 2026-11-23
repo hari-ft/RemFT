@@ -2,19 +2,17 @@ package com.ftapps.remft.data.mirror
 
 import com.ftapps.remft.data.backup.AndroidBackupLog
 import com.ftapps.remft.data.onedrive.LocalFileGone
-import com.ftapps.remft.data.onedrive.MirrorMove
 import com.ftapps.remft.data.onedrive.MirrorRemote
 import com.ftapps.remft.data.onedrive.OneDriveErrors
 import com.ftapps.remft.data.onedrive.OneDriveException
-import com.ftapps.remft.data.onedrive.RemoteEntry
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.backup.BackupLog
-import com.ftapps.remft.domain.backup.JsonText
 import com.ftapps.remft.domain.backup.PathText
 import com.ftapps.remft.domain.time.UtcText
 import com.ftapps.remft.domain.backup.FileOps
 import com.ftapps.remft.domain.backup.MirrorRef
-import com.ftapps.remft.domain.backup.mirror.MirrorPathInput
+import com.ftapps.remft.domain.backup.mirror.MirrorFolder
+import com.ftapps.remft.domain.backup.mirror.MirrorFolders
 import com.ftapps.remft.domain.backup.mirror.MirrorPaths
 import com.ftapps.remft.domain.backup.mirror.MirrorPlan
 import com.ftapps.remft.domain.backup.mirror.MirrorRecord
@@ -22,14 +20,13 @@ import com.ftapps.remft.domain.backup.mirror.MirrorState
 import com.ftapps.remft.domain.backup.mirror.QuickXorHash
 import com.ftapps.remft.domain.backup.mirror.RemoteItem
 import com.ftapps.remft.domain.settings.SettingKeys
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonArray
 import java.io.File
 import java.security.MessageDigest
-import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
@@ -41,6 +38,7 @@ data class MirrorCatchUp(
     val remaining: Int = 0,
     val stoppedBy: String? = null,
     val movedToReview: Int = 0,
+    val moved: Int = 0,
 )
 
 data class MirrorCounts(val files: Int, val mirrored: Int, val toDownload: Int, val notFound: Int = 0)
@@ -68,64 +66,14 @@ class FileMirror(
     private val catchUpLock = Mutex()
     private val downloadLocks = ConcurrentHashMap<String, Mutex>()
 
-    suspend fun neededFiles(): Map<String, NeededFile> = io {
-        val folders = sql.query("SELECT id, name, parent_id FROM folders") { c ->
-            c.getString(0) to (c.getString(1) to c.stringOrNull(2))
-        }.toMap()
-        val taskTitles = sql.query(
-            "SELECT id, title FROM tasks WHERE id IN (SELECT target_id FROM file_rows WHERE target_type = 'task')",
-        ) { c -> c.getString(0) to c.getString(1) }.toMap()
-        val noteTitles = sql.query(
-            "SELECT id, title FROM notes WHERE id IN (SELECT target_id FROM file_rows WHERE target_type = 'note')",
-        ) { c -> c.getString(0) to c.getString(1) }.toMap()
-        fun chain(folderId: String?): List<String> {
-            val out = ArrayList<String>()
-            val seen = HashSet<String>()
-            var id = folderId
-            while (id != null && seen.add(id) && out.size < MAX_FOLDER_DEPTH) {
-                val folder = folders[id] ?: break
-                out.add(0, folder.first)
-                id = folder.second
-            }
-            return out
-        }
-        val out = LinkedHashMap<String, NeededFile>()
-        sql.query("SELECT id, name, target_type, target_id, folder_id, local_path FROM file_rows") { c ->
-            val stored = c.stringOrNull(5)
-            if (stored.isNullOrEmpty()) return@query
-            val name = PathText.basename(stored)
-            val targetType = c.getString(2)
-            val targetId = c.getString(3)
-            out[name] = NeededFile(
-                name,
-                MirrorPaths.pathFor(
-                    MirrorPathInput(
-                        id = c.getString(0),
-                        name = c.getString(1),
-                        storedName = name,
-                        targetType = targetType,
-                        folderChain = if (targetType == "workspace") chain(c.stringOrNull(4)) else emptyList(),
-                        ownerId = targetId,
-                        ownerTitle = when (targetType) {
-                            "task" -> taskTitles[targetId]
-                            "note" -> noteTitles[targetId]
-                            else -> null
-                        },
-                    ),
-                ),
-            )
-        }
-        sql.query("SELECT local_paths FROM trash_items") { c -> c.stringOrNull(0) }.forEach { raw ->
-            val kept = raw?.let { JsonText.parseOrNull(it) } as? JsonArray ?: return@forEach
-            for (k in kept) {
-                val stored = JsonText.stringOf(k)
-                if (stored.isNullOrEmpty()) continue
-                val name = PathText.basename(stored)
-                out.getOrPut(name) { NeededFile(name, MirrorPaths.binnedPath(name)) }
-            }
-        }
-        out
+    suspend fun neededFiles(): Map<String, NeededFile> {
+        val layout = io { MirrorLayout.read(sql) }
+        val placed = MirrorFolders.decode(store.get(SettingKeys.MirrorFolders.name))
+        return neededFrom(layout, placed).mapValues { (name, path) -> NeededFile(name, path) }
     }
+
+    private fun neededFrom(layout: MirrorLayout, placed: Map<String, MirrorFolder>): Map<String, String> =
+        layout.files.mapValues { layout.pathOf(it.value, placed) }
 
     suspend fun rows(): Map<String, MirrorRecord> = io {
         sql.query(
@@ -171,31 +119,76 @@ class FileMirror(
 
     override suspend fun catchUp(deadline: Instant?): MirrorCatchUp = catchUpLock.withLock { runCatchUp(deadline) }
 
+    private fun pass(deadline: Instant?) = MirrorPass(sql, remote, store, filesDir, clock, log) {
+        stopRequested() || (deadline != null && clock().isAfter(deadline))
+    }
+
     private suspend fun runCatchUp(deadline: Instant?): MirrorCatchUp {
-        val needed = neededFiles()
-        val rows = rows()
-        val todo = needed.values.filter { rows[it.storedName]?.state != MirrorState.MIRRORED && local(it.storedName).isFile }
+        val pass = pass(deadline)
         var uploaded = 0
-        var failed = 0
-        for ((i, f) in todo.withIndex()) {
-            if (stopRequested() || (deadline != null && clock().isAfter(deadline))) return MirrorCatchUp(uploaded, failed, todo.size - i)
-            try {
-                if (uploadOne(f.storedName, rows[f.storedName]?.remotePath ?: f.remotePath)) uploaded++ else failed++
-            } catch (e: OneDriveException) {
-                if (e.code in MirrorPlan.STOP_CODES) return MirrorCatchUp(uploaded, failed, todo.size - i, e.code)
-                failed++
+        var uploadFailed = 0
+        var todo: List<Pair<String, String>>? = null
+        var done = 0
+        fun result(stoppedBy: String? = null, remaining: Int = 0) = MirrorCatchUp(
+            uploaded = uploaded,
+            failed = uploadFailed + pass.failed,
+            remaining = remaining,
+            stoppedBy = stoppedBy,
+            movedToReview = pass.reviewed,
+            moved = pass.foldersMoved + pass.filesMoved,
+        )
+        fun placedLog() {
+            if (pass.foldersMoved > 0 || pass.filesMoved > 0) {
+                log.info("mirror.placed", mapOf("folders" to pass.foldersMoved, "files" to pass.filesMoved))
             }
+            if (pass.reviewed > 0) log.info("mirror.moved_to_review", mapOf("items" to pass.reviewed))
         }
-        if (uploaded > 0 || failed > 0) log.info("mirror.catch_up", mapOf("uploaded" to uploaded, "failed" to failed))
-        return try {
-            MirrorCatchUp(uploaded, failed, movedToReview = reviewGone(needed, deadline))
-        } catch (e: OneDriveException) {
-            log.warn("mirror.review_failed", fields = mapOf("code" to e.code))
-            MirrorCatchUp(uploaded, failed, stoppedBy = e.code.takeIf { it in MirrorPlan.STOP_CODES })
-        } catch (e: Exception) {
-            log.warn("mirror.review_failed", e)
-            MirrorCatchUp(uploaded, failed)
+        val layout = io { MirrorLayout.read(sql) }
+        pass.load()
+        try {
+            pass.placeFolders(layout)
+            val needed = neededFrom(layout, pass.placed())
+            pass.placeFiles(needed, rows())
+            val rows = rows()
+            val pending = needed.filter { (name, _) -> rows[name]?.state != MirrorState.MIRRORED && local(name).isFile }
+                .map { (name, want) -> name to (rows[name]?.remotePath?.takeIf { MirrorPaths.isMirrorPath(it) && !MirrorPaths.isReviewPath(it) } ?: want) }
+            todo = pending
+            for ((name, path) in pending) {
+                if (stopRequested() || (deadline != null && clock().isAfter(deadline))) throw MirrorStop(null)
+                try {
+                    if (uploadOne(name, path)) uploaded++ else uploadFailed++
+                } catch (e: OneDriveException) {
+                    if (e.code in MirrorPlan.STOP_CODES) throw MirrorStop(e.code)
+                    uploadFailed++
+                }
+                done++
+            }
+            if (uploaded > 0 || uploadFailed > 0) log.info("mirror.catch_up", mapOf("uploaded" to uploaded, "failed" to uploadFailed))
+            try {
+                pass.review(layout, needed, rows())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: MirrorStop) {
+                throw e
+            } catch (e: OneDriveException) {
+                log.warn("mirror.review_failed", fields = mapOf("code" to e.code))
+            } catch (e: Exception) {
+                log.warn("mirror.review_failed", e)
+            }
+            placedLog()
+            return result()
+        } catch (stop: MirrorStop) {
+            placedLog()
+            val left = todo?.let { it.size - done } ?: pendingUploads()
+            return result(stop.code, left)
+        } finally {
+            pass.flush()
         }
+    }
+
+    private suspend fun pendingUploads(): Int {
+        val rows = rows()
+        return neededFiles().keys.count { rows[it]?.state != MirrorState.MIRRORED && local(it).isFile }
     }
 
     suspend fun uploadOne(storedName: String, remotePath: String): Boolean {
@@ -322,98 +315,18 @@ class FileMirror(
         return out
     }
 
-    suspend fun reviewGone(needed: Map<String, NeededFile>? = null, deadline: Instant? = null): Int {
-        val need = needed ?: neededFiles()
-        val rows = rows()
-        val stale = clock().minus(UPLOAD_STALE)
-        fun past() = stopRequested() || (deadline != null && clock().isAfter(deadline))
-        var folderId: String? = null
-        val folder: suspend () -> String = {
-            folderId ?: remote.ensureFolder(MirrorPaths.REVIEW_FOLDER).also { folderId = it }
+    suspend fun reviewGone(deadline: Instant? = null): Int = catchUpLock.withLock {
+        val pass = pass(deadline)
+        try {
+            val layout = io { MirrorLayout.read(sql) }
+            pass.load()
+            pass.review(layout, neededFrom(layout, pass.placed()), rows())
+        } catch (_: MirrorStop) {
+        } finally {
+            pass.flush()
         }
-        var moved = 0
-        for (row in rows.values) {
-            if (need.containsKey(row.localPath)) continue
-            if (row.state == MirrorState.UPLOADING && row.updatedAt?.isAfter(stale) == true) continue
-            if (past()) return reviewed(moved)
-            val itemId = row.itemId?.takeIf { it.isNotEmpty() }
-            val path = row.remotePath
-            val byPath = path?.takeIf { MirrorPaths.isMirrorPath(it) && !MirrorPaths.isReviewPath(it) }
-            if (itemId != null || byPath != null) {
-                if (moveToReview(itemId, byPath, PathText.basename(path ?: row.localPath), folder)) moved++
-            }
-            io { sql.exec("DELETE FROM file_mirrors WHERE local_path = ?", arrayOf(row.localPath)) }
-        }
-        if (store.get(SettingKeys.MirrorReviewSweptAt.name) == null) {
-            if (need.isEmpty()) {
-                log.info("mirror.review_sweep_skipped")
-            } else {
-                val (count, complete) = sweepUnaccounted(need, folder, ::past)
-                moved += count
-                if (complete) store.set(SettingKeys.MirrorReviewSweptAt.name, UtcText.format(clock()))
-            }
-        }
-        return reviewed(moved)
-    }
-
-    private fun reviewed(moved: Int): Int {
-        if (moved > 0) log.info("mirror.moved_to_review", mapOf("files" to moved))
-        return moved
-    }
-
-    private suspend fun sweepUnaccounted(
-        need: Map<String, NeededFile>,
-        folder: suspend () -> String,
-        past: () -> Boolean,
-    ): Pair<Int, Boolean> {
-        val rows = rows()
-        val keepIds = rows.values.mapNotNull { it.itemId?.takeIf { id -> id.isNotEmpty() } }.toSet()
-        val keepPaths = (rows.values.mapNotNull { it.remotePath?.lowercase() } + need.values.map { it.remotePath.lowercase() }).toSet()
-        var moved = 0
-        val folders = ArrayDeque(listOf(MirrorPaths.ROOT))
-        while (folders.isNotEmpty()) {
-            val at = folders.removeFirst()
-            val entries: List<RemoteEntry> = remote.listFolder(at).orEmpty()
-            for (e in entries) {
-                val path = "$at/${e.name}"
-                if (e.isFolder) {
-                    if (path.lowercase() != MirrorPaths.REVIEW_FOLDER.lowercase()) folders.addLast(path)
-                    continue
-                }
-                if (e.id in keepIds || path.lowercase() in keepPaths) continue
-                if (past()) return moved to false
-                if (moveToReview(e.id, null, e.name, folder)) moved++
-            }
-        }
-        return moved to true
-    }
-
-    private suspend fun moveToReview(itemId: String?, path: String?, name: String, folder: suspend () -> String): Boolean {
-        val folderId = folder()
-        var tryId = itemId != null
-        if (itemId != null) {
-            val parent = remote.parentOf(itemId)
-            if (parent == folderId) return false
-            if (parent == null) tryId = false
-        }
-        for (n in 1..MAX_REVIEW_NAMES) {
-            val candidate = MirrorPaths.reviewName(name, n)
-            var outcome = MirrorMove.Gone
-            if (tryId) {
-                outcome = remote.moveInto(itemId = itemId, folderId = folderId, name = candidate)
-                if (outcome == MirrorMove.Gone) tryId = false
-            }
-            if (!tryId && path != null && outcome == MirrorMove.Gone) {
-                outcome = remote.moveInto(path = path, folderId = folderId, name = candidate)
-            }
-            when (outcome) {
-                MirrorMove.Moved -> return true
-                MirrorMove.Gone -> return false
-                MirrorMove.NameTaken -> continue
-            }
-        }
-        log.warn("mirror.review_name_taken")
-        return false
+        if (pass.reviewed > 0) log.info("mirror.moved_to_review", mapOf("items" to pass.reviewed))
+        pass.reviewed
     }
 
     suspend fun pendingDownloads(): List<PendingDownload> {
@@ -478,9 +391,6 @@ class FileMirror(
 
     companion object {
         const val INCOMING_SUFFIX = "-incoming"
-        private const val MAX_FOLDER_DEPTH = 12
-        private const val MAX_REVIEW_NAMES = 100
-        private val UPLOAD_STALE: Duration = Duration.ofHours(6)
 
         fun canFetch(row: MirrorRecord): Boolean =
             row.state in MirrorState.fetchable && (!row.itemId.isNullOrEmpty() || MirrorPaths.isMirrorPath(row.remotePath ?: ""))

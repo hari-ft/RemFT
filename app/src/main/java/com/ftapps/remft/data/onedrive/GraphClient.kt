@@ -50,6 +50,7 @@ interface MirrorRemote {
     suspend fun itemsById(ids: Collection<String>): Map<String, RemoteItem?>
     suspend fun listFolder(path: String): List<RemoteEntry>?
     suspend fun ensureFolder(path: String): String
+    suspend fun folderAt(path: String): String?
     suspend fun parentOf(itemId: String): String?
     suspend fun moveInto(itemId: String? = null, path: String? = null, folderId: String, name: String): MirrorMove
     suspend fun download(itemId: String?, path: String?, size: Long?, to: File, onProgress: ((Long) -> Unit)? = null): Boolean
@@ -222,6 +223,14 @@ class GraphClient(
         return JsonText.stringOf(ensureOk(res).json["id"]) ?: throw OneDriveException(OneDriveErrors.ERROR)
     }
 
+    override suspend fun folderAt(path: String): String? = guard {
+        check(MirrorPaths.isMirrorPath(path)) { "Not a mirror path" }
+        val res = graph("GET", itemByPath(path, mapOf(SELECT to "id,folder")))
+        if (res.code == 404) return@guard null
+        val json = ensureOk(res).json
+        if (JsonText.isNull(json["folder"])) null else JsonText.stringOf(json["id"])
+    }
+
     private suspend fun folderId(path: String): String? {
         val res = graph("GET", itemByPath(path, mapOf(SELECT to "id,folder")))
         if (res.code == 404) return null
@@ -269,7 +278,7 @@ class GraphClient(
         }
         if (path == null || !MirrorPaths.isMirrorPath(path) || MirrorPaths.isReviewPath(path)) return@guard false
         val name = path.substringAfterLast('/')
-        val inReview = listFolder(MirrorPaths.REVIEW_FOLDER).orEmpty()
+        val inReview = MirrorPaths.fallbackFolders(path).flatMap { listFolder(it).orEmpty() }
         val matches = inReview
             .filter { !it.isFolder && MirrorPaths.isReviewNameOf(it.name, name) && (size == null || it.size == size) }
             .sortedBy { it.name.length }
