@@ -1,7 +1,10 @@
 package com.ftapps.remft.data.bin
 
+import androidx.room.withTransaction
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ftapps.remft.data.bin.BinMapping.toBin
 import com.ftapps.remft.data.prefs.SettingsStore
+import com.ftapps.remft.domain.backup.bin.BinPayload
 import com.ftapps.remft.domain.tasks.TaskDraft
 import com.ftapps.remft.testing.BrokenDataStore
 import com.ftapps.remft.testing.TestFiles
@@ -32,6 +35,24 @@ class RecycleBinTest {
     private fun TestFiles.snapshot(table: String): List<Map<String, String?>> = query("SELECT * FROM $table ORDER BY id")
 
     private fun TestFiles.trashId(): String = query("SELECT id FROM trash_items").single()["id"]!!
+
+    private suspend fun TestFiles.binWholeTreeAsOlderVersionsDid(root: String, folderIds: List<String>, fileIds: List<String>) {
+        val db = holder.db
+        db.withTransaction {
+            val dao = db.filesDao()
+            val folders = dao.folders(folderIds)
+            val files = fileIds.map { dao.file(it)!! }
+            bin.add(
+                kind = "folder",
+                workspaceId = workspace,
+                entityId = root,
+                title = folders.first { it.id == root }.name,
+                payload = BinPayload(folders = folders.map { it.toBin() }, files = files.map { it.toBin() }),
+            )
+            dao.deleteFiles(fileIds)
+            dao.deleteFolders(folderIds)
+        }
+    }
 
     @Test
     fun aDeletedTaskWithChecklistRemindersAndFilesComesBackIdentical() = runBlocking {
@@ -65,7 +86,9 @@ class RecycleBinTest {
         val child = r.files.createFolder("Old", top)
         val inChild = r.add("bell.mp3", folderId = child, mime = "audio/mpeg")
         val before = r.snapshot("folders")
-        r.files.deleteFolder(top)
+        r.binWholeTreeAsOlderVersionsDid(top, listOf(top, child), listOf(inChild))
+        assertTrue(r.snapshot("folders").isEmpty())
+        assertTrue(r.snapshot("file_rows").isEmpty())
         r.files.createFolder("ringtones", null)
 
         assertTrue(r.bin.restore(r.trashId()))

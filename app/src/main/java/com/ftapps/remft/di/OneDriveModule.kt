@@ -74,7 +74,7 @@ object OneDriveModule {
     @Singleton
     fun fileMirror(holder: DatabaseHolder, graph: GraphClient, paths: BackupPaths, store: SettingsStore, locks: WorkLocks): FileMirror =
         FileMirror(
-            SupportMirrorSql { holder.db.openHelper.writableDatabase },
+            SupportMirrorSql(changed = { holder.db.invalidationTracker.refreshAsync() }) { holder.db.openHelper.writableDatabase },
             graph,
             paths.filesDir,
             store,

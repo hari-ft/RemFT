@@ -7,8 +7,10 @@ import com.ftapps.remft.data.db.DatabaseHolder
 import com.ftapps.remft.data.files.AttachmentStore
 import com.ftapps.remft.data.files.FilesMaintenance
 import com.ftapps.remft.data.files.FilesRepository
+import com.ftapps.remft.data.files.OneDriveNames
 import com.ftapps.remft.data.identity.LocalIdentityRepository
 import com.ftapps.remft.data.mirror.MirrorDownloads
+import com.ftapps.remft.data.onedrive.OneDriveAuth
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.ui.files.FilesEnvironment
 import dagger.Module
@@ -63,12 +65,10 @@ object FilesModule {
         holder: DatabaseHolder,
         identity: LocalIdentityRepository,
         bin: RecycleBin,
-        attachments: AttachmentStore,
     ): FilesRepository = FilesRepository(
         database = { holder.db },
         workspaceId = identity::workspaceId,
         bin = bin,
-        attachments = attachments,
     )
 
     @Provides
@@ -82,11 +82,14 @@ object FilesModule {
         files: FilesRepository,
         bin: RecycleBin,
         settings: SettingsStore,
+        holder: DatabaseHolder,
+        auth: OneDriveAuth,
     ): FilesEnvironment = FilesEnvironment(
         attachments = attachments,
         files = files,
         bin = bin,
         settings = settings,
         authority = BuildConfig.FILES_AUTHORITY,
+        oneDriveNames = OneDriveNames({ holder.db }, auth.connected, checkConnected = { auth.isConnected() }),
     )
 }

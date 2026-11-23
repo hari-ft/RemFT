@@ -7,6 +7,7 @@ import com.ftapps.remft.data.files.AttachmentStore
 import com.ftapps.remft.data.files.AttachmentTooLarge
 import com.ftapps.remft.data.files.FilesRepository
 import com.ftapps.remft.data.files.MimeTypes
+import com.ftapps.remft.data.files.OneDriveNames
 import com.ftapps.remft.data.prefs.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -182,6 +183,7 @@ class FilesEnvironment(
     val requests: FileRequests = FileRequests(),
     val clock: Clock = Clock.systemDefaultZone(),
     val pickOverride: (suspend (AttachSource) -> List<PickedFile>)? = null,
+    val oneDriveNames: OneDriveNames? = null,
 )
 
 val LocalFilesEnvironment = staticCompositionLocalOf<FilesEnvironment?> { null }

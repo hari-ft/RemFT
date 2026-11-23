@@ -6,12 +6,15 @@ import com.ftapps.remft.data.bin.RecycleBin
 import com.ftapps.remft.data.db.RemftDatabase
 import com.ftapps.remft.data.files.AttachmentStore
 import com.ftapps.remft.data.files.FilesRepository
+import com.ftapps.remft.data.files.OneDriveNames
+import com.ftapps.remft.data.mirror.SupportMirrorSql
 import com.ftapps.remft.data.notes.NotesRepository
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.ui.files.AttachSource
 import com.ftapps.remft.ui.files.FilesEnvironment
 import com.ftapps.remft.ui.files.PickedFile
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
@@ -45,8 +48,17 @@ class TestFiles(
     val dir: File = tasks.attachments
     val bin = RecycleBin(database, binSettings ?: tasks.settings, dir, { workspace }, clock)
     val attachments = AttachmentStore(database, dir, bin, clock, maxBytes = maxBytes, fetchMissing = fetchMissing, canFetch = canFetch, downloaded = downloaded)
-    val files = FilesRepository(database, { workspace }, bin, attachments, clock)
+    val files = FilesRepository(database, { workspace }, bin, clock = clock)
     var picks: List<PickedFile> = emptyList()
+    val oneDriveOn = MutableStateFlow<Boolean?>(true)
+    val mirrorSql = SupportMirrorSql(changed = { tasks.holder.db.invalidationTracker.refreshAsync() }) { tasks.holder.db.openHelper.writableDatabase }
+
+    fun mirror(storedName: String, state: String, remotePath: String?) = mirrorSql.exec(
+        "INSERT OR REPLACE INTO file_mirrors (local_path, sha256, size_bytes, state, remote_path, attempts) VALUES (?, 'h', 1, ?, ?, 0)",
+        arrayOf(storedName, state, remotePath),
+    )
+
+    fun storedName(fileId: String): String = query("SELECT local_path FROM file_rows WHERE id = '$fileId'").single()["local_path"]!!
     val environment = FilesEnvironment(
         attachments = attachments,
         files = files,
@@ -55,6 +67,7 @@ class TestFiles(
         authority = "com.ftapps.remft.files",
         clock = clock,
         pickOverride = { _: AttachSource -> picks },
+        oneDriveNames = OneDriveNames(database, oneDriveOn),
     )
     val notes = NotesRepository(
         holder = tasks.holder,

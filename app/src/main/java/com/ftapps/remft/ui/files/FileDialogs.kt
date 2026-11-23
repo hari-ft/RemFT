@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
@@ -28,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +50,9 @@ import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.data.db.entity.FolderEntity
 import com.ftapps.remft.data.files.FolderRuleException
-import com.ftapps.remft.data.files.SubtreeCounts
+import com.ftapps.remft.data.files.FolderContents
+import com.ftapps.remft.data.files.OneDriveName
+import com.ftapps.remft.data.files.OneDriveNames
 import com.ftapps.remft.domain.text.fill
 import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RemftBottomSheet
@@ -58,6 +62,7 @@ import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
 data class ExtraAction(val icon: ImageVector, val label: String, val tag: String, val onClick: () -> Unit)
@@ -71,7 +76,8 @@ sealed interface FileDialog {
     data class FolderActions(val folder: FolderEntity) : FileDialog
     data class RenameFolder(val folder: FolderEntity) : FileDialog
     data class MoveFolder(val folder: FolderEntity) : FileDialog
-    data class DeleteFolder(val folder: FolderEntity, val counts: SubtreeCounts, val toBin: Boolean, val onDeleted: () -> Unit) : FileDialog
+    data class DeleteFolder(val folder: FolderEntity, val toBin: Boolean, val onDeleted: () -> Unit) : FileDialog
+    data class FolderNotEmpty(val folder: FolderEntity, val contents: FolderContents) : FileDialog
 }
 
 data class ViewerRequest(val ids: List<String>, val index: Int)
@@ -101,6 +107,7 @@ fun folderRuleText(code: String): String = stringResource(
         "FOLDER_NAME_TAKEN" -> R.string.error_FOLDER_NAME_TAKEN
         "FOLDER_TOO_DEEP" -> R.string.error_FOLDER_TOO_DEEP
         "FOLDER_CYCLE" -> R.string.error_FOLDER_CYCLE
+        "FOLDER_NOT_EMPTY" -> R.string.folderblock_notEmptyError
         else -> R.string.error_unknown
     },
 )
@@ -196,8 +203,12 @@ fun FileDialogsHost(
             onDelete = {
                 close()
                 scope.launch {
-                    val counts = env.files.subtreeCounts(dialog.folder.id)
-                    state.dialog = FileDialog.DeleteFolder(dialog.folder, counts, env.bin.enabled()) {}
+                    val contents = env.files.folderContents(dialog.folder.id)
+                    state.dialog = if (contents.deletable) {
+                        FileDialog.DeleteFolder(dialog.folder, env.bin.enabled()) {}
+                    } else {
+                        FileDialog.FolderNotEmpty(dialog.folder, contents)
+                    }
                 }
             },
         )
@@ -215,18 +226,9 @@ fun FileDialogsHost(
             close()
             folderWrite { env.files.moveFolder(dialog.folder.id, target) }
         }
+        is FileDialog.FolderNotEmpty -> FolderNotEmptyDialog(dialog.folder, dialog.contents, onDismiss = close)
         is FileDialog.DeleteFolder -> {
-            val empty = dialog.counts.files == 0 && dialog.counts.folders == 1
-            val counts = arrayOf(
-                "folders" to pluralStringResource(R.plurals.lowui_folderCount, dialog.counts.folders, dialog.counts.folders),
-                "files" to pluralStringResource(R.plurals.lowui_fileCount, dialog.counts.files, dialog.counts.files),
-            )
-            val body = when {
-                dialog.toBin && empty -> stringResource(R.string.bin_toBin)
-                dialog.toBin -> stringResource(R.string.lowui_deleteFolderBodyBin).fill(*counts)
-                empty -> stringResource(R.string.files_deleteFolderEmpty)
-                else -> stringResource(R.string.lowui_deleteFolderBody).fill(*counts)
-            }
+            val body = stringResource(if (dialog.toBin) R.string.bin_toBin else R.string.files_deleteFolderEmpty)
             ConfirmDeleteDialog(
                 title = stringResource(R.string.files_deleteFolderTitle).fill("name" to dialog.folder.name),
                 body = body,
@@ -238,7 +240,16 @@ fun FileDialogsHost(
                 scope.launch {
                     runCatching { env.files.deleteFolder(dialog.folder.id) }
                         .onSuccess { dialog.onDeleted() }
-                        .onFailure { if (it is CancellationException) throw it else { AppLogs.warn("files.folder_delete_failed", it); onMessage(couldNotDeleteFolder) } }
+                        .onFailure {
+                            when (it) {
+                                is CancellationException -> throw it
+                                is FolderRuleException -> ruleError = it.code
+                                else -> {
+                                    AppLogs.warn("files.folder_delete_failed", it)
+                                    onMessage(couldNotDeleteFolder)
+                                }
+                            }
+                        }
                 }
             }
         }
@@ -267,6 +278,7 @@ private fun FileActionsSheet(
                 supportingContent = { Text(formatBytes(row.sizeBytes), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             )
+            OneDriveNameLine(row, env)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = Space.x4))
             extras.forEach { action ->
                 SheetRow(action.icon, action.label, action.tag) {
@@ -278,6 +290,43 @@ private fun FileActionsSheet(
             SheetRow(Icons.Outlined.DriveFileRenameOutline, stringResource(R.string.file_rename), "file-action-rename", onClick = onRename)
             SheetRow(Icons.Outlined.DeleteOutline, stringResource(R.string.common_delete), "file-action-delete", danger = true, onClick = onDelete)
             Spacer(Modifier.height(Space.x2))
+        }
+    }
+}
+
+@Composable
+private fun OneDriveNameLine(row: FileRowEntity, env: FilesEnvironment) {
+    val names = env.oneDriveNames
+    val state by remember(names, row.localPath) { names?.watch(row.localPath) ?: flowOf(null) }.collectAsState(null)
+    val format = rememberDateFormat(env)
+    val current = state ?: return
+    val text = when (current) {
+        OneDriveName.Off -> stringResource(R.string.onedrivename_off)
+        OneDriveName.NotYet -> stringResource(R.string.onedrivename_notYet)
+        is OneDriveName.Saved -> stringResource(R.string.onedrivename_saved).fill("path" to OneDriveNames.display(current.path))
+        is OneDriveName.Missing -> {
+            val where = current.path?.let { stringResource(R.string.onedrivename_missing).fill("path" to OneDriveNames.display(it)) }
+                ?: stringResource(R.string.onedrivename_missingNoPath)
+            fileDate(current.lastSeen, format, env.clock.zone)?.let { stringResource(R.string.onedrivename_lastSeen).fill("text" to where, "date" to it) } ?: where
+        }
+    }
+    val itemId = (current as? OneDriveName.Missing)?.itemId
+    SelectionContainer {
+        Column(Modifier.padding(start = Space.x4, end = Space.x4, bottom = Space.x2)) {
+            Text(
+                text,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (current is OneDriveName.Missing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("file-onedrive-name"),
+            )
+            if (itemId != null) {
+                Text(
+                    stringResource(R.string.onedrivename_itemId).fill("id" to itemId),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("file-onedrive-item"),
+                )
+            }
         }
     }
 }
@@ -401,6 +450,19 @@ fun ConfirmDeleteDialog(title: String, body: String, confirm: String, confirmTag
             RemftTextButton(confirm, onClick = onConfirm, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(confirmTag))
         },
         dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },
+    )
+}
+
+@Composable
+private fun FolderNotEmptyDialog(folder: FolderEntity, contents: FolderContents, onDismiss: () -> Unit) {
+    val files = pluralStringResource(R.plurals.lowui_fileCount, contents.files, contents.files)
+    val body = stringResource(if (contents.filesInSubfolders == 0) R.string.folderblock_bodyFiles else R.string.folderblock_bodyNested).fill("files" to files)
+    RemftDialog(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.folderblock_title).fill("name" to folder.name),
+        text = { Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        confirmButton = { RemftTextButton(stringResource(R.string.folderblock_ok), onClick = onDismiss, modifier = Modifier.testTag("folder-delete-blocked-ok")) },
+        modifier = Modifier.testTag("folder-delete-blocked"),
     )
 }
 
