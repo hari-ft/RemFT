@@ -1,6 +1,7 @@
 package com.ftapps.remft.data.files
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ftapps.remft.domain.backup.mirror.MirrorPaths
 import com.ftapps.remft.domain.backup.mirror.MirrorState
 import com.ftapps.remft.testing.TestFiles
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,10 +65,18 @@ class OneDriveNamesTest {
     }
 
     @Test
-    fun aMissingFileWithNoRecordedPathIsStillReportedMissing() = runBlocking {
-        val stored = rig.storedName(rig.add("invoice.pdf"))
+    fun aMissingFileWithNoRecordedPathShowsWhereItBelongs() = runBlocking {
+        val id = rig.add("invoice.pdf")
+        val stored = rig.storedName(id)
         rig.mirror(stored, MirrorState.REMOTE_MISSING, null)
-        assertEquals(OneDriveName.Missing(null), nameOf(names(true), stored))
+        val expected = MirrorPaths.folderPath(emptyList()) + "/" + MirrorPaths.fileName(id, "invoice.pdf", stored)
+        assertEquals(OneDriveName.Missing(expected, expected = true), nameOf(names(true), stored))
+    }
+
+    @Test
+    fun aMissingFileWithNoRecordedPathAndNoRowIsStillReportedMissing() = runBlocking {
+        rig.mirror("ghost.pdf", MirrorState.REMOTE_MISSING, null)
+        assertEquals(OneDriveName.Missing(null), nameOf(names(true), "ghost.pdf"))
     }
 
     @Test

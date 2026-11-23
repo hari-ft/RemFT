@@ -49,6 +49,7 @@ interface MirrorRemote {
     suspend fun putFile(file: File, path: String, contentType: String = OCTET_STREAM): RemoteItem
     suspend fun itemsById(ids: Collection<String>): Map<String, RemoteItem?>
     suspend fun listFolder(path: String): List<RemoteEntry>?
+    suspend fun childrenOf(itemId: String): List<RemoteEntry>?
     suspend fun ensureFolder(path: String): String
     suspend fun folderAt(path: String): String?
     suspend fun parentOf(itemId: String): String?
@@ -181,12 +182,20 @@ class GraphClient(
     }
 
     override suspend fun listFolder(path: String): List<RemoteEntry>? = guard {
+        children(item(path, "children", mapOf(SELECT to "id,name,size,file,folder", TOP to "200")))
+    }
+
+    override suspend fun childrenOf(itemId: String): List<RemoteEntry>? = guard {
+        children(byId(itemId, "/children", mapOf(SELECT to "id,name,size,file,folder", TOP to "200")))
+    }
+
+    private suspend fun children(start: HttpUrl): List<RemoteEntry>? {
         val out = ArrayList<RemoteEntry>()
-        var next: HttpUrl? = item(path, "children", mapOf(SELECT to "id,name,size,file,folder", TOP to "200"))
+        var next: HttpUrl? = start
         var first = true
         while (next != null) {
             val res = graph("GET", next)
-            if (res.code == 404 && first) return@guard null
+            if (res.code == 404 && first) return null
             first = false
             val json = ensureOk(res).json
             for (entry in (json["value"] as? JsonArray).orEmpty()) {
@@ -197,7 +206,7 @@ class GraphClient(
             }
             next = JsonText.stringOf(json[NEXT_LINK])?.toHttpUrl()
         }
-        out
+        return out
     }
 
     override suspend fun ensureFolder(path: String): String = guard { ensureFolderInner(path) }

@@ -22,7 +22,7 @@ object MirrorPaths {
 
     private val unsafe = Regex("[\\x00-\\x1f\\x7f\"*:<>?/\\\\|#%]")
     private val whitespaceRun = Regex("[\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]+")
-    private val topNames = setOf(REVIEW_FOLDER_NAME, BIN_FOLDER_NAME.lowercase())
+    private val topNames = setOf(REVIEW_FOLDER_NAME, BIN_FOLDER_NAME.lowercase(), "tasks", "notes", "other")
     private val reservedDevice = Regex("^(con|prn|aux|nul|com\\d|lpt\\d)(\\..*)?$")
 
     fun safeSegment(raw: String, max: Int = 60): String {

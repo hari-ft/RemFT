@@ -183,6 +183,17 @@ class GraphClientTest {
     }
 
     @Test
+    fun childrenAreListedByTheFolderItemId() = runBlocking {
+        server.enqueue(json(200, """{"value":[{"id":"C1","name":"a.pdf","size":3,"file":{}},{"id":"C2","name":"Sub","folder":{}}]}"""))
+        val children = client().childrenOf("F9")!!
+        assertEquals(listOf("C1", "C2"), children.map { it.id })
+        assertEquals(listOf(false, true), children.map { it.isFolder })
+        assertEquals("/v1.0/me/drive/items/F9/children", take().requestUrl!!.encodedPath)
+        server.enqueue(json(404, "{}"))
+        assertNull(client().childrenOf("GONE"))
+    }
+
+    @Test
     fun downloadSaysFalseWhenOneDriveHasNoCopy() = runBlocking {
         server.enqueue(json(404, "{}"))
         assertTrue(!client().download("GONE", null, null, File(rig.root, "x.part")))

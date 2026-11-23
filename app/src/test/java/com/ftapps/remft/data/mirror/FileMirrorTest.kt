@@ -254,7 +254,10 @@ class FakeRemote : MirrorRemote {
     val puts = ArrayList<String>()
     val deletes = ArrayList<String>()
     var moves = 0
+    var moveCalls = 0
     var lists = 0
+    val failMoves = HashSet<String>()
+    val history = HashMap<String, MutableList<String>>()
     var corruptNextPut = false
 
     fun addFile(path: String, bytes: ByteArray): String {
@@ -327,6 +330,21 @@ class FakeRemote : MirrorRemote {
             .map { RemoteEntry(it.key, it.value.path.substringAfterLast('/'), it.value.bytes.size.toLong(), it.value.folder) }
     }
 
+    override suspend fun childrenOf(itemId: String): List<RemoteEntry>? {
+        lists++
+        val at = items[itemId]?.takeIf { it.folder } ?: return null
+        return items.entries.filter { parentPath(it.value.path).equals(at.path, ignoreCase = true) }
+            .map { RemoteEntry(it.key, it.value.path.substringAfterLast('/'), it.value.bytes.size.toLong(), it.value.folder) }
+    }
+
+    fun relocate(id: String, path: String) {
+        ensureParent(path)
+        val old = items[id]!!.path
+        for (item in items.values) {
+            if (item.path == old) item.path = path else if (item.path.startsWith("$old/")) item.path = path + item.path.substring(old.length)
+        }
+    }
+
     override suspend fun ensureFolder(path: String): String = folder(path)
 
     override suspend fun folderAt(path: String): String? = idOfPath(path)?.takeIf { items[it]!!.folder }
@@ -337,7 +355,9 @@ class FakeRemote : MirrorRemote {
     }
 
     override suspend fun moveInto(itemId: String?, path: String?, folderId: String, name: String): MirrorMove {
+        moveCalls++
         val id = itemId?.takeIf { items.containsKey(it) } ?: path?.let { idOfPath(it) } ?: return MirrorMove.Gone
+        if (id in failMoves) throw OneDriveException(OneDriveErrors.ERROR)
         val into = items[folderId]?.takeIf { it.folder } ?: return MirrorMove.Gone
         val target = "${into.path}/$name"
         val taken = idOfPath(target)
@@ -345,6 +365,12 @@ class FakeRemote : MirrorRemote {
         val old = items[id]!!.path
         check(!into.path.equals(old, ignoreCase = true) && !into.path.lowercase().startsWith(old.lowercase() + "/"))
         moves++
+        history.getOrPut(id) { ArrayList() }.add(target)
+        for ((key, item) in items) {
+            if (key != id && item.path.lowercase().startsWith(old.lowercase() + "/")) {
+                history.getOrPut(key) { ArrayList() }.add(target + item.path.substring(old.length))
+            }
+        }
         for (item in items.values) {
             if (item.path == old) {
                 item.path = target

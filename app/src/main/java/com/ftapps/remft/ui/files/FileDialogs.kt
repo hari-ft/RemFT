@@ -305,7 +305,8 @@ private fun OneDriveNameLine(row: FileRowEntity, env: FilesEnvironment) {
         OneDriveName.NotYet -> stringResource(R.string.onedrivename_notYet)
         is OneDriveName.Saved -> stringResource(R.string.onedrivename_saved).fill("path" to OneDriveNames.display(current.path))
         is OneDriveName.Missing -> {
-            val where = current.path?.let { stringResource(R.string.onedrivename_missing).fill("path" to OneDriveNames.display(it)) }
+            val missingText = if (current.expected) R.string.mirrorsync_missingExpected else R.string.onedrivename_missing
+            val where = current.path?.let { stringResource(missingText).fill("path" to OneDriveNames.display(it)) }
                 ?: stringResource(R.string.onedrivename_missingNoPath)
             fileDate(current.lastSeen, format, env.clock.zone)?.let { stringResource(R.string.onedrivename_lastSeen).fill("text" to where, "date" to it) } ?: where
         }

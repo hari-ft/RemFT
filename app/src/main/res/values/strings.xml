@@ -937,7 +937,6 @@
     <string name="alog_category_settings">Settings</string>
     <string name="alog_category_alarms">Alarms</string>
     <string name="alog_category_app">App</string>
-    <string name="mirrorsync_layout">OneDrive follows the app: renaming or moving a file or folder in RemFT renames or moves it in Apps › RemFT › Files too. What you put in the recycle bin moves to Files › Recycle bin with its folders kept, and moves back when you restore it. Folders you delete for good, and files or folders a restore no longer needs, also go to reviewneeded, with their folders kept.</string>
     <string name="folderblock_title">Can’t delete “{name}”</string>
     <string name="folderblock_bodyFiles">Only folders with no files in them can be deleted. Move or delete its {files} first.</string>
     <string name="folderblock_bodyNested">Only folders with no files in them can be deleted. Move or delete the {files} in it and its subfolders first.</string>
@@ -950,4 +949,6 @@
     <string name="onedrivename_itemId">OneDrive item id: {id}</string>
     <string name="onedrivename_notYet">Not in OneDrive yet</string>
     <string name="onedrivename_off">OneDrive is off</string>
+    <string name="mirrorsync_layout">OneDrive follows the app: renaming or moving a file or folder in RemFT renames or moves it in Apps › RemFT › Files too. What you put in the recycle bin moves to Files › Recycle bin with its folders kept, and moves back when you restore it. Folders you delete for good, and files or folders a restore no longer needs, also go to reviewneeded, with their folders kept.</string>
+    <string name="mirrorsync_missingExpected">Missing in OneDrive. It belongs at: {path}</string>
 </resources>
