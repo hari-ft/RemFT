@@ -16,6 +16,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -156,7 +157,10 @@ fun TaskRepeatRow(task: Task, modifier: Modifier = Modifier) {
     }
     if (stopping) {
         val current = record
+        var binOn by remember { mutableStateOf(true) }
+        LaunchedEffect(Unit) { binOn = repository.binEnabled() }
         StopRepeatDialog(
+            binOn = binOn,
             afterCompletion = current?.let { runCatching { it.isCompletionSeries }.getOrDefault(false) } ?: false,
             onDismiss = { stopping = false },
             onConfirm = {

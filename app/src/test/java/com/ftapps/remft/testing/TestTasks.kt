@@ -22,11 +22,13 @@ import java.time.ZoneId
 class TestTasks(
     val clock: Clock = Clock.fixed(Instant.parse("2026-11-20T04:30:00Z"), ZoneId.of("Asia/Kolkata")),
     seed: (android.database.sqlite.SQLiteDatabase) -> Unit = {},
+    unreadableBinSetting: Boolean = false,
 ) {
     private val context: Context = ApplicationProvider.getApplicationContext()
     val dir: File = File(context.filesDir, "tasks-test-${System.nanoTime()}")
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val settings = SettingsStore(PreferenceDataStoreFactory.create(scope = scope) { File(dir, "s.preferences_pb") })
+    val binSettings: SettingsStore = if (unreadableBinSetting) UnreadableSettings.store() else settings
     val holder: DatabaseHolder
     val identity: LocalIdentityRepository
     val attachments = File(dir, "files")
@@ -40,8 +42,8 @@ class TestTasks(
         TestDatabases.create(file, seed)
         holder = DatabaseHolder(context, file)
         identity = LocalIdentityRepository({ holder.db.identityDao() }, settings)
-        series = SeriesRepository({ holder.db }, clock, scope)
-        repository = TasksRepository({ holder.db }, identity, settings, clock, attachments, series)
+        series = SeriesRepository({ holder.db }, clock, scope, binSettings::binEnabled, attachments)
+        repository = TasksRepository({ holder.db }, identity, binSettings, clock, attachments, series)
         environment = TasksEnvironment(repository, settings, pendingDeletes, series = series)
     }
 

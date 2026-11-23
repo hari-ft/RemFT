@@ -40,7 +40,7 @@ class RecycleBin(
 ) {
     private val dao: FilesDao get() = database().filesDao()
 
-    suspend fun enabled(): Boolean = settings.get(SettingKeys.BinEnabled.name) != "false"
+    suspend fun enabled(): Boolean = settings.binEnabled()
 
     suspend fun readSettings(): BinSettings.Values = BinSettings.of(
         settings.get(SettingKeys.BinEnabled.name),

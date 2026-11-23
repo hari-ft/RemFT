@@ -66,6 +66,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
         false
     }
 
+    suspend fun binEnabled(): Boolean = get(SettingKeys.BinEnabled.name) != "false"
+
     fun flow(name: String): Flow<String?> = dataStore.data
         .map { it[key(name)] }
         .catch { emit(null) }

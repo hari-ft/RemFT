@@ -130,7 +130,7 @@ class SeriesRepositoryTest {
         val stopped = t.series.stoppedIds(seriesId, day, target["id"]!!)
         assertEquals(rows.filter { it["occurrence_date"]!! >= day }.map { it["id"] }.toSet(), stopped)
 
-        t.series.stopToBin(seriesId, day, target["id"]!!)
+        t.series.stopFromHere(seriesId, day, target["id"]!!)
         assertTrue(t.query("SELECT id FROM task_series").isEmpty())
         assertEquals(0, count("SELECT id FROM tasks WHERE occurrence_date >= '$day'"))
         val entry = t.query("SELECT * FROM trash_items WHERE entity_id = '${target["id"]}'").single()
@@ -149,7 +149,7 @@ class SeriesRepositoryTest {
         val rule = RepeatRule(freq = RepeatFreq.Daily, interval = 2, basis = RepeatBasis.Completion)
         val (id, seriesId) = startSeries(rule)
         val before = listOf("tasks", "task_series").associateWith { table(it) }
-        t.series.stopToBin(seriesId, occurrences(seriesId).single()["occurrence_date"], id)
+        t.series.stopFromHere(seriesId, occurrences(seriesId).single()["occurrence_date"], id)
         assertTrue(t.query("SELECT id FROM tasks").isEmpty())
         assertTrue(t.query("SELECT id FROM task_series").isEmpty())
         assertTrue(bin().restore(t.query("SELECT id FROM trash_items").single()["id"]!!))

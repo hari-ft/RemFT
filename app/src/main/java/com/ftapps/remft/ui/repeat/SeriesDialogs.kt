@@ -162,14 +162,20 @@ private fun DangerButton(text: String, onClick: () -> Unit, modifier: Modifier =
 }
 
 @Composable
-fun StopRepeatDialog(afterCompletion: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+fun StopRepeatDialog(afterCompletion: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit, binOn: Boolean = true) {
     RemftDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag("repeat-stop-dialog"),
         title = stringResource(R.string.repeat_stop),
         text = {
             Text(
-                stringResource(if (afterCompletion) R.string.repeat_stopConfirmAfter else R.string.repeat_stopConfirm),
+                stringResource(
+                    when {
+                        afterCompletion -> R.string.repeat_stopConfirmAfter
+                        binOn -> R.string.repeat_stopConfirm
+                        else -> R.string.binoff_repeatStopConfirm
+                    },
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -285,7 +291,7 @@ class OccurrenceDeleter(private val env: TasksEnvironment, private val scope: Co
     private fun stopFromHere(seriesId: String, task: Task, message: String, stopped: Set<String>) {
         val series = env.series ?: return
         env.undo.post(task.id, message, hide = stopped) {
-            series.stopToBin(seriesId, fromDay = task.occurrenceDate, taskId = task.id)
+            series.stopFromHere(seriesId, fromDay = task.occurrenceDate, taskId = task.id)
         }
     }
 
