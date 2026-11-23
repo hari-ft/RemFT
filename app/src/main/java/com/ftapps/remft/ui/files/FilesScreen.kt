@@ -391,7 +391,8 @@ private fun FoldersLayer(
 ) {
     val scope = rememberCoroutineScope()
     val folderId = trail.lastOrNull()?.id
-    val level = folders.filter { it.parentId == folderId && SearchMatch.matchesSearch(query, listOf(it.name)) }
+    val folderFiles by remember(env) { env.files.watchFolderFileCounts() }.collectAsState(emptyMap())
+    val level =folders.filter { it.parentId == folderId && SearchMatch.matchesSearch(query, listOf(it.name)) }
         .sortedWith(FileSort.folderComparator(sort))
     val files = workspaceFiles.filter { it.folderId == folderId && SearchMatch.matchesSearch(query, listOf(it.name)) }
         .sortedWith(FileSort.comparator(sort))
@@ -463,7 +464,7 @@ private fun FoldersLayer(
             val fileCount = uploads.size + files.size
             val gap = if (level.isNotEmpty()) Modifier.padding(top = Space.x4) else Modifier
             itemsIndexed(level, key = { _, it -> "folder-${it.id}" }) { index, folder ->
-                val count = folders.count { it.parentId == folder.id } + workspaceFiles.count { it.folderId == folder.id }
+                val count = folders.count { it.parentId == folder.id } + (folderFiles[folder.id] ?: 0)
                 FolderRowCard(
                     folder,
                     count,

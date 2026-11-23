@@ -24,6 +24,7 @@ sealed interface OneDriveName {
     data object Off : OneDriveName
     data object NotYet : OneDriveName
     data class Saved(val path: String) : OneDriveName
+    data class Updating(val path: String) : OneDriveName
     data class Missing(val path: String?, val itemId: String? = null, val lastSeen: String? = null, val expected: Boolean = false) : OneDriveName
 }
 
@@ -64,6 +65,7 @@ class OneDriveNames(
                     itemId = row.itemId?.takeIf { it.isNotBlank() },
                     lastSeen = listOfNotNull(row.listedAt, row.mirroredAt).maxByOrNull { UtcText.parse(it) ?: Instant.MIN },
                 )
+                MirrorState.UPLOADING, MirrorState.FAILED -> if (path != null) OneDriveName.Updating(path) else OneDriveName.NotYet
                 else -> OneDriveName.NotYet
             }
         }

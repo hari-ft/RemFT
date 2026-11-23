@@ -63,6 +63,8 @@ import androidx.compose.ui.unit.dp
 import com.ftapps.remft.R
 import com.ftapps.remft.data.bin.RecycleBin
 import com.ftapps.remft.data.db.entity.TrashItemEntity
+import com.ftapps.remft.domain.backup.PathText
+import com.ftapps.remft.domain.backup.bin.BinPayload
 import com.ftapps.remft.domain.backup.bin.BinSettings
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.text.fill
@@ -82,6 +84,7 @@ import com.ftapps.remft.ui.empty.EmptyIllustration
 import com.ftapps.remft.ui.empty.IllustratedEmptyState
 import com.ftapps.remft.ui.files.ConfirmDeleteDialog
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
+import com.ftapps.remft.ui.files.OneDriveNameLine
 import com.ftapps.remft.ui.files.fileDate
 import com.ftapps.remft.ui.files.formatBytes
 import com.ftapps.remft.ui.files.rememberDateFormat
@@ -250,6 +253,7 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
         }
         itemsIndexed(list, key = { _, item -> item.id }) { index, item ->
             val deleted = RecycleBin.deletedAt(item.deletedAt)
+            val binFiles = remember(item.payload, item.localPaths) { BinFileRef.of(item) }
             val parts = buildList {
                 add(stringResource(kindLabel(item.kind)))
                 fileDate(item.deletedAt, format, env.clock.zone)?.let { add(stringResource(R.string.bin_deletedOn).fill("date" to it)) }
@@ -274,6 +278,20 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
                     }
                 },
                 onPurge = { dialog = BinDialog.Purge(item) },
+                oneDrive = binFiles.takeIf { it.isNotEmpty() }?.let { refs ->
+                    {
+                        val labelled = item.kind != "file" || refs.size > 1
+                        refs.forEachIndexed { at, ref ->
+                            OneDriveNameLine(
+                                ref.localPath,
+                                env,
+                                label = if (labelled) ref.name else null,
+                                tag = "bin-onedrive-${item.id}-$at",
+                                itemTag = "bin-onedrive-item-${item.id}-$at",
+                            )
+                        }
+                    }
+                },
             )
         }
     }
@@ -316,6 +334,19 @@ private fun BinBody(padding: PaddingValues, snackbar: SnackbarHostState, items: 
         ) {
             dialog = null
             scope.launch { env.bin.purge(current.item.id) }
+        }
+    }
+}
+
+private data class BinFileRef(val name: String, val localPath: String) {
+    companion object {
+        fun of(item: TrashItemEntity): List<BinFileRef> {
+            val fromPayload = runCatching {
+                BinPayload.parse(item.payload).files.mapNotNull { file -> file.localPath?.let { BinFileRef(file.name, it) } }
+            }.getOrNull()
+            if (!fromPayload.isNullOrEmpty()) return fromPayload
+            return runCatching { BinPayload.parseLocalPaths(item.localPaths) }.getOrDefault(emptyList())
+                .map { BinFileRef(PathText.basename(it), it) }
         }
     }
 }
@@ -375,6 +406,7 @@ private fun BinRow(
     position: GroupPosition,
     onRestore: () -> Unit,
     onPurge: () -> Unit,
+    oneDrive: (@Composable () -> Unit)? = null,
 ) {
     var menu by remember { mutableStateOf(false) }
     GroupedCardItem(position, Modifier.testTag("bin-item-$id")) {
@@ -382,8 +414,13 @@ private fun BinRow(
             headline = title,
             supporting = subtitle,
             leading = { BinKindTile(kind) },
-            below = if (countdown != null) {
-                { ChipRow { StatusChip(countdown, if (soon) ChipTone.Warning else ChipTone.Neutral, icon = Icons.Outlined.Timer) } }
+            below = if (countdown != null || oneDrive != null) {
+                {
+                    oneDrive?.invoke()
+                    if (countdown != null) {
+                        ChipRow { StatusChip(countdown, if (soon) ChipTone.Warning else ChipTone.Neutral, icon = Icons.Outlined.Timer) }
+                    }
+                }
             } else {
                 null
             },

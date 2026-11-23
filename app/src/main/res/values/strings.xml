@@ -951,4 +951,14 @@
     <string name="onedrivename_off">OneDrive is off</string>
     <string name="mirrorsync_layout">OneDrive follows the app: renaming or moving a file or folder in RemFT renames or moves it in Apps › RemFT › Files too. What you put in the recycle bin moves to Files › Recycle bin with its folders kept, and moves back when you restore it. Folders you delete for good, and files or folders a restore no longer needs, also go to reviewneeded, with their folders kept.</string>
     <string name="mirrorsync_missingExpected">Missing in OneDrive. It belongs at: {path}</string>
+    <plurals name="uigap_folderWithSubfoldersDeleted">
+        <item quantity="one">The folder and its %d empty subfolder are deleted. This cannot be undone.</item>
+        <item quantity="other">The folder and its %d empty subfolders are deleted. This cannot be undone.</item>
+    </plurals>
+    <plurals name="uigap_folderWithSubfoldersToBin">
+        <item quantity="one">The folder and its %d empty subfolder go to the recycle bin together — you can restore them from Settings → Your data → Recycle bin.</item>
+        <item quantity="other">The folder and its %d empty subfolders go to the recycle bin together — you can restore them from Settings → Your data → Recycle bin.</item>
+    </plurals>
+    <string name="uigap_oneDriveUpdating">OneDrive: {path} (updating)</string>
+    <string name="uigap_binFileLine">{name}: {text}</string>
 </resources>

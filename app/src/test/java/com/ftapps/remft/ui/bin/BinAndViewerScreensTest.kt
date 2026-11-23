@@ -6,6 +6,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -24,6 +28,7 @@ import com.ftapps.remft.ui.theme.RemftTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -169,5 +174,51 @@ class BinAndViewerScreensTest {
         compose.onNodeWithTag("reopen-$id").performClick()
         waitFor { compose.onAllNodesWithText("Couldn't update “Filed taxes”").fetchSemanticsNodes().isNotEmpty() }
         assertTrue(exists("completed-$id"))
+    }
+    private fun line(tag: String): String? = compose.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes()
+        .firstOrNull()?.config?.getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }
+
+    private fun selectable(tag: String): Boolean = compose.onAllNodes(hasTestTag(tag) and hasAnyAncestor(hasTestTag("onedrive-selectable")), useUnmergedTree = true)
+        .fetchSemanticsNodes().isNotEmpty()
+
+    @Test
+    fun theViewerShowsTheOneDriveNameOfTheCurrentImage() {
+        val first = rig.add("one.png", mime = "image/png")
+        val second = rig.add("two.png", mime = "image/png")
+        rig.mirror(rig.storedName(first), "mirrored", "Files/Photos/one.png")
+        show { ImageViewer(ViewerRequest(listOf(first, second), 0), rig.environment, onClose = {}, onMessage = {}) }
+        waitFor { line("viewer-onedrive-name") == "OneDrive: Files › Photos › one.png" }
+        assertTrue(selectable("viewer-onedrive-name"))
+        assertTrue(exists("viewer-title"))
+        assertTrue(exists("viewer-open"))
+        assertTrue(exists("viewer-delete"))
+        assertTrue(exists("viewer-close"))
+    }
+
+    @Test
+    fun aBinnedFileShowsWhereItIsInOneDrive() {
+        val file = rig.add("contract.pdf", mime = "application/pdf")
+        rig.mirror(rig.storedName(file), "mirrored", "Files/Recycle bin/contract.pdf")
+        runBlocking { rig.attachments.delete(file) }
+        val entry = trashId(file)
+        show { RecycleBinScreen(onBack = {}) }
+        waitFor { exists("bin-item-$entry") }
+        waitFor { line("bin-onedrive-$entry-0") == "OneDrive: Files › Recycle bin › contract.pdf" }
+        assertTrue(selectable("bin-onedrive-$entry-0"))
+    }
+
+    @Test
+    fun aBinnedTaskShowsOneOneDriveLinePerAttachment() {
+        val task = runBlocking { rig.tasks.repository.create(TaskDraft(title = "Trip")) }
+        val ticket = rig.add("ticket.pdf", targetType = "task", targetId = task, mime = "application/pdf")
+        rig.add("map.pdf", targetType = "task", targetId = task, mime = "application/pdf")
+        rig.mirror(rig.storedName(ticket), "mirrored", "Files/Recycle bin/Tasks/Trip/ticket.pdf")
+        runBlocking { rig.tasks.repository.delete(task) }
+        val entry = trashId(task)
+        show { RecycleBinScreen(onBack = {}) }
+        waitFor { exists("bin-item-$entry") }
+        val lines = { listOf(line("bin-onedrive-$entry-0"), line("bin-onedrive-$entry-1")).toSet() }
+        waitFor { lines() == setOf("ticket.pdf: OneDrive: Files › Recycle bin › Tasks › Trip › ticket.pdf", "map.pdf: Not in OneDrive yet") }
+        assertFalse(exists("bin-onedrive-$entry-2"))
     }
 }

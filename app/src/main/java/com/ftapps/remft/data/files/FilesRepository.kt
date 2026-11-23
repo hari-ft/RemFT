@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Clock
 
@@ -45,6 +46,11 @@ class FilesRepository(
     fun watchWorkspaceFiles(): Flow<List<FileRowEntity>> = scoped { dao, ws -> dao.watchWorkspaceLevel(ws) }
 
     fun watchSources(): Flow<List<SourcedFileRow>> = scoped { dao, ws -> dao.watchSources(ws) }
+
+    fun watchFolderFileCounts(): Flow<Map<String, Int>> =
+        flow { emit(Unit) }.flatMapLatest { dao.watchFolderFileCounts() }
+            .map { rows -> rows.associate { it.folderId to it.files } }
+            .flowOn(Dispatchers.IO)
 
     fun watchCompleted(limit: Int): Flow<List<TaskEntity>> = scoped { dao, ws -> dao.watchCompleted(ws, limit) }
 
