@@ -54,6 +54,9 @@ class RingReplacementTest {
         withTimeout(5_000) {
             while (shown(alarms) != setOf(second.id)) delay(10)
         }
+        withTimeout(5_000) {
+            while (alarms.env.log.recent().none { it.event == AlarmLogEvent.CANCELLED }) delay(10)
+        }
         val logged = alarms.env.log.recent().filter { it.event == AlarmLogEvent.CANCELLED }
         assertEquals(listOf("shown id=${first.id} (replaced by id=${second.id})"), logged.map { it.detail })
     }

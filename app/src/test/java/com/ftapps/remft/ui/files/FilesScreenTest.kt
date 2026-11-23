@@ -228,7 +228,7 @@ class FilesScreenTest {
         restorer.setContent {
             RemftTheme {
                 CompositionLocalProvider(LocalTasksEnvironment provides rig.tasks.environment, LocalFilesEnvironment provides rig.environment) {
-                    FilesScreen(rig.environment, 0.dp, {}, {}, {})
+                    if (showing) FilesScreen(rig.environment, 0.dp, {}, {}, {})
                 }
             }
         }
@@ -251,7 +251,7 @@ class FilesScreenTest {
         restorer.setContent {
             RemftTheme {
                 CompositionLocalProvider(LocalTasksEnvironment provides rig.tasks.environment, LocalFilesEnvironment provides rig.environment) {
-                    FilesScreen(rig.environment, 0.dp, {}, {}, {})
+                    if (showing) FilesScreen(rig.environment, 0.dp, {}, {}, {})
                 }
             }
         }

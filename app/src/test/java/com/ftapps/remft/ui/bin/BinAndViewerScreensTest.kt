@@ -95,7 +95,7 @@ class BinAndViewerScreensTest {
         assertEquals(2, rig.query("SELECT id FROM trash_items").size)
         compose.onNodeWithTag("bin-empty-confirm").performClick()
         waitFor { rig.query("SELECT id FROM trash_items").isEmpty() }
-        assertTrue(rig.dir.listFiles().orEmpty().none { it.name.startsWith(a) || it.name.startsWith(b) })
+        waitFor { rig.dir.listFiles().orEmpty().none { it.name.startsWith(a) || it.name.startsWith(b) } }
     }
 
     @Test
