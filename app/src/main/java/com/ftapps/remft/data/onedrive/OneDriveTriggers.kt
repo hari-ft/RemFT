@@ -3,10 +3,8 @@ package com.ftapps.remft.data.onedrive
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.room.InvalidationTracker
 import com.ftapps.remft.data.backup.AndroidBackupLog
 import com.ftapps.remft.data.db.DatabaseHolder
-import com.ftapps.remft.data.db.RemftDatabase
 import com.ftapps.remft.data.mirror.MirrorDownloads
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.time.UtcText
@@ -37,16 +35,11 @@ class OneDriveTriggers(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var observing = false
-    private var watched: RemftDatabase? = null
     private var pending: Job? = null
     private var mirrorPending: Job? = null
     private var slotTimer: Job? = null
 
-    private val fileRowsObserver = object : InvalidationTracker.Observer(arrayOf("file_rows")) {
-        override fun onInvalidated(tables: Set<String>) {
-            mirrorSoon()
-        }
-    }
+    private val changes = MirrorChangeWatch { scope.launch { if (store.get(SettingKeys.OneDriveOn.name) == OneDriveAuth.TRUE) mirrorSoon() } }
 
     fun onReady() {
         scope.launch {
@@ -55,7 +48,7 @@ class OneDriveTriggers(
                 runCatching { ScratchSweep.autoBackupScratch(cacheDir, locks(), AndroidBackupLog) }
                     .onFailure { AndroidBackupLog.warn("autobackup.scratch_sweep_failed", it) }
             }
-            watchFileRows()
+            watchChanges()
             check()
             mirrorSoon()
             downloads.startIfPending()
@@ -78,13 +71,9 @@ class OneDriveTriggers(
         }
     }
 
-    private fun watchFileRows() {
+    private fun watchChanges() {
         val db = runCatching { holder.db }.getOrNull() ?: return
-        synchronized(this) {
-            if (watched === db) return
-            watched = db
-        }
-        runCatching { db.invalidationTracker.addObserver(fileRowsObserver) }.onFailure { AndroidBackupLog.warn("mirror.watch_failed", it) }
+        runCatching { changes.watch(db) }.onFailure { AndroidBackupLog.warn("mirror.watch_failed", it) }
     }
 
     fun afterSettingsChanged() {

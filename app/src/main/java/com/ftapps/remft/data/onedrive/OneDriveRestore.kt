@@ -33,7 +33,7 @@ class OneDriveBackups(
     override suspend fun list(): List<StoredBackup> = sorted(graph.list())
 
     override suspend fun download(backup: StoredBackup, to: File, onProgress: (Long) -> Unit): Boolean =
-        graph.download(backup.id, null, backup.size, to, onProgress)
+        graph.download(backup.id, null, backup.size, to, onProgress = onProgress) != null
 
     companion object {
         fun sorted(all: Iterable<StoredBackup>, zone: ZoneId = ZoneId.systemDefault()): List<StoredBackup> {

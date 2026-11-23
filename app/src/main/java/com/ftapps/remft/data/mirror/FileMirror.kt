@@ -329,6 +329,33 @@ class FileMirror(
         pass.reviewed
     }
 
+    suspend fun adoptAccount(account: String, previous: String?) = catchUpLock.withLock {
+        val owner = store.get(SettingKeys.MirrorAccount.name) ?: previous
+        if (owner != null && !owner.equals(account, ignoreCase = true)) startOver()
+        store.set(SettingKeys.MirrorAccount.name, account)
+        Unit
+    }
+
+    private suspend fun startOver() {
+        val now = UtcText.format(clock())
+        val names = rows().keys
+        io {
+            sql.inTransaction {
+                for (name in names) {
+                    val state = if (local(name).isFile) MirrorState.FAILED else MirrorState.REMOTE_MISSING
+                    sql.exec(
+                        "UPDATE file_mirrors SET item_id = NULL, state = ?, attempts = 0, last_error = ?, updated_at = ? WHERE local_path = ?",
+                        arrayOf(state, MirrorPlan.MISSING_IN_ONEDRIVE, now, name),
+                    )
+                }
+            }
+        }
+        store.set(SettingKeys.MirrorFolders.name, MirrorFolders.encode(emptyMap()))
+        store.remove(SettingKeys.MirrorBinLeftovers.name)
+        store.remove(SettingKeys.MirrorReviewSweptAt.name)
+        log.info("mirror.account_changed", mapOf("files" to names.size))
+    }
+
     suspend fun pendingDownloads(): List<PendingDownload> {
         val needed = neededFiles()
         val rows = rows()
@@ -358,8 +385,9 @@ class FileMirror(
         val target = local(d.storedName)
         if (target.isFile) return target
         val part = File(incoming(), "${d.storedName}.part")
-        val found = remote.download(d.row.itemId, d.row.remotePath, d.row.sizeBytes, part, onProgress)
-        if (!found) {
+        val flat = MirrorPaths.leafName(MirrorPaths.binnedPath(d.storedName))
+        val found = remote.download(d.row.itemId, d.row.remotePath, d.row.sizeBytes, part, flatName = flat, onProgress = onProgress)
+        if (found == null) {
             val current = row(d.storedName)
             io { markRemoteMissingSync(d.storedName, (current?.attempts ?: d.row.attempts) + 1, UtcText.format(clock())) }
             throw OneDriveException(OneDriveErrors.MIRROR_MISSING)
@@ -376,7 +404,16 @@ class FileMirror(
                 FileOps.deleteFileIfExists(part)
             }
         }
-        if (d.row.state != MirrorState.MIRRORED) {
+        val movedId = found.itemId?.takeIf { it != d.row.itemId }
+        val movedPath = found.path?.takeIf { it != d.row.remotePath }
+        if (movedId != null || movedPath != null) {
+            io {
+                sql.exec(
+                    "UPDATE file_mirrors SET state = ?, item_id = COALESCE(?, item_id), remote_path = COALESCE(?, remote_path), attempts = 0, last_error = NULL, updated_at = ? WHERE local_path = ?",
+                    arrayOf(MirrorState.MIRRORED, movedId, movedPath, UtcText.format(clock()), d.storedName),
+                )
+            }
+        } else if (d.row.state != MirrorState.MIRRORED) {
             io {
                 sql.exec(
                     "UPDATE file_mirrors SET state = ?, attempts = 0, last_error = NULL, updated_at = ? WHERE local_path = ?",

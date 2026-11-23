@@ -8,8 +8,11 @@ import com.ftapps.remft.data.onedrive.OneDriveErrors
 import com.ftapps.remft.data.onedrive.OneDriveException
 import com.ftapps.remft.data.onedrive.OneDriveRig
 import com.ftapps.remft.data.onedrive.RemoteEntry
+import com.ftapps.remft.data.onedrive.RemoteHit
 import com.ftapps.remft.domain.backup.BackupLog
 import com.ftapps.remft.domain.backup.FileOps
+import com.ftapps.remft.domain.backup.mirror.MirrorFolders
+import com.ftapps.remft.domain.backup.mirror.MirrorPaths
 import com.ftapps.remft.domain.backup.mirror.MirrorState
 import com.ftapps.remft.domain.backup.mirror.QuickXorHash
 import com.ftapps.remft.domain.backup.mirror.RemoteItem
@@ -244,6 +247,54 @@ class FileMirrorTest {
         assertEquals(setOf("01F2.txt"), refs.keys)
         assertEquals(now.plus(Duration.ofDays(365)), row("01F2.txt")!!.listedAt)
     }
+
+    @Test
+    fun anotherAccountStartsTheMirrorOverWithoutDeletingAnything() = runBlocking {
+        mirror().catchUp()
+        rig.store.set(SettingKeys.MirrorBinLeftovers.name, "[\"Files/Recycle bin/Docs\"]")
+        rig.store.set(SettingKeys.MirrorReviewSweptAt.name, "done")
+        mirror().adoptAccount("first@example.com", null)
+        assertNotNull(row("01F1.png")!!.itemId)
+        assertNotNull(rig.store.get(SettingKeys.MirrorBinLeftovers.name))
+        assertEquals("first@example.com", rig.store.get(SettingKeys.MirrorAccount.name))
+        File(filesDir, "01F2.txt").delete()
+
+        mirror().adoptAccount("second@example.com", "first@example.com")
+
+        assertEquals("second@example.com", rig.store.get(SettingKeys.MirrorAccount.name))
+        assertNull(rig.store.get(SettingKeys.MirrorBinLeftovers.name))
+        assertNull(rig.store.get(SettingKeys.MirrorReviewSweptAt.name))
+        assertTrue(MirrorFolders.decode(rig.store.get(SettingKeys.MirrorFolders.name)).isEmpty())
+        val receiptRow = row("01F1.png")!!
+        assertNull(receiptRow.itemId)
+        assertEquals(MirrorState.FAILED, receiptRow.state)
+        assertEquals(MirrorState.REMOTE_MISSING, row("01F2.txt")!!.state)
+        assertTrue(remote.deletes.isEmpty())
+
+        val fresh = FakeRemote()
+        FileMirror(sql, fresh, filesDir, rig.store, clock = { now }, log = BackupLog.None).catchUp()
+        assertEquals(listOf("Files/Tasks/Pay rent/receipt (F1).png"), fresh.puts)
+        assertEquals(MirrorState.MIRRORED, row("01F1.png")!!.state)
+        assertNotNull(row("01F2.txt"))
+    }
+
+    @Test
+    fun theSameAccountAgainKeepsTheMirror() = runBlocking {
+        mirror().catchUp()
+        val id = row("01F1.png")!!.itemId
+        mirror().adoptAccount("first@example.com", null)
+        mirror().adoptAccount("First@Example.com", "first@example.com")
+        assertEquals(id, row("01F1.png")!!.itemId)
+        assertEquals(MirrorState.MIRRORED, row("01F1.png")!!.state)
+    }
+
+    @Test
+    fun anUpgradeTellsTheOldAccountByItsName() = runBlocking {
+        mirror().catchUp()
+        mirror().adoptAccount("second@example.com", "first@example.com")
+        assertNull(row("01F1.png")!!.itemId)
+        assertEquals("second@example.com", rig.store.get(SettingKeys.MirrorAccount.name))
+    }
 }
 
 class FakeRemote : MirrorRemote {
@@ -381,12 +432,34 @@ class FakeRemote : MirrorRemote {
         return MirrorMove.Moved
     }
 
-    override suspend fun download(itemId: String?, path: String?, size: Long?, to: File, onProgress: ((Long) -> Unit)?): Boolean {
-        val item = itemId?.let { items[it] } ?: path?.let { p -> idOfPath(p)?.let { items[it] } } ?: return false
-        if (item.folder) return false
+    override suspend fun download(
+        itemId: String?,
+        path: String?,
+        size: Long?,
+        to: File,
+        flatName: String?,
+        onProgress: ((Long) -> Unit)?,
+    ): RemoteHit? {
+        val direct = itemId?.takeIf { items.containsKey(it) } ?: path?.let { idOfPath(it) }
+        val hit = if (direct != null) {
+            RemoteHit(itemId?.takeIf { it == direct }, path)
+        } else {
+            if (path == null || !MirrorPaths.isMirrorPath(path) || MirrorPaths.isReviewPath(path)) return null
+            val name = path.substringAfterLast('/')
+            val places = MirrorPaths.fallbackFolders(path) + listOfNotNull(flatName?.let { MirrorPaths.BIN_FOLDER })
+            val found = places.flatMap { place -> listFolder(place).orEmpty().map { place to it } }
+                .filter { (_, e) ->
+                    !e.isFolder && (size == null || e.size == size) &&
+                        (MirrorPaths.isReviewNameOf(e.name, name) || (flatName != null && e.name.equals(flatName, ignoreCase = true)))
+                }
+                .minByOrNull { it.second.name.length } ?: return null
+            RemoteHit(found.second.id, "${found.first}/${found.second.name}")
+        }
+        val item = items[hit.itemId ?: direct] ?: return null
+        if (item.folder) return null
         to.parentFile?.mkdirs()
         to.writeBytes(item.bytes)
         onProgress?.invoke(item.bytes.size.toLong())
-        return true
+        return hit
     }
 }
