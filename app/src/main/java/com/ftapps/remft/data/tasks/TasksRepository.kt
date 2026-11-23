@@ -15,7 +15,6 @@ import com.ftapps.remft.domain.Fold
 import com.ftapps.remft.domain.Ulid
 import com.ftapps.remft.domain.repeat.EditScope
 import com.ftapps.remft.domain.backup.bin.BinPayload
-import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.tasks.Change
 import com.ftapps.remft.domain.tasks.ChecklistItem
 import com.ftapps.remft.domain.tasks.DayBoundary
@@ -147,7 +146,7 @@ class TasksRepository(
     suspend fun muteAlarms(id: String, muted: Boolean) =
         update(id, TaskPatch(alarmsMutedAt = Change(if (muted) now() else null)))
 
-    suspend fun binEnabled(): Boolean = settings.get(SettingKeys.BinEnabled.name) != "false"
+    suspend fun binEnabled(): Boolean = settings.binEnabled()
 
     suspend fun delete(id: String) {
         val toBin = binEnabled()

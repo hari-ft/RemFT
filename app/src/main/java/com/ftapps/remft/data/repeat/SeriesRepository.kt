@@ -9,6 +9,7 @@ import com.ftapps.remft.data.bin.BinMapping
 import com.ftapps.remft.data.bin.BinMapping.toBin
 import com.ftapps.remft.domain.backup.bin.BinPayload
 import com.ftapps.remft.domain.Ulid
+import com.ftapps.remft.domain.backup.PathText
 import com.ftapps.remft.domain.repeat.Edit
 import com.ftapps.remft.domain.repeat.EditScope
 import com.ftapps.remft.domain.repeat.OccurrenceRow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.Clock
 import java.time.Instant
 
@@ -51,6 +53,8 @@ class SeriesRepository(
     private val database: () -> RemftDatabase,
     private val clock: Clock,
     private val background: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val binEnabled: suspend () -> Boolean = { true },
+    private val attachmentsDir: File? = null,
 ) : TaskSeriesHooks {
     private class Snapshot(
         val state: SeriesState,
@@ -104,7 +108,7 @@ class SeriesRepository(
     suspend fun updateRule(seriesId: String, rule: RepeatRule) = run(seriesId) { engine().updateRule(it, seriesId, rule) }
 
     suspend fun stop(seriesId: String, fromDay: String? = null, keepTaskId: String? = null) =
-        run(seriesId) { engine().stop(it, seriesId, fromDay, keepTaskId) }
+        run(seriesId, binned = binEnabled()) { engine().stop(it, seriesId, fromDay, keepTaskId) }
 
     suspend fun stoppedIds(seriesId: String, fromDay: String?, taskId: String): Set<String> {
         val db = database()
@@ -112,9 +116,10 @@ class SeriesRepository(
         return engine().stop(snapshot.state, seriesId, fromDay).retireTasks.map { it.row.id }.toSet() + taskId
     }
 
-    suspend fun stopToBin(seriesId: String, fromDay: String?, taskId: String) {
+    suspend fun stopFromHere(seriesId: String, fromDay: String?, taskId: String) {
+        val toBin = binEnabled()
         val db = database()
-        db.withTransaction {
+        val doomed = db.withTransaction {
             val snapshot = load(db, seriesId)
             val changes = engine().stop(snapshot.state, seriesId, fromDay)
             val tasks = db.tasksDao()
@@ -122,8 +127,9 @@ class SeriesRepository(
             val removed = (listOfNotNull(target) + changes.retireTasks.mapNotNull { snapshot.tasks[it.row.id] }).distinctBy { it.id }
             val series = snapshot.series[seriesId]
             val head = target ?: removed.firstOrNull()
-            if (head != null && (removed.isNotEmpty() || series != null)) {
-                val ids = removed.map { it.id }
+            val ids = removed.map { it.id }
+            val paths = if (toBin) emptyList() else ids.flatMap { id -> tasks.files(id).mapNotNull { it.localPath } }
+            if (toBin && head != null && (removed.isNotEmpty() || series != null)) {
                 val payload = BinPayload(
                     tasks = removed.map { it.toBin() },
                     checklist = ids.flatMap { id -> tasks.checklist(id).map { it.toBin() } },
@@ -137,7 +143,9 @@ class SeriesRepository(
             }
             apply(db, snapshot, changes.copy(retireTasks = emptyList()))
             removed.forEach { remove(db, it.id) }
+            unreferenced(db, paths)
         }
+        deleteBytes(doomed)
     }
 
     fun launch(block: suspend SeriesRepository.() -> Unit) {
@@ -179,11 +187,35 @@ class SeriesRepository(
         }
     }
 
-    private suspend fun run(seriesId: String, change: (SeriesState) -> SeriesChangeSet) {
+    private suspend fun run(seriesId: String, binned: Boolean = true, change: (SeriesState) -> SeriesChangeSet) {
         val db = database()
-        db.withTransaction {
+        val doomed = db.withTransaction {
             val snapshot = load(db, seriesId)
-            apply(db, snapshot, change(snapshot.state))
+            val removedPaths = mutableListOf<String>()
+            apply(db, snapshot, change(snapshot.state), binned, removedPaths)
+            unreferenced(db, removedPaths)
+        }
+        deleteBytes(doomed)
+    }
+
+    private suspend fun unreferenced(db: RemftDatabase, paths: List<String>): List<String> {
+        if (paths.isEmpty()) return emptyList()
+        val files = db.filesDao()
+        val live = paths.chunked(ATTACHED_CHUNK).flatMap { files.liveLocalPaths(it) }.map(PathText::basename).toSet()
+        val kept = mutableSetOf<String>()
+        for (raw in files.trashLocalPaths()) {
+            val listed = runCatching { BinPayload.parseLocalPaths(raw) }.getOrNull() ?: return emptyList()
+            listed.forEach { kept += PathText.basename(it) }
+        }
+        return paths.filter { PathText.basename(it) !in live && PathText.basename(it) !in kept }
+    }
+
+    private fun deleteBytes(paths: List<String>) {
+        val dir = attachmentsDir ?: return
+        paths.forEach { path ->
+            val base = PathText.basename(path)
+            if (base.isEmpty() || base == "." || base == "..") return@forEach
+            runCatching { File(dir, base).takeIf { it.isFile }?.delete() }
         }
     }
 
@@ -207,7 +239,13 @@ class SeriesRepository(
         )
     }
 
-    private suspend fun apply(db: RemftDatabase, snapshot: Snapshot, changes: SeriesChangeSet) {
+    private suspend fun apply(
+        db: RemftDatabase,
+        snapshot: Snapshot,
+        changes: SeriesChangeSet,
+        binned: Boolean = true,
+        removedPaths: MutableList<String>? = null,
+    ) {
         if (changes.isEmpty) return
         val dao = db.seriesDao()
         changes.insertSeries.forEach { dao.insertSeries(SeriesMapping.toEntity(it)) }
@@ -216,14 +254,21 @@ class SeriesRepository(
             val entity = snapshot.tasks[update.id] ?: return@forEach
             dao.updateTask(SeriesMapping.applyUpdate(entity, update))
         }
-        changes.retireTasks.forEach { retire(db, snapshot, it, changes.now) }
+        changes.retireTasks.forEach { retire(db, snapshot, it, changes.now, binned, removedPaths) }
         changes.insertTasks.forEach { dao.insertTask(SeriesMapping.newEntity(it)) }
         changes.insertSkips.forEach { dao.insertSkip(SeriesMapping.toEntity(it)) }
         changes.deleteSkips.forEach { dao.deleteSkip(it.seriesId, it.occurrenceDate) }
         changes.deleteSeriesIds.forEach { dao.deleteSeries(it) }
     }
 
-    private suspend fun retire(db: RemftDatabase, snapshot: Snapshot, retired: RetiredTask, now: Instant) {
+    private suspend fun retire(
+        db: RemftDatabase,
+        snapshot: Snapshot,
+        retired: RetiredTask,
+        now: Instant,
+        binned: Boolean,
+        removedPaths: MutableList<String>?,
+    ) {
         val tasks = db.tasksDao()
         val id = retired.row.id
         val original = snapshot.tasks[id] ?: tasks.task(id) ?: return
@@ -233,7 +278,7 @@ class SeriesRepository(
         } else {
             original
         }
-        if (retired.toRecycleBin) {
+        if (retired.toRecycleBin && binned) {
             val payload = BinPayload(
                 tasks = listOf(entity.toBin()),
                 checklist = tasks.checklist(id).map { it.toBin() },
@@ -242,6 +287,8 @@ class SeriesRepository(
                 files = tasks.files(id).map { it.toBin() },
             )
             tasks.insertTrashItem(BinMapping.entry(Ulid.next(clock.millis()), entity.workspaceId, "task", entity.id, entity.title, payload, now))
+        } else if (!binned) {
+            removedPaths?.addAll(tasks.files(id).mapNotNull { it.localPath })
         }
         remove(db, id)
     }

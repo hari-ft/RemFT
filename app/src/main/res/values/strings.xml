@@ -926,4 +926,5 @@
         <item quantity="one">%d note</item>
         <item quantity="other">%d notes</item>
     </plurals>
+    <string name="binoff_repeatStopConfirm">This task stays, as a one-time task. Its later occurrences are deleted for good, including any you changed. Everything already done stays in your history.</string>
 </resources>

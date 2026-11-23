@@ -11,7 +11,6 @@ import com.ftapps.remft.domain.Fold
 import com.ftapps.remft.domain.Ulid
 import com.ftapps.remft.domain.backup.bin.BinPayload
 import com.ftapps.remft.domain.notes.NoteText
-import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.domain.time.UtcText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -106,7 +105,7 @@ class NotesRepository(
 
     suspend fun setArchived(id: String, archived: Boolean) = update(id, NotePatch(isArchived = archived))
 
-    suspend fun binEnabled(): Boolean = settings.get(SettingKeys.BinEnabled.name) != "false"
+    suspend fun binEnabled(): Boolean = settings.binEnabled()
 
     suspend fun delete(id: String): Boolean = withContext(Dispatchers.IO) {
         val toBin = binEnabled()
