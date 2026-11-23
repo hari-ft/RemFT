@@ -20,6 +20,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ftapps.remft.domain.backup.mirror.MirrorPaths
 import com.ftapps.remft.domain.tasks.TaskDraft
 import com.ftapps.remft.testing.TestFiles
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
@@ -455,12 +456,14 @@ class FilesScreenTest {
     }
 
     @Test
-    fun aMissingFileWithNoRecordedLocationSaysSo() {
+    fun aMissingFileWithNoRecordedLocationShowsWhereItBelongs() {
         val file = rig.add("invoice.pdf", mime = "application/pdf")
-        rig.mirror(rig.storedName(file), "missing", null)
+        val stored = rig.storedName(file)
+        rig.mirror(stored, "missing", null)
         showFiles()
         openSheet(file)
-        waitFor { nameLine() == "Missing in OneDrive. No OneDrive location recorded." }
+        val name = MirrorPaths.fileName(file, "invoice.pdf", stored)
+        waitFor { nameLine() == "Missing in OneDrive. It belongs at: Files › $name" }
     }
 
     @Test

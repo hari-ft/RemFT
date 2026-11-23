@@ -2,6 +2,8 @@ package com.ftapps.remft.data.files
 
 import com.ftapps.remft.data.db.RemftDatabase
 import com.ftapps.remft.data.db.entity.FileMirrorEntity
+import com.ftapps.remft.data.mirror.MirrorLayout
+import com.ftapps.remft.data.mirror.SupportMirrorSql
 import com.ftapps.remft.domain.backup.PathText
 import com.ftapps.remft.domain.backup.mirror.MirrorState
 import com.ftapps.remft.domain.time.UtcText
@@ -22,7 +24,7 @@ sealed interface OneDriveName {
     data object Off : OneDriveName
     data object NotYet : OneDriveName
     data class Saved(val path: String) : OneDriveName
-    data class Missing(val path: String?, val itemId: String? = null, val lastSeen: String? = null) : OneDriveName
+    data class Missing(val path: String?, val itemId: String? = null, val lastSeen: String? = null, val expected: Boolean = false) : OneDriveName
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -37,9 +39,18 @@ class OneDriveNames(
             if (storedName == null) flowOf(null)
             else flow { emit(Unit) }.flatMapLatest { database().filesDao().watchMirror(storedName) }
         val known = connected.onStart { runCatching { checkConnected() } }.filterNotNull()
-        return combine(known, mirror) { on, row -> if (on) of(row) else OneDriveName.Off }
+        return combine(known, mirror) { on, row -> if (on) withExpected(of(row), storedName) else OneDriveName.Off }
             .distinctUntilChanged()
             .flowOn(Dispatchers.IO)
+    }
+
+    private fun withExpected(name: OneDriveName, storedName: String?): OneDriveName {
+        if (name !is OneDriveName.Missing || name.path != null || storedName == null) return name
+        val path = runCatching {
+            val layout = MirrorLayout.read(SupportMirrorSql { database().openHelper.readableDatabase })
+            layout.files[storedName]?.let { layout.pathOf(it, emptyMap()) }
+        }.getOrNull() ?: return name
+        return name.copy(path = path, expected = true)
     }
 
     companion object {
