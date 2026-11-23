@@ -2,11 +2,15 @@ package com.ftapps.remft.data.mirror
 
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ftapps.remft.data.backup.RestoredDataSettler
 import com.ftapps.remft.data.onedrive.OneDriveRig
 import com.ftapps.remft.data.prefs.SettingsStore
+import com.ftapps.remft.domain.backup.BackupFileEntry
 import com.ftapps.remft.domain.backup.BackupLog
+import com.ftapps.remft.domain.backup.MirrorRef
 import com.ftapps.remft.domain.backup.bin.BinFile
 import com.ftapps.remft.domain.backup.bin.BinFolder
+import com.ftapps.remft.domain.backup.bin.BinNote
 import com.ftapps.remft.domain.backup.bin.BinPayload
 import com.ftapps.remft.domain.backup.bin.BinTask
 import com.ftapps.remft.domain.backup.mirror.MirrorState
@@ -36,6 +40,7 @@ class MirrorStructureTest {
     private lateinit var rig: OneDriveRig
     private lateinit var filesDir: File
     private lateinit var sql: FileMirrorSql
+    private lateinit var dbFile: File
     private val remote = FakeRemote()
     private var now: Instant = Instant.parse("2026-11-20T10:00:00Z")
 
@@ -44,7 +49,7 @@ class MirrorStructureTest {
     @Before
     fun setUp() {
         rig = OneDriveRig()
-        val dbFile = File(rig.root, "remft.sqlite")
+        dbFile = File(rig.root, "remft.sqlite")
         filesDir = File(rig.root, "files").apply { mkdirs() }
         TestDatabases.create(dbFile) { db -> seed(db) }
         File(filesDir, "01F1.png").writeBytes(byteArrayOf(1, 2, 3, 4))
@@ -417,12 +422,11 @@ class MirrorStructureTest {
         val id = row("01F2.txt")!!.itemId!!
         remote.place(id, "Files/reviewneeded/Docs/manual (F2).txt")
         runBlocking { rig.store.remove(SettingKeys.MirrorReviewSweptAt.name) }
-        catchUp()
-        assertNotNull(row("01F2.txt"))
-        assertEquals("Files/reviewneeded/Docs/manual (F2).txt", row("01F2.txt")!!.remotePath)
+        val puts = remote.puts.size
         catchUp()
         assertEquals("Files/Docs/manual (F2).txt", remote.pathOf(id))
         assertEquals("Files/Docs/manual (F2).txt", row("01F2.txt")!!.remotePath)
+        assertEquals(puts, remote.puts.size)
     }
 
     private fun addEmptySubtree() {
@@ -666,5 +670,274 @@ class MirrorStructureTest {
         catchUp()
         assertEquals("Files/_Tasks/manual (F2).txt", row("01F2.txt")!!.remotePath)
         assertEquals("Files/Tasks/Pay rent/receipt (F1).png", row("01F1.png")!!.remotePath)
+    }
+
+    @Test
+    fun anUpgradeWithoutAFolderMapSweepsOldEmptyFoldersOnce() {
+        catchUp()
+        val old = remote.addFolder("Files/Old stuff")
+        remote.addFolder("Files/Old stuff/Inner")
+        runBlocking { rig.store.remove(SettingKeys.MirrorFolders.name) }
+        catchUp()
+        assertEquals("Files/reviewneeded/Old stuff", remote.pathOf(old))
+        assertTrue(remote.folders().contains("Files/reviewneeded/Old stuff/Inner"))
+        assertNotNull(runBlocking { rig.store.get(SettingKeys.MirrorFolders.name) })
+        assertNotNull(runBlocking { rig.store.get(SettingKeys.MirrorReviewSweptAt.name) })
+        val lists = remote.lists
+        val moves = remote.moves
+        catchUp()
+        assertEquals(lists, remote.lists)
+        assertEquals(moves, remote.moves)
+    }
+
+    @Test
+    fun theSweepMovesUntrackedEmptyFoldersButKeepsWantedOnes() {
+        catchUp()
+        val leftover = remote.addFolder("Files/Leftover")
+        val binLeft = remote.addFolder("Files/Recycle bin/Gone")
+        remote.addFolder("Files/Recycle bin/Gone/Deeper")
+        val holder = remote.addFolder("Files/Holder")
+        remote.addFile("Files/Holder/keep.txt", "k".toByteArray())
+        val docs = remote.idOf("Files/Docs")!!
+        val bills = remote.idOf("Files/Bills")!!
+        runBlocking { rig.store.remove(SettingKeys.MirrorReviewSweptAt.name) }
+        catchUp()
+        assertEquals("Files/reviewneeded/Leftover", remote.pathOf(leftover))
+        assertEquals("Files/reviewneeded/Gone", remote.pathOf(binLeft))
+        assertTrue(remote.folders().contains("Files/reviewneeded/Gone/Deeper"))
+        assertEquals("Files/reviewneeded/Holder", remote.pathOf(holder))
+        assertTrue(remote.paths().contains("Files/reviewneeded/Holder/keep.txt"))
+        assertEquals("Files/Docs", remote.pathOf(docs))
+        assertEquals("Files/Bills", remote.pathOf(bills))
+        assertTrue(remote.folders().contains("Files/Tasks"))
+        assertTrue(remote.folders().contains("Files/Recycle bin"))
+        assertTrue(remote.deletes.isEmpty())
+    }
+
+    @Test
+    fun sameTitledOwnerFoldersLeftEmptyMoveToReviewNeeded() {
+        File(filesDir, "01F4.png").writeBytes(byteArrayOf(4, 4))
+        sql.exec("INSERT INTO tasks (id, workspace_id, title, created_at, updated_at) VALUES ('T2', 'WS', 'Pay rent', '2026-11-01T08:00:00.000Z', '2026-11-01T08:00:00.000Z')")
+        sql.exec(
+            "INSERT INTO file_rows (id, workspace_id, target_type, target_id, name, mime, size_bytes, local_path) VALUES " +
+                "('F4', 'WS', 'task', 'T2', 'slip.png', 'image/png', 2, '01F4.png')",
+        )
+        catchUp()
+        val shared = remote.idOf("Files/Tasks/Pay rent")!!
+        assertEquals("Files/Tasks/Pay rent/receipt (F1).png", row("01F1.png")!!.remotePath)
+        assertEquals("Files/Tasks/Pay rent/slip (F4).png", row("01F4.png")!!.remotePath)
+        sql.exec("UPDATE tasks SET title = 'Rent' WHERE id = 'T1'")
+        sql.exec("UPDATE tasks SET title = 'Lease' WHERE id = 'T2'")
+        catchUp()
+        assertEquals("Files/Tasks/Rent/receipt (F1).png", remote.pathOf(row("01F1.png")!!.itemId!!))
+        assertEquals("Files/Tasks/Lease/slip (F4).png", remote.pathOf(row("01F4.png")!!.itemId!!))
+        assertEquals("Files/reviewneeded/Tasks/Pay rent", remote.pathOf(shared))
+        assertTrue(remote.folders().contains("Files/Tasks"))
+    }
+
+    @Test
+    fun aFileRestoredFromTheBinAfterItsFolderWentLandsAtTheRoot() {
+        catchUp()
+        val id = row("01F3.pdf")!!.itemId!!
+        binBill()
+        catchUp()
+        assertEquals("Files/Recycle bin/Bills/2025/bill (F3).pdf", remote.pathOf(id))
+        sql.exec("DELETE FROM folders WHERE id IN ('D2', 'D3')")
+        catchUp()
+        sql.exec("DELETE FROM trash_items WHERE id = 'B1'")
+        sql.exec(
+            "INSERT INTO file_rows (id, workspace_id, target_type, target_id, name, mime, size_bytes, local_path) VALUES " +
+                "('F3', 'WS', 'workspace', 'WS', 'bill.pdf', 'application/pdf', 3, '01F3.pdf')",
+        )
+        val puts = remote.puts.size
+        catchUp()
+        assertEquals("Files/bill (F3).pdf", remote.pathOf(id))
+        assertEquals("Files/bill (F3).pdf", row("01F3.pdf")!!.remotePath)
+        assertEquals(puts, remote.puts.size)
+        assertTrue(remote.folders().none { it.startsWith("Files/Recycle bin/") })
+    }
+
+    private fun binTask() {
+        sql.exec("DELETE FROM file_rows WHERE id = 'F1'")
+        sql.exec("DELETE FROM tasks WHERE id = 'T1'")
+        putInBin(
+            "B7",
+            "task",
+            "T1",
+            BinPayload(
+                tasks = listOf(BinTask("T1", "WS", "Pay rent")),
+                files = listOf(BinFile("F1", "WS", "task", "T1", "receipt.png", "image/png", 4, localPath = "01F1.png")),
+            ),
+        )
+    }
+
+    @Test
+    fun aTaskWithAttachmentsIsBinnedRestoredAndPurged() {
+        catchUp()
+        val folder = remote.idOf("Files/Tasks/Pay rent")!!
+        val file = row("01F1.png")!!.itemId!!
+        binTask()
+        catchUp()
+        assertEquals("Files/Recycle bin/Tasks/Pay rent/receipt (F1).png", remote.pathOf(file))
+        sql.exec("DELETE FROM trash_items WHERE id = 'B7'")
+        sql.exec("INSERT INTO tasks (id, workspace_id, title, created_at, updated_at) VALUES ('T1', 'WS', 'Pay rent', '2026-11-01T08:00:00.000Z', '2026-11-01T08:00:00.000Z')")
+        sql.exec(
+            "INSERT INTO file_rows (id, workspace_id, target_type, target_id, name, mime, size_bytes, local_path) VALUES " +
+                "('F1', 'WS', 'task', 'T1', 'receipt.png', 'image/png', 4, '01F1.png')",
+        )
+        catchUp()
+        assertEquals("Files/Tasks/Pay rent", remote.pathOf(folder))
+        assertEquals("Files/Tasks/Pay rent/receipt (F1).png", remote.pathOf(file))
+        assertEquals("Files/Tasks/Pay rent/receipt (F1).png", row("01F1.png")!!.remotePath)
+        binTask()
+        catchUp()
+        sql.exec("DELETE FROM trash_items")
+        catchUp()
+        assertEquals("Files/reviewneeded/Tasks/Pay rent/receipt (F1).png", remote.pathOf(file))
+        assertNull(row("01F1.png"))
+        assertTrue(remote.folders().none { it.startsWith("Files/Recycle bin/") })
+        assertTrue(remote.exists(folder))
+    }
+
+    private fun addNote() {
+        File(filesDir, "01F5.jpg").writeBytes(byteArrayOf(5, 5, 5))
+        sql.exec("INSERT INTO notes (id, workspace_id, title, created_at, updated_at) VALUES ('N1', 'WS', 'Trip', '2026-11-01T08:00:00.000Z', '2026-11-01T08:00:00.000Z')")
+        addNoteFile()
+    }
+
+    private fun addNoteFile() = sql.exec(
+        "INSERT INTO file_rows (id, workspace_id, target_type, target_id, name, mime, size_bytes, local_path) VALUES " +
+            "('F5', 'WS', 'note', 'N1', 'map.jpg', 'image/jpeg', 3, '01F5.jpg')",
+    )
+
+    private fun binNote() {
+        sql.exec("DELETE FROM file_rows WHERE id = 'F5'")
+        sql.exec("DELETE FROM notes WHERE id = 'N1'")
+        putInBin(
+            "B9",
+            "note",
+            "N1",
+            BinPayload(
+                notes = listOf(BinNote("N1", "WS", "Trip")),
+                files = listOf(BinFile("F5", "WS", "note", "N1", "map.jpg", "image/jpeg", 3, localPath = "01F5.jpg")),
+            ),
+        )
+    }
+
+    @Test
+    fun renamingANoteMovesItsFolderOnce() {
+        addNote()
+        catchUp()
+        val folder = remote.idOf("Files/Notes/Trip")!!
+        val before = remote.moves
+        sql.exec("UPDATE notes SET title = 'Journey' WHERE id = 'N1'")
+        catchUp()
+        assertEquals(1, remote.moves - before)
+        assertEquals("Files/Notes/Journey", remote.pathOf(folder))
+        assertEquals("Files/Notes/Journey/map (F5).jpg", row("01F5.jpg")!!.remotePath)
+        catchUp()
+        assertEquals(1, remote.moves - before)
+    }
+
+    @Test
+    fun aNoteWithAttachmentsIsBinnedRestoredAndPurged() {
+        addNote()
+        catchUp()
+        val file = row("01F5.jpg")!!.itemId!!
+        binNote()
+        catchUp()
+        assertEquals("Files/Recycle bin/Notes/Trip/map (F5).jpg", remote.pathOf(file))
+        sql.exec("DELETE FROM trash_items WHERE id = 'B9'")
+        sql.exec("INSERT INTO notes (id, workspace_id, title, created_at, updated_at) VALUES ('N1', 'WS', 'Trip', '2026-11-01T08:00:00.000Z', '2026-11-01T08:00:00.000Z')")
+        addNoteFile()
+        catchUp()
+        assertEquals("Files/Notes/Trip/map (F5).jpg", remote.pathOf(file))
+        binNote()
+        catchUp()
+        sql.exec("DELETE FROM trash_items")
+        catchUp()
+        assertEquals("Files/reviewneeded/Notes/Trip/map (F5).jpg", remote.pathOf(file))
+        assertNull(row("01F5.jpg"))
+        assertTrue(remote.deletes.isEmpty())
+    }
+
+    @Test
+    fun aBackupRestoreSettlesThenTheCatchUpReviewsUnusedCopiesAndKeepsMissingOnes() {
+        catchUp()
+        val bill = row("01F3.pdf")!!.itemId!!
+        val manual = row("01F2.txt")!!
+        sql.exec("DELETE FROM file_rows WHERE id = 'F3'")
+        sql.exec("DELETE FROM file_mirrors WHERE local_path = '01F2.txt'")
+        sql.exec("UPDATE file_mirrors SET state = 'uploading', updated_at = '2026-10-01T00:00:00.000Z' WHERE local_path = '01F3.pdf'")
+        File(filesDir, "01F2.txt").delete()
+        val listed = listOf(
+            BackupFileEntry("01F1.png", 4, row("01F1.png")!!.sha256, inZip = true),
+            BackupFileEntry("01F2.txt", 6, manual.sha256, inZip = false, mirror = MirrorRef(manual.itemId!!, manual.remotePath!!, 6, manual.sha256)),
+        )
+        RestoredDataSettler(rig.store, BackupLog.None) { now }.settle(dbFile, listed)
+        val puts = remote.puts.size
+        catchUp()
+        assertEquals("Files/reviewneeded/Bills/2025/bill (F3).pdf", remote.pathOf(bill))
+        assertNull(row("01F3.pdf"))
+        assertEquals(MirrorState.MIRRORED, row("01F2.txt")!!.state)
+        assertEquals("Files/Docs/manual (F2).txt", remote.pathOf(manual.itemId!!))
+        assertEquals(puts, remote.puts.size)
+        val m = mirror()
+        val pending = runBlocking { m.pendingDownloads() }
+        assertEquals(listOf("01F2.txt"), pending.map { it.storedName })
+        val landed = runBlocking { m.download(pending.single()) }
+        assertEquals("manual", landed.readText())
+    }
+
+    @Test
+    fun aFileFoundAgainCanBeDownloaded() {
+        catchUp()
+        val old = row("01F2.txt")!!.itemId!!
+        remote.drop(old)
+        sql.exec("UPDATE file_mirrors SET state = 'remote-missing', updated_at = '2026-11-01T00:00:00.000Z' WHERE local_path = '01F2.txt'")
+        File(filesDir, "01F2.txt").delete()
+        val copy = remote.addFile("Files/reviewneeded/Docs/manual (F2) (3).txt", "manual".toByteArray())
+        catchUp()
+        assertEquals("Files/Docs/manual (F2).txt", remote.pathOf(copy))
+        val m = mirror()
+        val pending = runBlocking { m.pendingDownloads() }
+        assertEquals(listOf("01F2.txt"), pending.map { it.storedName })
+        val landed = runBlocking { m.download(pending.single()) }
+        assertEquals("manual", landed.readText())
+        assertEquals(MirrorState.MIRRORED, row("01F2.txt")!!.state)
+    }
+
+    @Test
+    fun aDownloadThatFindsTheCopyInReviewNeededLetsTheNextCatchUpMoveItBack() {
+        catchUp()
+        val old = row("01F2.txt")!!.itemId!!
+        remote.drop(old)
+        File(filesDir, "01F2.txt").delete()
+        val copy = remote.addFile("Files/reviewneeded/Docs/manual (F2).txt", "manual".toByteArray())
+        val m = mirror()
+        val landed = runBlocking { m.download(m.pendingDownloads().single()) }
+        assertEquals("manual", landed.readText())
+        val r = row("01F2.txt")!!
+        assertEquals(copy, r.itemId)
+        assertEquals("Files/reviewneeded/Docs/manual (F2).txt", r.remotePath)
+        val puts = remote.puts.size
+        catchUp()
+        assertEquals("Files/Docs/manual (F2).txt", remote.pathOf(copy))
+        assertEquals("Files/Docs/manual (F2).txt", row("01F2.txt")!!.remotePath)
+        assertEquals(puts, remote.puts.size)
+    }
+
+    @Test
+    fun aDownloadFindsAFlatRecycleBinCopyFromAnOlderVersion() {
+        catchUp()
+        val old = row("01F2.txt")!!.itemId!!
+        remote.drop(old)
+        File(filesDir, "01F2.txt").delete()
+        val copy = remote.addFile("Files/Recycle bin/01F2.txt", "manual".toByteArray())
+        val m = mirror()
+        runBlocking { m.download(m.pendingDownloads().single()) }
+        assertEquals(copy, row("01F2.txt")!!.itemId)
+        catchUp()
+        assertEquals("Files/Docs/manual (F2).txt", remote.pathOf(copy))
     }
 }

@@ -106,13 +106,21 @@ class AutoBackupViewModel @Inject constructor(
             try {
                 val grant = signIn.complete(data) ?: return@launch
                 auth.connect(grant)
-                store.set(SettingKeys.OneDriveOn.name, OneDriveAuth.TRUE)
-                store.remove(DestinationStatus.key(OneDriveConfig.DESTINATION_ID))
+                val previous = store.get(SettingKeys.OneDriveAccount.name)
                 try {
-                    graph.accountName()?.let { store.set(SettingKeys.OneDriveAccount.name, it) }
+                    graph.accountName()?.let { account ->
+                        store.set(SettingKeys.OneDriveAccount.name, account)
+                        mirror.adoptAccount(account, previous)
+                    }
                 } catch (e: OneDriveException) {
                     AndroidBackupLog.warn("autobackup.onedrive_account_failed", fields = mapOf("code" to e.code))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    AndroidBackupLog.warn("mirror.account_adopt_failed", e)
                 }
+                store.set(SettingKeys.OneDriveOn.name, OneDriveAuth.TRUE)
+                store.remove(DestinationStatus.key(OneDriveConfig.DESTINATION_ID))
                 AndroidBackupLog.info("onedrive.connected")
                 downloads.startIfPending()
                 triggers.afterSettingsChanged()
@@ -138,6 +146,7 @@ class AutoBackupViewModel @Inject constructor(
             store.set(SettingKeys.OneDriveOn.name, on.toString())
             AndroidBackupLog.info("autobackup.switched", mapOf("on" to on))
             triggers.afterSettingsChanged()
+            if (on) triggers.mirrorSoon()
         }
     }
 

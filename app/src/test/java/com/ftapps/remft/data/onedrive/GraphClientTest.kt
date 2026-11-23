@@ -16,6 +16,7 @@ import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -150,7 +151,7 @@ class GraphClientTest {
         server.enqueue(MockResponse().setResponseCode(302).setHeader("Location", server.url("/blob/1").toString()))
         server.enqueue(MockResponse().setResponseCode(206).setBody("world"))
         val progress = ArrayList<Long>()
-        assertTrue(client().download("ITEM", null, 11, to) { progress.add(it) })
+        assertNotNull(client().download("ITEM", null, 11, to) { progress.add(it) })
         assertEquals("hello world", to.readText())
         assertEquals(11L, progress.last())
         val content = take()
@@ -171,7 +172,7 @@ class GraphClientTest {
         server.enqueue(json(200, """{"value":[]}"""))
         server.enqueue(MockResponse().setResponseCode(200).setBody("hello"))
         val to = File(rig.root, "found.part")
-        assertTrue(client().download("GONE", "Files/Bills/2025/bill (F3).pdf", 5, to))
+        assertEquals(RemoteHit("R2", "Files/reviewneeded/Bills/2025/bill (F3) (2).pdf"), client().download("GONE", "Files/Bills/2025/bill (F3).pdf", 5, to))
         assertEquals("hello", to.readText())
         assertEquals("/v1.0/me/drive/items/GONE/content", take().path)
         assertTrue(take().requestUrl!!.encodedPath.endsWith("/Files/Bills/2025/bill%20(F3).pdf:/content"))
@@ -180,6 +181,25 @@ class GraphClientTest {
         assertTrue(take().requestUrl!!.encodedPath.endsWith("/Files/reviewneeded:/children"))
         assertEquals("/v1.0/me/drive/items/R2/content", take().path)
         assertEquals(6, server.requestCount)
+    }
+
+    @Test
+    fun downloadFindsAFlatRecycleBinCopyFromAnOlderVersionAndSaysWhere() = runBlocking {
+        server.enqueue(json(404, "{}"))
+        server.enqueue(json(404, "{}"))
+        server.enqueue(json(404, "{}"))
+        server.enqueue(json(404, "{}"))
+        server.enqueue(json(200, """{"value":[]}"""))
+        server.enqueue(json(200, """{"value":[{"id":"B5","name":"01F2.txt","size":6,"file":{}},{"id":"B6","name":"01F9.txt","size":6,"file":{}}]}"""))
+        server.enqueue(MockResponse().setResponseCode(200).setBody("manual"))
+        val to = File(rig.root, "flat.part")
+        val hit = client().download("GONE", "Files/Docs/manual (F2).txt", 6, to, flatName = "01F2.txt")
+        assertEquals(RemoteHit("B5", "Files/Recycle bin/01F2.txt"), hit)
+        assertEquals("manual", to.readText())
+        repeat(5) { take() }
+        assertTrue(take().requestUrl!!.encodedPath.endsWith("/Files/Recycle%20bin:/children"))
+        assertEquals("/v1.0/me/drive/items/B5/content", take().path)
+        assertEquals(7, server.requestCount)
     }
 
     @Test
@@ -196,7 +216,7 @@ class GraphClientTest {
     @Test
     fun downloadSaysFalseWhenOneDriveHasNoCopy() = runBlocking {
         server.enqueue(json(404, "{}"))
-        assertTrue(!client().download("GONE", null, null, File(rig.root, "x.part")))
+        assertNull(client().download("GONE", null, null, File(rig.root, "x.part")))
     }
 
     @Test

@@ -38,6 +38,8 @@ enum class MirrorMove { Moved, NameTaken, Gone }
 
 data class RemoteEntry(val id: String, val name: String, val size: Long, val isFolder: Boolean)
 
+data class RemoteHit(val itemId: String?, val path: String?)
+
 interface BackupDestination {
     val id: String
     suspend fun upload(zip: File, name: String)
@@ -54,7 +56,14 @@ interface MirrorRemote {
     suspend fun folderAt(path: String): String?
     suspend fun parentOf(itemId: String): String?
     suspend fun moveInto(itemId: String? = null, path: String? = null, folderId: String, name: String): MirrorMove
-    suspend fun download(itemId: String?, path: String?, size: Long?, to: File, onProgress: ((Long) -> Unit)? = null): Boolean
+    suspend fun download(
+        itemId: String?,
+        path: String?,
+        size: Long?,
+        to: File,
+        flatName: String? = null,
+        onProgress: ((Long) -> Unit)? = null,
+    ): RemoteHit?
 
     companion object {
         const val OCTET_STREAM = "application/octet-stream"
@@ -278,26 +287,33 @@ class GraphClient(
         }
     }
 
-    override suspend fun download(itemId: String?, path: String?, size: Long?, to: File, onProgress: ((Long) -> Unit)?): Boolean = guard {
-        val candidates = ArrayList<HttpUrl>()
-        if (!itemId.isNullOrEmpty()) candidates.add(byId(itemId, "/content"))
-        if (path != null && MirrorPaths.isMirrorPath(path)) candidates.add(item(path, "content"))
-        for (url in candidates) {
-            if (fetchContent(url, to, onProgress)) return@guard true
-        }
-        if (path == null || !MirrorPaths.isMirrorPath(path) || MirrorPaths.isReviewPath(path)) return@guard false
+    override suspend fun download(
+        itemId: String?,
+        path: String?,
+        size: Long?,
+        to: File,
+        flatName: String?,
+        onProgress: ((Long) -> Unit)?,
+    ): RemoteHit? = guard {
+        if (!itemId.isNullOrEmpty() && fetchContent(byId(itemId, "/content"), to, onProgress)) return@guard RemoteHit(itemId, path)
+        if (path != null && MirrorPaths.isMirrorPath(path) && fetchContent(item(path, "content"), to, onProgress)) return@guard RemoteHit(null, path)
+        if (path == null || !MirrorPaths.isMirrorPath(path) || MirrorPaths.isReviewPath(path)) return@guard null
         val name = path.substringAfterLast('/')
-        val inReview = MirrorPaths.fallbackFolders(path).flatMap { listFolder(it).orEmpty() }
-        val matches = inReview
-            .filter { !it.isFolder && MirrorPaths.isReviewNameOf(it.name, name) && (size == null || it.size == size) }
-            .sortedBy { it.name.length }
-        for (entry in matches) {
+        val places = (MirrorPaths.fallbackFolders(path) + listOfNotNull(flatName?.let { MirrorPaths.BIN_FOLDER })).distinctBy { it.lowercase() }
+        val found = places.flatMap { place -> listFolder(place).orEmpty().map { place to it } }
+        val matches = found
+            .filter { (_, e) ->
+                !e.isFolder && (size == null || e.size == size) &&
+                    (MirrorPaths.isReviewNameOf(e.name, name) || (flatName != null && e.name.equals(flatName, ignoreCase = true)))
+            }
+            .sortedBy { it.second.name.length }
+        for ((place, entry) in matches) {
             if (fetchContent(byId(entry.id, "/content"), to, onProgress)) {
                 log.info("mirror.found_in_review")
-                return@guard true
+                return@guard RemoteHit(entry.id, "$place/${entry.name}")
             }
         }
-        false
+        null
     }
 
     private suspend fun fetchContent(url: HttpUrl, to: File, onProgress: ((Long) -> Unit)?): Boolean {

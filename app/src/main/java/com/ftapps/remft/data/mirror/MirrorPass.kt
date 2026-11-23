@@ -47,13 +47,23 @@ class MirrorPass(
 
     suspend fun load(): Map<String, MirrorFolder> {
         folders = try {
-            MirrorFolders.decode(store.read(SettingKeys.MirrorFolders.name))
+            val raw = store.read(SettingKeys.MirrorFolders.name)
+            if (raw == null) firstFolderMap()
+            MirrorFolders.decode(raw)
         } catch (e: SettingsUnavailable) {
             log.warn("mirror.folders_unreadable")
             null
         }
         vacated.addAll(MirrorFolders.decodePaths(store.get(SettingKeys.MirrorBinLeftovers.name)))
         return placed()
+    }
+
+    private suspend fun firstFolderMap() {
+        if (store.get(SettingKeys.MirrorReviewSweptAt.name) != null) {
+            store.remove(SettingKeys.MirrorReviewSweptAt.name)
+            log.info("mirror.review_sweep_reset")
+        }
+        store.set(SettingKeys.MirrorFolders.name, MirrorFolders.encode(emptyMap()))
     }
 
     suspend fun flush() {
@@ -69,8 +79,11 @@ class MirrorPass(
     private fun vacate(path: String?) {
         if (path == null) return
         val parent = MirrorPaths.parentPath(path)
-        if (MirrorPaths.isBinPath(parent) && !parent.equals(MirrorPaths.BIN_FOLDER, ignoreCase = true)) vacated.add(parent)
+        if (collectable(parent)) vacated.add(parent)
     }
+
+    private fun collectable(path: String): Boolean =
+        MirrorPaths.isMirrorPath(path) && !MirrorPaths.isReviewPath(path) && FIXED_FOLDERS.none { it.equals(path, ignoreCase = true) }
 
     fun placed(): Map<String, MirrorFolder> = folders.orEmpty()
 
@@ -506,8 +519,15 @@ class MirrorPass(
     suspend fun review(layout: MirrorLayout, needed: Map<String, String>, rows: Map<String, MirrorRecord>) {
         goneFolders(layout, needed, rows)
         goneRows(layout, needed)
-        sweepOnce(needed)
-        tidyBin(layout, needed)
+        val current = if (sweepOnce(layout, needed)) placeAgain(layout) else needed
+        tidyBin(layout, current)
+    }
+
+    private suspend fun placeAgain(layout: MirrorLayout): Map<String, String> {
+        placeFolders(layout)
+        val now = layout.files.mapValues { layout.pathOf(it.value, placed()) }
+        placeFiles(now, io { rowsNow() })
+        return now
     }
 
     private suspend fun tidyBin(layout: MirrorLayout, needed: Map<String, String>) {
@@ -519,7 +539,7 @@ class MirrorPass(
             val ok = attempt("mirror.bin_tidy_failed") {
                 var top: String? = null
                 var at = start
-                while (MirrorPaths.isBinPath(at) && !at.equals(MirrorPaths.BIN_FOLDER, ignoreCase = true) && emptyTree(at, wanted, 0)) {
+                while (collectable(at) && emptyTree(at, wanted, 0)) {
                     top = at
                     at = MirrorPaths.parentPath(at)
                 }
@@ -605,19 +625,26 @@ class MirrorPass(
         }
     }
 
-    private suspend fun sweepOnce(needed: Map<String, String>) {
-        if (store.get(SettingKeys.MirrorReviewSweptAt.name) != null) return
+    private suspend fun sweepOnce(layout: MirrorLayout, needed: Map<String, String>): Boolean {
+        if (store.get(SettingKeys.MirrorReviewSweptAt.name) != null) return false
         if (needed.isEmpty()) {
             log.info("mirror.review_sweep_skipped")
-            return
+            return false
         }
-        if (sweep(needed)) store.set(SettingKeys.MirrorReviewSweptAt.name, UtcText.format(clock()))
+        val corrected = sweep(layout, needed)
+        store.set(SettingKeys.MirrorReviewSweptAt.name, UtcText.format(clock()))
+        return corrected
     }
 
-    private suspend fun sweep(needed: Map<String, String>): Boolean {
+    private suspend fun sweep(layout: MirrorLayout, needed: Map<String, String>): Boolean {
         val rows = io { rowsNow() }
         val byItem = rows.values.filter { !it.itemId.isNullOrEmpty() }.associateBy { it.itemId!! }
-        val keepPaths = (rows.values.mapNotNull { it.remotePath?.lowercase() } + needed.values.map { it.lowercase() }).toSet()
+        val kept = rows.values.mapNotNull { it.remotePath } + needed.values
+        val keepPaths = kept.map { it.lowercase() }.toSet()
+        val strays = ArrayList<Pair<String, String>>()
+        val shells = LinkedHashMap<String, String>()
+        val holding = HashSet<String>()
+        var corrected = false
         val pending = ArrayDeque(listOf(MirrorPaths.ROOT))
         while (pending.isNotEmpty()) {
             val at = pending.removeFirst()
@@ -626,32 +653,58 @@ class MirrorPass(
                 val path = "$at/${e.name}"
                 if (e.isFolder) {
                     pending.addLast(path)
-                    correctFolder(e.id, path)
+                    if (correctFolder(e.id, path)) corrected = true
+                    if (collectable(path)) shells[path] = e.id
                     continue
                 }
                 val known = byItem[e.id]
                 if (known != null) {
-                    if (known.remotePath != path) setPath(known.localPath, path)
+                    if (known.remotePath != path) {
+                        setPath(known.localPath, path)
+                        corrected = true
+                    }
+                    holding.add(at)
                     continue
                 }
-                if (MirrorPaths.isReviewPath(path) || path.lowercase() in keepPaths) continue
-                stopIfPast()
-                if (toReview(e.id, null, MirrorPaths.reviewPath(path), folder = false) != null) {
-                    vacate(path)
-                    reviewed++
+                if (MirrorPaths.isReviewPath(path) || path.lowercase() in keepPaths) {
+                    holding.add(at)
+                    continue
                 }
+                strays.add(e.id to path)
             }
         }
-        return true
+        val wanted = layout.folders.values + placed().values.map { it.path } + kept
+        val moved = ArrayList<String>()
+        for ((path, id) in shells.entries.sortedBy { MirrorPaths.depth(it.key) }) {
+            if (moved.any { MirrorPaths.isUnder(path, it) }) continue
+            if (holding.any { MirrorPaths.isUnder(it, path) } || wanted.any { MirrorPaths.isUnder(it, path) }) continue
+            stopIfPast()
+            if (toReview(id, path, MirrorPaths.reviewPath(path), folder = true) != null) {
+                moved.add(path)
+                reviewed++
+                ids.keys.removeAll { MirrorPaths.isUnder(it, path.lowercase()) }
+                vacated.removeAll { MirrorPaths.isUnder(it, path) }
+            }
+        }
+        for ((id, path) in strays) {
+            if (moved.any { MirrorPaths.isUnder(path, it) }) continue
+            stopIfPast()
+            if (toReview(id, null, MirrorPaths.reviewPath(path), folder = false) != null) {
+                vacate(path)
+                reviewed++
+            }
+        }
+        return corrected
     }
 
-    private suspend fun correctFolder(itemId: String, path: String) {
-        val f = folders ?: return
-        val key = f.entries.firstOrNull { it.value.itemId == itemId }?.key ?: return
-        val st = f[key] ?: return
-        if (st.path == path) return
+    private suspend fun correctFolder(itemId: String, path: String): Boolean {
+        val f = folders ?: return false
+        val key = f.entries.firstOrNull { it.value.itemId == itemId }?.key ?: return false
+        val st = f[key] ?: return false
+        if (st.path == path) return false
         f[key] = st.copy(path = path)
         save()
+        return true
     }
 
     private fun rowsNow(): Map<String, MirrorRecord> = sql.query(
@@ -679,6 +732,14 @@ class MirrorPass(
         private const val MAX_NAMES = 100
         private const val MAX_LOOKUPS = 20
         private const val MAX_TREE_DEPTH = 12
+        private val FIXED_FOLDERS = listOf(
+            MirrorPaths.ROOT,
+            MirrorPaths.BIN_FOLDER,
+            MirrorPaths.REVIEW_FOLDER,
+            MirrorPaths.ownerPath("task", null, null).let { MirrorPaths.parentPath(it) },
+            MirrorPaths.ownerPath("note", null, null).let { MirrorPaths.parentPath(it) },
+            MirrorPaths.ownerPath("other", null, null),
+        )
         private val LOST_RETRY: Duration = Duration.ofMinutes(10)
         private val LOST_RETRY_MAX: Duration = Duration.ofDays(1)
         val UPLOAD_STALE: Duration = Duration.ofHours(6)
