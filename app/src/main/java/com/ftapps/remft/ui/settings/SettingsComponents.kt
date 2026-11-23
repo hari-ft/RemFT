@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.settings
 
+import com.ftapps.remft.ui.theme.Sizes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,7 +59,7 @@ import com.ftapps.remft.ui.theme.Space
 
 enum class SettingsTone { Brand, Success, Warning, Danger, Neutral }
 
-private val IconCircle = 40.dp
+private val IconCircle = 32.dp
 private val RowStart = Space.x4
 private val DividerInset = RowStart + IconCircle + Space.x4
 
@@ -80,7 +81,7 @@ private fun DividedColumn(content: @Composable () -> Unit) {
             .drawWithContent {
                 drawContent()
                 val inset = DividerInset.toPx()
-                val stroke = 1.dp.toPx()
+                val stroke = Sizes.hairline.toPx()
                 val (start, end) = if (layoutDirection == LayoutDirection.Ltr) inset to size.width else 0f to size.width - inset
                 bounds.tops.forEach { y ->
                     drawLine(divider, Offset(start, y), Offset(end, y), stroke)
@@ -115,7 +116,7 @@ fun SettingsSectionHeader(text: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = Space.x2, end = Space.x2, top = Space.x5, bottom = Space.x2)
+            .padding(start = Space.x2, end = Space.x2, top = Space.x4, bottom = Space.x2)
             .semantics { heading() },
     )
 }
@@ -210,13 +211,13 @@ fun SettingsItem(
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = 64.dp)
-            .padding(start = RowStart, end = Space.x3, top = Space.x3, bottom = Space.x3),
+            .heightIn(min = Sizes.listRow)
+            .padding(start = RowStart, end = Space.x3, top = Space.x2, bottom = Space.x2),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
             SettingsIcon(icon, tone)
-            Spacer(Modifier.width(Space.x4))
+            Spacer(Modifier.width(Space.x3))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = titleColor)

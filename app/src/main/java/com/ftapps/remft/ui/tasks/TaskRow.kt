@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.tasks
 
+import com.ftapps.remft.ui.theme.Sizes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -113,7 +114,7 @@ private fun TaskRowContent(
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 64.dp)
+            .heightIn(min = Sizes.listRow)
             .clickable(onClick = onOpen)
             .padding(start = Space.x1, end = Space.x3, top = Space.x2, bottom = Space.x2),
         verticalAlignment = Alignment.CenterVertically,
@@ -125,7 +126,7 @@ private fun TaskRowContent(
         }
         CircularCheck(completed, description, onToggle, Modifier.testTag("task-check-${task.id}"))
         Spacer(Modifier.width(Space.x2))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.x1)) {
             Text(
                 task.title,
                 style = MaterialTheme.typography.titleMedium.copy(textDecoration = if (completed) TextDecoration.LineThrough else null),

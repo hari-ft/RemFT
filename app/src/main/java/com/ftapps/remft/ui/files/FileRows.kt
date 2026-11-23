@@ -1,5 +1,6 @@
 package com.ftapps.remft.ui.files
 
+import com.ftapps.remft.ui.theme.Sizes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -130,11 +131,11 @@ fun KindTile(icon: ImageVector, tone: TileTone, modifier: Modifier = Modifier) {
     }
     Box(
         modifier
-            .size(40.dp)
+            .size(Sizes.avatar)
             .background(container, MarkedShapes.tile),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(Sizes.iconSmall + 2.dp))
     }
 }
 
@@ -150,14 +151,14 @@ fun rememberLocalFile(env: FilesEnvironment, row: FileRowEntity?): File? {
 
 @Composable
 fun FileThumb(row: FileRowEntity, file: File?) {
-    Box(Modifier.size(40.dp).clip(MarkedShapes.tile)) {
+    Box(Modifier.size(Sizes.avatar).clip(MarkedShapes.tile)) {
         KindTile(kindIcon(row.mime))
         if (row.isImage() && file != null) {
             AsyncImage(
                 model = file,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(40.dp).testTag("file-thumb-${row.id}"),
+                modifier = Modifier.size(Sizes.avatar).testTag("file-thumb-${row.id}"),
             )
         }
     }
@@ -196,7 +197,7 @@ fun FileRowLayout(
 ) {
     val click = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Row(
-        modifier.fillMaxWidth().heightIn(min = 68.dp).then(click).padding(start = Space.x3, end = Space.x1),
+        modifier.fillMaxWidth().heightIn(min = Sizes.listRow).then(click).padding(start = Space.x3, end = Space.x1),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         leading()

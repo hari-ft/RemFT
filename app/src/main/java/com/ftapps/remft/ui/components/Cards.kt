@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.ftapps.remft.ui.theme.GroupPosition
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 
 @Composable
@@ -87,7 +88,7 @@ fun GroupedCardItem(
     Column(modifier.fillMaxWidth().clip(shape).background(color, shape)) {
         if (position == GroupPosition.Middle || position == GroupPosition.Last) {
             HorizontalDivider(
-                thickness = 1.dp,
+                thickness = Sizes.hairline,
                 color = MaterialTheme.colorScheme.outlineVariant,
                 modifier = Modifier.padding(end = Space.x3),
             )
@@ -105,14 +106,14 @@ fun InfoCard(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     shape: Shape = MarkedShapes.medium,
     onClick: (() -> Unit)? = null,
-    contentPadding: PaddingValues = PaddingValues(start = Space.x4, top = Space.x3, end = Space.x2, bottom = Space.x3),
+    contentPadding: PaddingValues = PaddingValues(start = Space.x4, top = Space.x2, end = Space.x2, bottom = Space.x2),
     actions: @Composable (() -> Unit)? = null,
 ) {
     MarkedCard(modifier.fillMaxWidth(), color = color, contentColor = contentColor, shape = shape, onClick = onClick) {
-        Row(Modifier.heightIn(min = 56.dp).padding(contentPadding), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(Space.x4))
-            Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Row(Modifier.heightIn(min = Sizes.quickAdd).padding(contentPadding), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall + 2.dp))
+            Spacer(Modifier.width(Space.x3))
+            Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             if (actions != null) {
                 Spacer(Modifier.width(Space.x2))
                 actions()

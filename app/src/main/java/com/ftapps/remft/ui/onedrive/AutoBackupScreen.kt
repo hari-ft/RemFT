@@ -34,7 +34,6 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +71,7 @@ import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RemftDialog
 import com.ftapps.remft.ui.components.RemftFilledButton
 import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.components.RemftTimePickerDialog
 import com.ftapps.remft.ui.components.SectionScaffold
 import com.ftapps.remft.ui.components.stringFilled
 import com.ftapps.remft.ui.settings.SettingsCard
@@ -577,10 +577,10 @@ private fun TimeDialog(minutes: Int, format: DateFormatId, onClose: () -> Unit, 
         initialMinute = minutes % 60,
         is24Hour = format != DateFormatId.Mdy12h,
     )
-    RemftDialog(
+    RemftTimePickerDialog(
+        state = state,
         onDismissRequest = onClose,
         modifier = Modifier.testTag("auto-backup-time-dialog"),
-        text = { TimePicker(state = state) },
         dismissButton = { RemftTextButton(stringResource(R.string.common_cancel), onClick = onClose) },
         confirmButton = {
             RemftTextButton(

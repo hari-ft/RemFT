@@ -28,7 +28,7 @@ object MarkedShapes {
     val sheet: CornerBasedShape = RoundedCornerShape(topStart = Radius.tightLarge, topEnd = Radius.sheet)
     val pill: Shape = CircleShape
     val fab: CornerBasedShape = RoundedCornerShape(Radius.fab)
-    val tile: CornerBasedShape = RoundedCornerShape(14.dp)
+    val tile: CornerBasedShape = RoundedCornerShape(12.dp)
 
     fun group(position: GroupPosition): Shape = when (position) {
         GroupPosition.Single -> medium

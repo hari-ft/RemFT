@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.SemanticColor
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 
 enum class ChipTone { Today, Overdue, Urgent, Repeat, Done, Note, File, Success, Warning, Neutral, Primary }
@@ -68,14 +69,14 @@ fun StatusChip(
     val semantics = if (description != null) Modifier.semantics { contentDescription = description } else Modifier
     Row(
         modifier
-            .heightIn(min = 26.dp)
+            .heightIn(min = Sizes.chip)
             .background(colors.container, MarkedShapes.pill)
             .then(semantics)
-            .padding(horizontal = 10.dp, vertical = 3.dp),
+            .padding(horizontal = Space.x2, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, tint = colors.content, modifier = Modifier.size(16.dp))
+            Icon(icon, contentDescription = null, tint = colors.content, modifier = Modifier.size(Sizes.iconChip))
             Spacer(Modifier.width(Space.x1))
         }
         Text(

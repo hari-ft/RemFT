@@ -94,7 +94,7 @@ private fun SelectedDayChip(day: LocalDate, format: DateFormatId, onClear: () ->
         label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         trailingIcon = { Icon(Icons.Outlined.Close, contentDescription = clear, modifier = Modifier.size(18.dp)) },
         shape = MarkedShapes.pill,
-        modifier = Modifier.padding(top = 4.dp).heightIn(min = Sizes.touchTarget).testTag("week-strip-selected"),
+        modifier = Modifier.padding(top = 4.dp).testTag("week-strip-selected"),
     )
 }
 
@@ -146,7 +146,7 @@ private fun WeekDay(day: LocalDate, isToday: Boolean, isSelected: Boolean, hasTa
         isSelected -> Modifier.background(scheme.primaryContainer, MarkedShapes.tile)
         else -> Modifier
     }
-    val ring = if (isToday && isSelected) Modifier.border(2.dp, scheme.primary, MarkedShapes.tile) else Modifier
+    val ring = if (isToday && isSelected) Modifier.border(Sizes.stroke, scheme.primary, MarkedShapes.tile) else Modifier
     val ink = when {
         isToday -> Brand.TodayInk
         isSelected -> scheme.onPrimaryContainer
@@ -162,23 +162,23 @@ private fun WeekDay(day: LocalDate, isToday: Boolean, isSelected: Boolean, hasTa
         isSelected -> scheme.onPrimaryContainer
         else -> scheme.primary
     }
-    Box(modifier.then(tile).then(ring).heightIn(min = 68.dp), contentAlignment = Alignment.Center) {
-        Column(Modifier.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Box(modifier.then(tile).then(ring).heightIn(min = Sizes.quickAdd), contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 day.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.ENGLISH),
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = cappedSize(14.sp, 1.5f)),
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = cappedSize(12.sp, 1.5f)),
                 color = soft,
                 maxLines = 1,
                 softWrap = false,
             )
             Text(
                 day.dayOfMonth.toString(),
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = cappedSize(22.sp, 1.3f)),
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = cappedSize(18.sp, 1.3f)),
                 color = ink,
                 maxLines = 1,
                 softWrap = false,
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
             Box(Modifier.size(6.dp), contentAlignment = Alignment.Center) {
                 if (hasTasks) {
                     Box(Modifier.size(6.dp).background(dot, CircleShape).testTag("calendar-dot-$day"))

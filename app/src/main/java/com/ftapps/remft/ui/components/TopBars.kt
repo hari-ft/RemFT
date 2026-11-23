@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,6 +40,7 @@ fun RemftTopBar(
         title = { Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         navigationIcon = navigationIcon,
         actions = actions,
+        expandedHeight = Sizes.topBar,
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
         modifier = modifier,
     )
@@ -50,7 +52,7 @@ fun NameMarkTopBar(modifier: Modifier = Modifier, actions: @Composable RowScope.
         modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.statusBars)
-            .heightIn(min = 72.dp)
+            .heightIn(min = Sizes.nameMarkBar)
             .padding(start = Space.x4, end = Space.x3),
         verticalAlignment = Alignment.CenterVertically,
     ) {

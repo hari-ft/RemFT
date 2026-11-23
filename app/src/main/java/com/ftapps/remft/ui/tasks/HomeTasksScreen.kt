@@ -231,7 +231,7 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                     item(key = "home-quick-add") {
                         HomeQuickAddRow {
                             HomeQuickAdd(quickAddHint, prefillDue = vm::defaultDueForSelection, modifier = Modifier.weight(1f))
-                            Spacer(Modifier.width(Space.x3))
+                            Spacer(Modifier.width(Space.x2))
                             SquareFab(
                                 Icons.Filled.Add,
                                 stringResource(R.string.shell_fabNewTask),
@@ -333,7 +333,7 @@ private fun homeHeadline(state: HomeUiState): String? {
 @Composable
 fun HomeHeader(dateLines: List<String>, headline: String?, modifier: Modifier = Modifier, tools: @Composable () -> Unit = {}) {
     val scheme = MaterialTheme.colorScheme
-    Column(modifier.fillMaxWidth().padding(top = Space.x2, bottom = Space.x3).testTag("home-header")) {
+    Column(modifier.fillMaxWidth().padding(top = Space.x1, bottom = Space.x2).testTag("home-header")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             FittingDateLine(dateLines, scheme.onSurfaceVariant, Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
@@ -440,7 +440,7 @@ private fun LazyListScope.homeGroup(group: HomeGroup, format: DateFormatId, zone
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
             modifier = Modifier
-                .padding(start = Space.x1, end = Space.x1, top = Space.x4, bottom = Space.x2)
+                .padding(start = Space.x1, end = Space.x1, top = Space.x3, bottom = Space.x1)
                 .semantics { heading() }
                 .testTag("group-header-$key"),
         )
@@ -498,7 +498,7 @@ private fun HomePreviewContent() {
                         Modifier
                             .weight(1f)
                             .padding(vertical = Space.x2)
-                            .height(56.dp)
+                            .height(Sizes.quickAdd)
                             .background(MaterialTheme.colorScheme.surface, MarkedShapes.pill),
                         contentAlignment = Alignment.CenterStart,
                     ) {

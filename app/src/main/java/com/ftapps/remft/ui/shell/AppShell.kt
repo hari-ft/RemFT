@@ -71,7 +71,7 @@ import com.ftapps.remft.ui.tasks.UndoSnackbarHost
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
-val BottomBarClearance = 96.dp
+val BottomBarClearance = Sizes.navBarHeight + Space.x4
 
 @Composable
 fun AppShell(
@@ -204,7 +204,7 @@ private fun NavItem(section: Section, selected: Boolean, onSelect: (Section) -> 
 
 @Composable
 private fun NavigationRailPanel(current: Section, onSelect: (Section) -> Unit, extended: Boolean) {
-    RemftNavigationRail(Modifier.testTag("nav-rail"), width = if (extended) 220.dp else 88.dp) {
+    RemftNavigationRail(Modifier.testTag("nav-rail"), width = if (extended) 208.dp else 80.dp) {
         GlobalSearchRailEntry(extended)
         Section.entries.forEach { section ->
             if (extended) {

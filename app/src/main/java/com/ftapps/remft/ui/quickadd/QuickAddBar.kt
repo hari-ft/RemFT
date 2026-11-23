@@ -1,5 +1,9 @@
 package com.ftapps.remft.ui.quickadd
 
+import com.ftapps.remft.ui.theme.Sizes
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,7 +27,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -156,48 +159,71 @@ private fun QuickAddField(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    OutlinedTextField(
+    val interaction = remember { MutableInteractionSource() }
+    val colors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = scheme.surface,
+        unfocusedContainerColor = scheme.surface,
+        focusedBorderColor = scheme.primary,
+        unfocusedBorderColor = Color.Transparent,
+        cursorColor = scheme.primary,
+        unfocusedPlaceholderColor = scheme.onSurfaceVariant,
+        focusedPlaceholderColor = scheme.onSurfaceVariant,
+    )
+    val trailing: @Composable () -> Unit = {
+        if (text.isEmpty()) {
+            RemftIconButton(
+                label = stringResource(R.string.task_quickParse_helpTooltip),
+                onClick = onHelp,
+                colors = IconButtonDefaults.iconButtonColors(contentColor = scheme.onSurfaceVariant),
+                modifier = Modifier.testTag("$tag-help"),
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = stringResource(R.string.task_quickParse_helpTooltip))
+            }
+        } else {
+            RemftIconButton(
+                label = stringResource(R.string.task_addTask),
+                onClick = onSubmit,
+                colors = IconButtonDefaults.iconButtonColors(containerColor = scheme.primary, contentColor = scheme.onPrimary),
+                modifier = Modifier.padding(end = Space.x1).testTag("$tag-submit"),
+            ) {
+                Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.task_addTask))
+            }
+        }
+    }
+    BasicTextField(
         value = text,
         onValueChange = onTextChange,
-        placeholder = { Text(hint, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         singleLine = true,
         visualTransformation = highlight,
-        shape = MarkedShapes.pill,
-        textStyle = MaterialTheme.typography.bodyLarge,
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
+        cursorBrush = SolidColor(scheme.primary),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { onSubmit() }),
-        trailingIcon = {
-            if (text.isEmpty()) {
-                RemftIconButton(
-                    label = stringResource(R.string.task_quickParse_helpTooltip),
-                    onClick = onHelp,
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = scheme.onSurfaceVariant),
-                    modifier = Modifier.testTag("$tag-help"),
-                ) {
-                    Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = stringResource(R.string.task_quickParse_helpTooltip))
-                }
-            } else {
-                RemftIconButton(
-                    label = stringResource(R.string.task_addTask),
-                    onClick = onSubmit,
-                    colors = IconButtonDefaults.iconButtonColors(containerColor = scheme.primary, contentColor = scheme.onPrimary),
-                    modifier = Modifier.padding(end = Space.x1).testTag("$tag-submit"),
-                ) {
-                    Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.task_addTask))
-                }
-            }
-        },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = scheme.surface,
-            unfocusedContainerColor = scheme.surface,
-            focusedBorderColor = scheme.primary,
-            unfocusedBorderColor = Color.Transparent,
-            cursorColor = scheme.primary,
-            unfocusedPlaceholderColor = scheme.onSurfaceVariant,
-            focusedPlaceholderColor = scheme.onSurfaceVariant,
-        ),
-        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(tag),
-    )
+        interactionSource = interaction,
+        modifier = modifier.fillMaxWidth().heightIn(min = Sizes.quickAdd).testTag(tag),
+    ) { inner ->
+        OutlinedTextFieldDefaults.DecorationBox(
+            value = text,
+            innerTextField = inner,
+            enabled = true,
+            singleLine = true,
+            visualTransformation = highlight,
+            interactionSource = interaction,
+            placeholder = { Text(hint, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            trailingIcon = trailing,
+            colors = colors,
+            contentPadding = OutlinedTextFieldDefaults.contentPadding(top = Space.x3, bottom = Space.x3),
+            container = {
+                OutlinedTextFieldDefaults.Container(
+                    enabled = true,
+                    isError = false,
+                    interactionSource = interaction,
+                    colors = colors,
+                    shape = MarkedShapes.pill,
+                )
+            },
+        )
+    }
 }
 
 @Composable

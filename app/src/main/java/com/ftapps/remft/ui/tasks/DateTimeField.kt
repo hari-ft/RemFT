@@ -9,7 +9,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import com.ftapps.remft.ui.components.PreviewSurface
-import com.ftapps.remft.ui.components.RemftDialog
+import com.ftapps.remft.ui.components.RemftTimePickerDialog
 import com.ftapps.remft.ui.components.RemftIconButton
 import com.ftapps.remft.ui.components.RemftTextButton
 import com.ftapps.remft.ui.theme.MarkedShapes
@@ -38,7 +38,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
-import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -330,7 +329,8 @@ fun TaskTimePickerDialog(
     onPicked: (LocalTime) -> Unit,
 ) {
     val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = is24Hour)
-    RemftDialog(
+    RemftTimePickerDialog(
+        state = state,
         onDismissRequest = onDismiss,
         confirmButton = {
             RemftTextButton(
@@ -342,7 +342,6 @@ fun TaskTimePickerDialog(
         dismissButton = {
             RemftTextButton(stringResource(R.string.common_cancel), onClick = onDismiss)
         },
-        text = { TimePicker(state = state) },
     )
 }
 

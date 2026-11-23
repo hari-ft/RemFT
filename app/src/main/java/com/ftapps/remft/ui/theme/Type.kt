@@ -42,11 +42,11 @@ val RemftTypography = Typography(
     displayLarge = display(96, 96, tracking = -0.04),
     displayMedium = display(57, 64, tracking = -0.03),
     displaySmall = display(45, 52, tracking = -0.03),
-    headlineLarge = display(32, 40, FontWeight.W600),
-    headlineMedium = display(28, 36, FontWeight.W600),
-    headlineSmall = display(24, 32, FontWeight.W600),
-    titleLarge = display(22, 28, FontWeight.W600, tracking = -0.01),
-    titleMedium = sans(16, 24, FontWeight.W600),
+    headlineLarge = display(28, 34, FontWeight.W600),
+    headlineMedium = display(24, 30, FontWeight.W600),
+    headlineSmall = display(22, 28, FontWeight.W600),
+    titleLarge = display(20, 26, FontWeight.W600, tracking = -0.01),
+    titleMedium = sans(16, 22, FontWeight.W600),
     titleSmall = sans(14, 20, FontWeight.W600),
     bodyLarge = sans(16, 24, FontWeight.W400),
     bodyMedium = sans(14, 20, FontWeight.W400),
@@ -60,4 +60,4 @@ val CodeStyle = TextStyle(fontFamily = JetBrainsMono, fontWeight = FontWeight.W4
 
 val MonoStyle = TextStyle(fontFamily = JetBrainsMono)
 
-val NameMarkStyle = TextStyle(fontFamily = BricolageGrotesque, fontWeight = FontWeight.W700, fontSize = 24.sp, lineHeight = 28.sp, letterSpacing = (-0.02).em)
+val NameMarkStyle = TextStyle(fontFamily = BricolageGrotesque, fontWeight = FontWeight.W700, fontSize = 22.sp, lineHeight = 26.sp, letterSpacing = (-0.02).em)

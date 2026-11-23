@@ -36,7 +36,7 @@ fun GlassSurface(
     var surface = modifier
     if (floating) {
         surface = surface
-            .shadow(24.dp, shape, ambientColor = colors.glassShadow, spotColor = colors.glassShadow)
+            .shadow(14.dp, shape, ambientColor = colors.glassShadow, spotColor = colors.glassShadow)
             .shadow(4.dp, shape, ambientColor = colors.glassShadow, spotColor = colors.glassShadow)
     }
     surface = surface.clip(shape)

@@ -82,22 +82,22 @@ object Space {
     val x3 = 12.dp
     val x4 = 16.dp
     val x5 = 20.dp
-    val x6 = 24.dp
-    val x8 = 32.dp
-    val x12 = 48.dp
+    val x6 = 20.dp
+    val x8 = 28.dp
+    val x12 = 40.dp
 }
 
 object Radius {
     val chip = 12.dp
     val input = 16.dp
-    val card = 18.dp
-    val sheet = 28.dp
+    val card = 16.dp
+    val sheet = 24.dp
     val capsule = 32.dp
     val tightSmall = 4.dp
     val tightMedium = 6.dp
     val tightLarge = 8.dp
     val small = 12.dp
-    val fab = 18.dp
+    val fab = 16.dp
 }
 
 object Breakpoints {
@@ -113,7 +113,22 @@ object Breakpoints {
 
 object Sizes {
     val touchTarget = 48.dp
-    val navBarHeight = 80.dp
-    val fab = 56.dp
-    val checkbox = 24.dp
+    val navBarHeight = 64.dp
+    val fab = 52.dp
+    val checkbox = 22.dp
+    val listRow = 56.dp
+    val chip = 24.dp
+    val button = 40.dp
+    val iconButton = 40.dp
+    val topBar = 56.dp
+    val nameMarkBar = 60.dp
+    val quickAdd = 52.dp
+    val icon = 24.dp
+    val iconSmall = 18.dp
+    val iconChip = 14.dp
+    val avatar = 36.dp
+    val hairline = 0.5.dp
+    val stroke = 1.5.dp
+    val emptyIllustration = 112.dp
+    val emptyBadge = 56.dp
 }
