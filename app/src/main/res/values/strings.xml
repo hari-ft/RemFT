@@ -501,7 +501,7 @@
     <string name="reminderSettings_repeatAfterSnooze">Repeat the whole chain after a snooze</string>
     <string name="reminderSettings_repeatAfterSnoozeSub">Off: a snoozed alarm rings once when it comes back</string>
     <string name="reminderSettings_snoozeOrder">Snooze buttons, in your order</string>
-    <string name="reminderSettings_snoozeOrderSub">Use the arrows to reorder. The ringing alarm shows them in this order, and notifications show the first ones.</string>
+    <string name="reminderSettings_snoozeOrderSub">Use the arrows to reorder. The ringing alarm shows them in this order, and urgent notifications show the first one. Reminder notifications always offer 15 min and 1 h.</string>
     <string name="reminderSettings_reset">Back to Standard</string>
     <string name="sound_alarmTitle">Alarm sound</string>
     <string name="sound_reminderTitle">Reminder sound</string>

@@ -36,13 +36,13 @@ class NotificationButtonsTest {
     }
 
     @Test
-    fun reminderButtonsAreCompleteAndTheFirstTwoSnoozeOptions() {
+    fun reminderButtonsAreCompleteFifteenMinutesAndOneHour() {
         val buttons = NotificationActions.buttonsFor(urgent = false)
         assertEquals(
             listOf(
                 NotificationActions.COMPLETE,
-                "${NotificationActions.SNOOZE_PREFIX}5_min",
-                "${NotificationActions.SNOOZE_PREFIX}30_min",
+                "${NotificationActions.SNOOZE_PREFIX}m:15",
+                "${NotificationActions.SNOOZE_PREFIX}1_hour",
             ),
             buttons.map { it.actionId },
         )
@@ -50,14 +50,14 @@ class NotificationButtonsTest {
     }
 
     @Test
-    fun theUsersOrderDecidesWhichSnoozeOptionsGetAButton() {
+    fun theUsersOrderDecidesTheUrgentSnoozeButtonButNotTheReminderOnes() {
         val order = listOf("m:90", "tomorrow_morning", "1_hour", "5_min")
         assertEquals(
             listOf(NotificationActions.ACKNOWLEDGE, "${NotificationActions.SNOOZE_PREFIX}m:90"),
             NotificationActions.buttonsFor(urgent = true, snoozeOrder = order).map { it.actionId },
         )
         val reminder = NotificationActions.buttonsFor(urgent = false, snoozeOrder = order)
-        assertEquals(listOf(null, "m:90", "tomorrow_morning"), reminder.map { it.preset })
+        assertEquals(listOf(null, "m:15", "1_hour"), reminder.map { it.preset })
     }
 
     @Test
@@ -65,7 +65,12 @@ class NotificationButtonsTest {
         val full = (1..8).map { "m:${it * 7}" }
         assertTrue(NotificationActions.buttonsFor(urgent = false, snoozeOrder = full).size <= NotificationActions.MAX_BUTTONS)
         assertTrue(NotificationActions.buttonsFor(urgent = true, snoozeOrder = full).size < NotificationActions.MAX_BUTTONS)
-        assertEquals(2, NotificationActions.buttonsFor(urgent = false, snoozeOrder = listOf("m:15")).size)
+    }
+
+    @Test
+    fun theFifteenMinuteReminderButtonSnoozesFifteenMinutes() {
+        assertEquals(now.plus(Duration.ofMinutes(15)), SnoozePresets.untilFor("m:15", now, java.time.ZoneOffset.UTC))
+        assertEquals(now.plus(Duration.ofHours(1)), SnoozePresets.untilFor(SnoozePresets.ONE_HOUR, now, java.time.ZoneOffset.UTC))
     }
 
     @Test

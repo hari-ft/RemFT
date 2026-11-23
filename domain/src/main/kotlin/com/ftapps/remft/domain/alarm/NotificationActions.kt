@@ -56,12 +56,16 @@ object NotificationActions {
     const val MAX_BUTTONS = 3
     const val URGENT_SNOOZE_BUTTONS = 1
 
+    val REMINDER_SNOOZES: List<String> = listOf("m:15", SnoozePresets.ONE_HOUR)
+
     fun buttonsFor(urgent: Boolean, snoozeOrder: List<String> = SnoozePresets.ids): List<NotificationButton> {
-        val lead = if (urgent) NotificationButton(ACKNOWLEDGE, ButtonLabel.ACKNOWLEDGE) else NotificationButton(COMPLETE, ButtonLabel.COMPLETE)
-        val slots = if (urgent) URGENT_SNOOZE_BUTTONS else MAX_BUTTONS - 1
-        val snoozes = SnoozePresets.parseOrder(snoozeOrder.joinToString(",")).take(slots)
+        if (!urgent) {
+            return listOf(NotificationButton(COMPLETE, ButtonLabel.COMPLETE)) +
+                REMINDER_SNOOZES.map { NotificationButton(snooze(it), ButtonLabel.SNOOZE, it) }
+        }
+        val snoozes = SnoozePresets.parseOrder(snoozeOrder.joinToString(",")).take(URGENT_SNOOZE_BUTTONS)
             .map { NotificationButton(snooze(it), ButtonLabel.SNOOZE, it) }
-        return listOf(lead) + snoozes
+        return listOf(NotificationButton(ACKNOWLEDGE, ButtonLabel.ACKNOWLEDGE)) + snoozes
     }
 
     fun notAppliedDetail(action: String, reason: String): String = "$action not applied: $reason; notification dismissed"
