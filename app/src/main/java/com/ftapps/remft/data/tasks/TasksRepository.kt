@@ -124,12 +124,12 @@ class TasksRepository(
 
     suspend fun update(id: String, patch: TaskPatch, scope: EditScope? = null) {
         val db = database()
-        db.withTransaction {
-            val previous = dao.task(id) ?: return@withTransaction
+        val doomed = db.withTransaction {
+            val previous = dao.task(id) ?: return@withTransaction emptyList()
             val updated = TaskRules.update(TaskMapping.toDomain(previous), patch, now(), zone)
             val saved = TaskMapping.toEntity(updated, previous)
             dao.updateTask(saved)
-            seriesHooks?.afterTaskUpdate(previous, saved, scope?.let { SeriesEdits.fromPatch(patch, saved.title) }, scope)
+            val removed = seriesHooks?.afterTaskUpdate(previous, saved, scope?.let { SeriesEdits.fromPatch(patch, saved.title) }, scope).orEmpty()
             if (patch.touchesAlarms) {
                 val snoozed = dao.snoozedReminders(id).mapNotNull { row ->
                     UtcText.parse(row.remindAt)?.let { SnoozedReminder(row.id, row.kind, it) }
@@ -137,7 +137,9 @@ class TasksRepository(
                 val stale = TaskRules.staleSnoozedReminderIds(updated, snoozed)
                 if (stale.isNotEmpty()) dao.deleteReminders(stale)
             }
+            removed
         }
+        seriesHooks?.discardBytes(doomed)
     }
 
     suspend fun setCompleted(id: String, completed: Boolean) =
