@@ -97,7 +97,7 @@ class AlarmReceiversTest {
         assertEquals(Notification.CATEGORY_REMINDER, posted.category)
         assertEquals(0, posted.flags and Notification.FLAG_INSISTENT)
         assertNull(posted.fullScreenIntent)
-        assertEquals(listOf("Complete", "5 min", "30 min"), posted.actions.map { it.title.toString() })
+        assertEquals(listOf("Complete", "15 min", "1 hour"), posted.actions.map { it.title.toString() })
         assertEquals(AudioAttributes.USAGE_NOTIFICATION, notifications.getNotificationChannel("reminder.system").audioAttributes.usage)
     }
 

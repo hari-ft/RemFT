@@ -54,7 +54,7 @@ class MissedCatchUpTest {
         val notification = posted.notification
         assertEquals(0, notification.flags and Notification.FLAG_INSISTENT)
         assertNull(notification.fullScreenIntent)
-        assertEquals(listOf("Complete", "5 min", "30 min"), notification.actions.map { it.title.toString() })
+        assertEquals(listOf("Complete", "15 min", "1 hour"), notification.actions.map { it.title.toString() })
         assertEquals("Missed while the phone was off", notification.extras.getString(Notification.EXTRA_SUB_TEXT))
         assertTrue(t.env.pending.read().isEmpty())
 
