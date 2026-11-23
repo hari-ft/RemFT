@@ -897,8 +897,6 @@
         <item quantity="one">%d file</item>
         <item quantity="other">%d files</item>
     </plurals>
-    <string name="lowui_deleteFolderBody">{folders} and {files} will be deleted. This cannot be undone.</string>
-    <string name="lowui_deleteFolderBodyBin">{folders} and {files} go to the recycle bin.</string>
     <string name="lownt_sectionCollapse">Collapse section</string>
     <string name="lownt_sectionExpand">Expand section</string>
     <string name="lowdt_folderCouldNotDelete">Could not delete the folder</string>
@@ -943,4 +941,10 @@
     <string name="alog_category_settings">Settings</string>
     <string name="alog_category_alarms">Alarms</string>
     <string name="alog_category_app">App</string>
+    <string name="folderblock_title">Can’t delete “{name}”</string>
+    <string name="folderblock_bodyFiles">Only empty folders can be deleted. Move or delete its {files} first.</string>
+    <string name="folderblock_bodyFolders">Only empty folders can be deleted. Move or delete its {folders} first.</string>
+    <string name="folderblock_bodyBoth">Only empty folders can be deleted. Move or delete its {files} and {folders} first.</string>
+    <string name="folderblock_notEmptyError">Only empty folders can be deleted.</string>
+    <string name="folderblock_ok">OK</string>
 </resources>

@@ -63,12 +63,10 @@ object FilesModule {
         holder: DatabaseHolder,
         identity: LocalIdentityRepository,
         bin: RecycleBin,
-        attachments: AttachmentStore,
     ): FilesRepository = FilesRepository(
         database = { holder.db },
         workspaceId = identity::workspaceId,
         bin = bin,
-        attachments = attachments,
     )
 
     @Provides

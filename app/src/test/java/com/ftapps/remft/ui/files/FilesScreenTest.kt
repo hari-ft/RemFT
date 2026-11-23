@@ -202,7 +202,7 @@ class FilesScreenTest {
     }
 
     @Test
-    fun deletingAFolderNamesTheRealRecycleBinPathAndCountsProperly() {
+    fun deletingAnEmptyFolderNamesTheRealRecycleBinPathAndAFullOneIsBlocked() {
         val empty = runBlocking { rig.files.createFolder("Empty", null) }
         val full = runBlocking { rig.files.createFolder("Full", null) }
         rig.add("one.txt", folderId = full)
@@ -217,7 +217,50 @@ class FilesScreenTest {
         compose.onNodeWithTag("folder-menu-$full").performClick()
         waitFor { exists("folder-action-delete") }
         compose.onNodeWithTag("folder-action-delete").performClick()
-        waitFor { textShown("1 folder and 1 file go to the recycle bin.") }
+        waitFor { textShown("Only empty folders can be deleted. Move or delete its 1 file first.") }
+        assertFalse(exists("folder-delete-confirm"))
+    }
+
+    @Test
+    fun aFolderWithFilesAndASubfolderShowsOnlyAnOkAndNothingIsDeleted() {
+        val full = runBlocking { rig.files.createFolder("Taxes", null) }
+        runBlocking { rig.files.createFolder("Old", full) }
+        rig.add("a.txt", folderId = full)
+        rig.add("b.txt", folderId = full)
+        rig.add("c.txt", folderId = full)
+        val before = listOf("folders", "file_rows", "trash_items").map { rig.query("SELECT * FROM $it ORDER BY id") }
+        showFiles()
+        waitFor { exists("folder-row-$full") }
+        compose.onNodeWithTag("folder-menu-$full").performClick()
+        waitFor { exists("folder-action-delete") }
+        compose.onNodeWithTag("folder-action-delete").performClick()
+        waitFor { exists("folder-delete-blocked") }
+        assertTrue(textShown("Can’t delete “Taxes”"))
+        assertTrue(textShown("Only empty folders can be deleted. Move or delete its 3 files and 1 folder first."))
+        assertFalse(exists("folder-delete-confirm"))
+        assertFalse(textShown("Cancel"))
+        compose.onNodeWithTag("folder-delete-blocked-ok").performClick()
+        waitFor { !exists("folder-delete-blocked") }
+        assertEquals(before, listOf("folders", "file_rows", "trash_items").map { rig.query("SELECT * FROM $it ORDER BY id") })
+    }
+
+    @Test
+    fun aFolderThatFillsUpBeforeTheConfirmIsRefusedWithARuleMessage() {
+        val folder = runBlocking { rig.files.createFolder("Receipts", null) }
+        val entity = runBlocking { rig.holder.db.filesDao().folder(folder)!! }
+        val ui = FileUiState()
+        val messages = ArrayList<String>()
+        var deleted = false
+        ui.dialog = FileDialog.DeleteFolder(entity, toBin = true) { deleted = true }
+        show { FileDialogsHost(ui, rig.environment, emptyList()) { messages.add(it) } }
+        waitFor { exists("folder-delete-confirm") }
+        rig.add("late.txt", folderId = folder)
+        compose.onNodeWithTag("folder-delete-confirm").performClick()
+        waitFor { messages.isNotEmpty() }
+        assertEquals(listOf("Only empty folders can be deleted."), messages)
+        assertFalse(deleted)
+        assertEquals(1, rig.query("SELECT id FROM folders").size)
+        assertTrue(rig.query("SELECT id FROM trash_items").isEmpty())
     }
 
     @Test
@@ -329,7 +372,7 @@ class FilesScreenTest {
         val ui = FileUiState()
         val messages = ArrayList<String>()
         var deleted = false
-        ui.dialog = FileDialog.DeleteFolder(entity, com.ftapps.remft.data.files.SubtreeCounts(1, 0), toBin = true) { deleted = true }
+        ui.dialog = FileDialog.DeleteFolder(entity, toBin = true) { deleted = true }
         show { FileDialogsHost(ui, rig.environment, emptyList()) { messages.add(it) } }
         waitFor { exists("folder-delete-confirm") }
         rig.failDatabase = true

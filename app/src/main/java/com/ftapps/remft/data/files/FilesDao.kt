@@ -63,9 +63,6 @@ interface FilesDao {
     )
     fun watchWorkspaceLevel(workspaceId: String): Flow<List<FileRowEntity>>
 
-    @Query("SELECT * FROM file_rows WHERE workspace_id = :workspaceId AND target_type = 'workspace' AND folder_id IN (:folderIds)")
-    suspend fun workspaceFilesIn(workspaceId: String, folderIds: List<String>): List<FileRowEntity>
-
     @Query(
         "SELECT f.*, 'task' AS source_type, t.title AS source_title FROM file_rows f JOIN tasks t ON t.id = f.target_id " +
             "WHERE f.target_type = 'task' AND f.workspace_id = :workspaceId " +
@@ -93,6 +90,9 @@ interface FilesDao {
 
     @Query("SELECT * FROM folders WHERE parent_id IN (:parentIds)")
     suspend fun anyChildrenOf(parentIds: List<String>): List<FolderEntity>
+
+    @Query("SELECT COUNT(*) FROM file_rows WHERE folder_id = :folderId")
+    suspend fun filesInFolder(folderId: String): Int
 
     @Query("SELECT * FROM folders WHERE id IN (:ids)")
     suspend fun folders(ids: List<String>): List<FolderEntity>

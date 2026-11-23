@@ -45,7 +45,7 @@ class TestFiles(
     val dir: File = tasks.attachments
     val bin = RecycleBin(database, binSettings ?: tasks.settings, dir, { workspace }, clock)
     val attachments = AttachmentStore(database, dir, bin, clock, maxBytes = maxBytes, fetchMissing = fetchMissing, canFetch = canFetch, downloaded = downloaded)
-    val files = FilesRepository(database, { workspace }, bin, attachments, clock)
+    val files = FilesRepository(database, { workspace }, bin, clock = clock)
     var picks: List<PickedFile> = emptyList()
     val environment = FilesEnvironment(
         attachments = attachments,
