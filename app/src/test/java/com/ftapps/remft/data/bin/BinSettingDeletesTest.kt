@@ -209,7 +209,7 @@ class BinSettingDeletesTest {
         assertTrue(bytes.isFile)
         assertEquals(1, t.count("SELECT id FROM tasks"))
         waitFor("the commit") { t.count("SELECT id FROM tasks") == 0 }
-        assertFalse(bytes.exists())
+        waitFor("the bytes") { !bytes.exists() }
         assertEquals(0, t.count("SELECT id FROM trash_items"))
         assertEquals(0, t.count("SELECT id FROM checklist_items"))
         assertEquals(0, t.count("SELECT id FROM reminders"))
@@ -268,7 +268,7 @@ class BinSettingDeletesTest {
         env.undo.post(id, "deleted") { notes.delete(id) }
         assertTrue(bytes.isFile)
         waitFor("the commit") { t.count("SELECT id FROM notes") == 0 }
-        assertFalse(bytes.exists())
+        waitFor("the bytes") { !bytes.exists() }
         assertEquals(0, t.count("SELECT id FROM trash_items"))
         assertEquals(0, t.count("SELECT id FROM file_rows"))
     }
