@@ -23,6 +23,11 @@ data class SourcedFileRow(
     @ColumnInfo(name = "source_title") val sourceTitle: String,
 )
 
+data class FolderFileCount(
+    @ColumnInfo(name = "folder_id") val folderId: String,
+    @ColumnInfo(name = "files") val files: Int,
+)
+
 @Dao
 interface FilesDao {
     @Query("SELECT * FROM file_rows WHERE id = :id")
@@ -97,6 +102,9 @@ interface FilesDao {
 
     @Query("SELECT COUNT(*) FROM file_rows WHERE folder_id IN (:folderIds)")
     suspend fun filesInFolders(folderIds: List<String>): Int
+
+    @Query("SELECT folder_id, COUNT(*) AS files FROM file_rows WHERE folder_id IS NOT NULL GROUP BY folder_id")
+    fun watchFolderFileCounts(): Flow<List<FolderFileCount>>
 
     @Query("SELECT * FROM folders WHERE id IN (:ids)")
     suspend fun folders(ids: List<String>): List<FolderEntity>

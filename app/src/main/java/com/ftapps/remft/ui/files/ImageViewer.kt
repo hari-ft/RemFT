@@ -153,6 +153,9 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.testTag("viewer-title"),
                 )
+                current?.let { row ->
+                    OneDriveNameLine(row.localPath, env, tag = "viewer-onedrive-name", itemTag = "viewer-onedrive-item")
+                }
                 if (ids.size > 1) {
                     Text(
                         stringResource(R.string.file_viewerCounter).fill(*counterArgs),

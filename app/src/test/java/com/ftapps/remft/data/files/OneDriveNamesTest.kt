@@ -35,12 +35,21 @@ class OneDriveNamesTest {
     }
 
     @Test
-    fun anUploadingOrFailedFileIsNotInOneDriveYet() = runBlocking {
+    fun anUploadingOrFailedFileWithNoRecordedPathIsNotInOneDriveYet() = runBlocking {
+        val stored = rig.storedName(rig.add("invoice.pdf"))
+        rig.mirror(stored, MirrorState.UPLOADING, null)
+        assertEquals(OneDriveName.NotYet, nameOf(names(true), stored))
+        rig.mirror(stored, MirrorState.FAILED, " ")
+        assertEquals(OneDriveName.NotYet, nameOf(names(true), stored))
+    }
+
+    @Test
+    fun anUploadingOrFailedFileWithARecordedPathIsUpdatingThere() = runBlocking {
         val stored = rig.storedName(rig.add("invoice.pdf"))
         rig.mirror(stored, MirrorState.UPLOADING, "Files/invoice.pdf")
-        assertEquals(OneDriveName.NotYet, nameOf(names(true), stored))
+        assertEquals(OneDriveName.Updating("Files/invoice.pdf"), nameOf(names(true), stored))
         rig.mirror(stored, MirrorState.FAILED, "Files/invoice.pdf")
-        assertEquals(OneDriveName.NotYet, nameOf(names(true), stored))
+        assertEquals(OneDriveName.Updating("Files/invoice.pdf"), nameOf(names(true), stored))
     }
 
     @Test
