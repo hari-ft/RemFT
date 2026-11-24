@@ -638,6 +638,22 @@ class MirrorStructureTest {
     }
 
     @Test
+    fun syncNowLooksForALostFileWithoutWaitingForItsPause() {
+        catchUp()
+        val id = row("01F2.txt")!!.itemId!!
+        remote.drop(id)
+        File(filesDir, "01F2.txt").delete()
+        sql.exec("UPDATE file_mirrors SET state = 'remote-missing', attempts = 3, updated_at = '2026-11-20T10:00:00.000Z' WHERE local_path = '01F2.txt'")
+        val calls = remote.moveCalls
+        catchUp()
+        assertEquals(calls, remote.moveCalls)
+        runBlocking { mirror().catchUp(force = true) }
+        assertTrue(remote.moveCalls > calls)
+        assertEquals(4, row("01F2.txt")!!.attempts)
+        assertTrue(remote.deletes.isEmpty())
+    }
+
+    @Test
     fun withFolderStateUnreadableFilesAreNotMoved() {
         catchUp()
         sql.exec("UPDATE file_rows SET name = 'guide.txt' WHERE id = 'F2'")

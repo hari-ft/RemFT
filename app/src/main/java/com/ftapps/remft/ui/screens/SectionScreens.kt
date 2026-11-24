@@ -22,6 +22,7 @@ fun FilesScreen(
     onOpenSettings: () -> Unit,
     onOpenTask: (String) -> Unit = {},
     onOpenNote: (String) -> Unit = {},
+    onOpenOneDrive: () -> Unit = {},
 ) {
-    FilesSection(bottomPadding, onOpenSettings, onOpenTask, onOpenNote)
+    FilesSection(bottomPadding, onOpenSettings, onOpenTask, onOpenNote, onOpenOneDrive)
 }

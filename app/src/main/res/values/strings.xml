@@ -1022,4 +1022,27 @@
         <item quantity="one">Attaching %d file to the note</item>
         <item quantity="other">Attaching %d files to the note</item>
     </plurals>
+    <string name="syncnow_action">Sync now</string>
+    <string name="syncnow_syncing">Syncing…</string>
+    <string name="syncnow_upToDate">OneDrive is up to date</string>
+    <string name="syncnow_synced">Synced: {parts}</string>
+    <string name="syncnow_partUploaded">{n} uploaded</string>
+    <string name="syncnow_partMoved">{n} moved</string>
+    <string name="syncnow_partReview">{n} moved to reviewneeded</string>
+    <string name="syncnow_partDownloaded">{n} downloaded</string>
+    <string name="syncnow_partFailed">{n} failed</string>
+    <string name="syncnow_stopped">Stopped early, {n} left to upload — syncing will continue on its own</string>
+    <string name="syncnow_off">OneDrive backup is off — turn it on above to sync your files</string>
+    <string name="syncnow_signedOut">OneDrive is not connected — connect it to sync</string>
+    <string name="syncnow_connect">Connect</string>
+    <string name="syncnow_restoreBusy">Busy, try again after the restore</string>
+    <string name="syncnow_busy">OneDrive is busy with a backup — try again in a moment</string>
+    <string name="syncnow_failed">Couldn’t sync: {error}</string>
+    <string name="syncnow_lastSynced">Last synced {date}</string>
+    <string name="syncnow_phaseFolders">Checking folders…</string>
+    <string name="syncnow_phaseMoving">Moving {done} of {total}…</string>
+    <string name="syncnow_phaseUploading">Uploading {done} of {total} · {name}</string>
+    <string name="syncnow_phaseUploadingBytes">Uploading {done} of {total} · {name} ({percent}%)</string>
+    <string name="syncnow_phaseChecking">Checking OneDrive…</string>
+    <string name="syncnow_phaseDownloading">Downloading {done} of {total}…</string>
 </resources>

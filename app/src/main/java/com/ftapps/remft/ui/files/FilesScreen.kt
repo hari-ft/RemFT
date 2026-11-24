@@ -32,6 +32,9 @@ import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -64,6 +67,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,6 +78,7 @@ import com.ftapps.remft.R
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.data.db.entity.FolderEntity
 import com.ftapps.remft.data.files.SourcedFileRow
+import com.ftapps.remft.data.onedrive.OneDriveSync
 import com.ftapps.remft.domain.Fold
 import com.ftapps.remft.domain.search.SearchMatch
 import com.ftapps.remft.domain.settings.DateFormatId
@@ -88,6 +93,8 @@ import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.components.SectionScaffold
 import com.ftapps.remft.ui.empty.EmptyIllustration
 import com.ftapps.remft.ui.empty.IllustratedEmptyState
+import com.ftapps.remft.ui.onedrive.SyncNowText
+import com.ftapps.remft.ui.onedrive.SyncProgressLine
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.GroupPosition
 import com.ftapps.remft.ui.theme.MarkedShapes
@@ -149,6 +156,7 @@ fun FilesSection(
     onOpenSettings: () -> Unit,
     onOpenTask: (String) -> Unit,
     onOpenNote: (String) -> Unit,
+    onOpenOneDrive: () -> Unit = {},
 ) {
     val env = LocalFilesEnvironment.current
     if (env == null) {
@@ -159,7 +167,7 @@ fun FilesSection(
         }
         return
     }
-    FilesScreen(env, bottomPadding, onOpenSettings, onOpenTask, onOpenNote)
+    FilesScreen(env, bottomPadding, onOpenSettings, onOpenTask, onOpenNote, onOpenOneDrive)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -170,6 +178,7 @@ fun FilesScreen(
     onOpenSettings: () -> Unit,
     onOpenTask: (String) -> Unit,
     onOpenNote: (String) -> Unit,
+    onOpenOneDrive: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -191,6 +200,22 @@ fun FilesScreen(
     val byId = remember(folders) { folders.associateBy { it.id } }
     val trail = path.mapNotNull { byId[it] }
     val message: (String) -> Unit = { text -> scope.launch { snackbar.showSnackbar(text) } }
+    val resources = LocalResources.current
+    val sync = env.oneDriveSync
+    if (sync != null) {
+        LaunchedEffect(sync) {
+            sync.results.collect { result ->
+                val text = SyncNowText.message(resources, result)
+                snackbar.currentSnackbarData?.dismiss()
+                if (SyncNowText.needsConnect(result)) {
+                    val answer = snackbar.showSnackbar(text, actionLabel = resources.getString(R.string.syncnow_connect))
+                    if (answer == SnackbarResult.ActionPerformed) onOpenOneDrive()
+                } else {
+                    snackbar.showSnackbar(text)
+                }
+            }
+        }
+    }
 
     LaunchedEffect(loadedFolders, path) {
         if (loadedFolders == null) return@LaunchedEffect
@@ -264,6 +289,7 @@ fun FilesScreen(
                     if (!searching) {
                         RemftIconButton(icon = Icons.Outlined.Search, label = stringResource(R.string.common_search), onClick = { searching = true }, modifier = Modifier.testTag("files-search-open"))
                     }
+                    if (sync != null) SyncNowAction(sync)
                     SortMenu(sort) { next -> scope.launch { env.settings.set(SettingKeys.FilesSort.name, next.encode()) } }
                     RemftIconButton(icon = Icons.Outlined.Settings, label = stringResource(R.string.settings_title), onClick = onOpenSettings, modifier = Modifier.testTag("open-settings"))
                 },
@@ -273,6 +299,7 @@ fun FilesScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()).testTag("screen-files"), contentAlignment = Alignment.TopCenter) {
             Column(Modifier.widthIn(max = Breakpoints.detailMaxWidth).fillMaxSize()) {
+                if (sync != null) SyncProgressStrip(sync)
                 val layerColors = SegmentedButtonDefaults.colors(
                     activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
                     activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -332,6 +359,34 @@ fun FilesScreen(
         }
     }
     FileDialogsHost(ui, env, folders, message)
+}
+
+@Composable
+private fun SyncNowAction(sync: OneDriveSync) {
+    val available by remember(sync) { sync.available }.collectAsState(false)
+    val running by sync.running.collectAsState()
+    if (!available) return
+    if (running) {
+        Box(Modifier.size(48.dp).testTag("files-sync-now-running"), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        }
+    } else {
+        RemftIconButton(
+            icon = Icons.Outlined.Sync,
+            label = stringResource(R.string.syncnow_action),
+            onClick = { sync.start() },
+            modifier = Modifier.testTag("files-sync-now"),
+        )
+    }
+}
+
+@Composable
+private fun SyncProgressStrip(sync: OneDriveSync) {
+    val available by remember(sync) { sync.available }.collectAsState(false)
+    val progress by sync.progress.collectAsState()
+    val now = progress
+    if (!available || now == null) return
+    SyncProgressLine(now, Modifier.fillMaxWidth().padding(horizontal = Space.x4, vertical = Space.x1).testTag("files-sync-progress"))
 }
 
 @Composable

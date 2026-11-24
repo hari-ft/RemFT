@@ -11,6 +11,7 @@ import com.ftapps.remft.data.files.AttachmentTooLarge
 import com.ftapps.remft.data.files.FilesRepository
 import com.ftapps.remft.data.files.MimeTypes
 import com.ftapps.remft.data.files.OneDriveNames
+import com.ftapps.remft.data.onedrive.OneDriveSync
 import com.ftapps.remft.data.prefs.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -191,6 +192,7 @@ class FilesEnvironment(
     val pickOverride: (suspend (AttachSource) -> List<PickedFile>)? = null,
     val oneDriveNames: OneDriveNames? = null,
     val deviceSaver: DeviceSaver? = null,
+    val oneDriveSync: OneDriveSync? = null,
     val uriForFile: (Context, String, File) -> Uri = { context, authority, file -> FileProvider.getUriForFile(context, authority, file) },
 )
 

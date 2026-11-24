@@ -22,6 +22,9 @@ import com.ftapps.remft.domain.backup.mirror.RemoteItem
 import com.ftapps.remft.domain.settings.SettingKeys
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -39,7 +42,26 @@ data class MirrorCatchUp(
     val stoppedBy: String? = null,
     val movedToReview: Int = 0,
     val moved: Int = 0,
+    val errors: Set<String> = emptySet(),
 )
+
+enum class MirrorPhase { Folders, Moving, Uploading, Checking, Downloading }
+
+data class MirrorProgress(
+    val phase: MirrorPhase,
+    val done: Int = 0,
+    val total: Int = 0,
+    val name: String? = null,
+    val bytes: Long = 0,
+    val size: Long = 0,
+) {
+    val fraction: Float?
+        get() {
+            if (total <= 0) return null
+            val part = if (size > 0) bytes.coerceIn(0, size).toFloat() / size else 0f
+            return ((done + part) / total).coerceIn(0f, 1f)
+        }
+}
 
 data class MirrorCounts(val files: Int, val mirrored: Int, val toDownload: Int, val notFound: Int = 0)
 
@@ -50,7 +72,7 @@ data class PendingDownload(val row: MirrorRecord) {
 data class FileHashes(val sha256: String, val quickXor: String, val size: Long)
 
 interface BackupMirror {
-    suspend fun catchUp(deadline: Instant? = null): MirrorCatchUp
+    suspend fun catchUp(deadline: Instant? = null, force: Boolean = false): MirrorCatchUp
     suspend fun planForBackup(backupAt: Instant): Map<String, MirrorRef>
 }
 
@@ -65,6 +87,8 @@ class FileMirror(
 ) : BackupMirror {
     private val catchUpLock = Mutex()
     private val downloadLocks = ConcurrentHashMap<String, Mutex>()
+    private val progressState = MutableStateFlow<MirrorProgress?>(null)
+    val progress: StateFlow<MirrorProgress?> = progressState.asStateFlow()
 
     suspend fun neededFiles(): Map<String, NeededFile> {
         val layout = io { MirrorLayout.read(sql) }
@@ -117,14 +141,37 @@ class FileMirror(
         return MirrorCounts(needed.size, mirrored, toDownload, notFound)
     }
 
-    override suspend fun catchUp(deadline: Instant?): MirrorCatchUp = catchUpLock.withLock { runCatchUp(deadline) }
-
-    private fun pass(deadline: Instant?) = MirrorPass(sql, remote, store, filesDir, clock, log) {
-        stopRequested() || (deadline != null && clock().isAfter(deadline))
+    override suspend fun catchUp(deadline: Instant?, force: Boolean): MirrorCatchUp = catchUpLock.withLock {
+        try {
+            if (force) retryNow()
+            runCatchUp(deadline, force)
+        } finally {
+            progressState.value = null
+        }
     }
 
-    private suspend fun runCatchUp(deadline: Instant?): MirrorCatchUp {
-        val pass = pass(deadline)
+    private suspend fun retryNow() {
+        val names = rows().values
+            .filter { (it.state == MirrorState.FAILED || it.state == MirrorState.MISSING) && it.attempts > 0 && local(it.localPath).isFile }
+            .map { it.localPath }
+        if (names.isEmpty()) return
+        io {
+            sql.inTransaction {
+                for (name in names) sql.exec("UPDATE file_mirrors SET attempts = 0 WHERE local_path = ?", arrayOf(name))
+            }
+        }
+    }
+
+    private fun pass(deadline: Instant?, force: Boolean = false) = MirrorPass(
+        sql, remote, store, filesDir, clock, log,
+        past = { stopRequested() || (deadline != null && clock().isAfter(deadline)) },
+        force = force,
+        onMoving = { done, total -> progressState.value = MirrorProgress(MirrorPhase.Moving, done, total) },
+    )
+
+    private suspend fun runCatchUp(deadline: Instant?, force: Boolean): MirrorCatchUp {
+        val pass = pass(deadline, force)
+        val errors = LinkedHashSet<String>()
         var uploaded = 0
         var uploadFailed = 0
         var todo: List<Pair<String, String>>? = null
@@ -136,6 +183,7 @@ class FileMirror(
             stoppedBy = stoppedBy,
             movedToReview = pass.reviewed,
             moved = pass.foldersMoved + pass.filesMoved,
+            errors = errors,
         )
         fun placedLog() {
             if (pass.foldersMoved > 0 || pass.filesMoved > 0) {
@@ -143,6 +191,7 @@ class FileMirror(
             }
             if (pass.reviewed > 0) log.info("mirror.moved_to_review", mapOf("items" to pass.reviewed))
         }
+        progressState.value = MirrorProgress(MirrorPhase.Folders)
         val layout = io { MirrorLayout.read(sql) }
         pass.load()
         try {
@@ -155,14 +204,18 @@ class FileMirror(
             todo = pending
             for ((name, path) in pending) {
                 if (stopRequested() || (deadline != null && clock().isAfter(deadline))) throw MirrorStop(null)
+                val step = MirrorProgress(MirrorPhase.Uploading, done, pending.size, MirrorPaths.leafName(path), 0, local(name).length())
+                progressState.value = step
                 try {
-                    if (uploadOne(name, path)) uploaded++ else uploadFailed++
+                    if (uploadOne(name, path) { sent -> progressState.value = step.copy(bytes = sent) }) uploaded++ else uploadFailed++
                 } catch (e: OneDriveException) {
                     if (e.code in MirrorPlan.STOP_CODES) throw MirrorStop(e.code)
+                    errors.add(e.code)
                     uploadFailed++
                 }
                 done++
             }
+            progressState.value = MirrorProgress(MirrorPhase.Checking)
             if (uploaded > 0 || uploadFailed > 0) log.info("mirror.catch_up", mapOf("uploaded" to uploaded, "failed" to uploadFailed))
             try {
                 pass.review(layout, needed, rows())
@@ -176,6 +229,7 @@ class FileMirror(
                 log.warn("mirror.review_failed", e)
             }
             placedLog()
+            synced()
             return result()
         } catch (stop: MirrorStop) {
             placedLog()
@@ -186,12 +240,16 @@ class FileMirror(
         }
     }
 
+    private suspend fun synced() {
+        store.set(SettingKeys.MirrorLastSync.name, UtcText.format(clock()))
+    }
+
     private suspend fun pendingUploads(): Int {
         val rows = rows()
         return neededFiles().keys.count { rows[it]?.state != MirrorState.MIRRORED && local(it).isFile }
     }
 
-    suspend fun uploadOne(storedName: String, remotePath: String): Boolean {
+    suspend fun uploadOne(storedName: String, remotePath: String, onBytes: ((Long) -> Unit)? = null): Boolean {
         check(MirrorPaths.isMirrorPath(remotePath)) { "Not a mirror path" }
         val file = local(storedName)
         val hashes = try {
@@ -213,7 +271,7 @@ class FileMirror(
             )
         }
         val item: RemoteItem = try {
-            remote.putFile(file, remotePath)
+            remote.putFile(file, remotePath, onProgress = onBytes)
         } catch (e: OneDriveException) {
             log.warn("mirror.upload_failed", fields = mapOf("code" to e.code))
             fail(storedName, e.code)
@@ -353,6 +411,7 @@ class FileMirror(
         store.set(SettingKeys.MirrorFolders.name, MirrorFolders.encode(emptyMap()))
         store.remove(SettingKeys.MirrorBinLeftovers.name)
         store.remove(SettingKeys.MirrorReviewSweptAt.name)
+        store.remove(SettingKeys.MirrorLastSync.name)
         log.info("mirror.account_changed", mapOf("files" to names.size))
     }
 

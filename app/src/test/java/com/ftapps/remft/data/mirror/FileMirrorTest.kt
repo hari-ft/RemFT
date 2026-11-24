@@ -18,6 +18,9 @@ import com.ftapps.remft.domain.backup.mirror.QuickXorHash
 import com.ftapps.remft.domain.backup.mirror.RemoteItem
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.testing.TestDatabases
+import com.ftapps.remft.domain.time.UtcText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -111,6 +114,44 @@ class FileMirrorTest {
         assertEquals(0, mirror().catchUp().uploaded)
         assertTrue(remote.puts.isEmpty())
         assertTrue(remote.deletes.isEmpty())
+    }
+
+    @Test
+    fun syncNowRetriesAFailedUploadWithItsAttemptsReset() = runBlocking {
+        val path = "Files/Tasks/Pay rent/receipt (F1).png"
+        remote.failPuts[path] = OneDriveErrors.FULL
+        val first = mirror().catchUp()
+        assertEquals(1, first.failed)
+        assertTrue(OneDriveErrors.FULL in first.errors)
+        mirror().catchUp()
+        assertEquals(MirrorState.FAILED, row("01F1.png")!!.state)
+        assertEquals(2, row("01F1.png")!!.attempts)
+        remote.failPuts.clear()
+        val forced = mirror().catchUp(force = true)
+        assertEquals(1, forced.uploaded)
+        assertEquals(0, forced.failed)
+        assertEquals(MirrorState.MIRRORED, row("01F1.png")!!.state)
+        assertEquals(1, row("01F1.png")!!.attempts)
+        assertEquals(now, UtcText.parse(rig.store.get(SettingKeys.MirrorLastSync.name)))
+    }
+
+    @Test
+    fun progressGoesFoldersThenEachUploadThenChecking() = runBlocking {
+        val m = mirror()
+        val seen = java.util.Collections.synchronizedList(ArrayList<MirrorProgress?>())
+        val watcher = launch(Dispatchers.Unconfined) { m.progress.collect { seen.add(it) } }
+        val atPut = ArrayList<MirrorProgress?>()
+        remote.onPut = { atPut.add(m.progress.value) }
+        m.catchUp()
+        watcher.cancel()
+        assertNull(m.progress.value)
+        assertEquals(listOf(MirrorPhase.Uploading, MirrorPhase.Uploading), atPut.map { it?.phase })
+        assertEquals(listOf(0, 1), atPut.map { it?.done })
+        assertEquals(listOf(2, 2), atPut.map { it?.total })
+        assertEquals(setOf("receipt (F1).png", "manual (F2).txt"), atPut.map { it?.name }.toSet())
+        val phases = seen.map { it?.phase }.fold(ArrayList<MirrorPhase?>()) { out, p -> if (out.lastOrNull() != p || out.isEmpty()) out.add(p); out }
+        assertEquals(listOf(null, MirrorPhase.Folders, MirrorPhase.Uploading, MirrorPhase.Checking, null), phases)
+        assertTrue(seen.any { it?.phase == MirrorPhase.Uploading && it.bytes == it.size && it.size > 0 })
     }
 
     @Test
@@ -310,6 +351,8 @@ class FakeRemote : MirrorRemote {
     val failMoves = HashSet<String>()
     val history = HashMap<String, MutableList<String>>()
     var corruptNextPut = false
+    val failPuts = HashMap<String, String>()
+    var onPut: ((String) -> Unit)? = null
 
     fun addFile(path: String, bytes: ByteArray): String {
         ensureParent(path)
@@ -359,12 +402,15 @@ class FakeRemote : MirrorRemote {
         id
     }
 
-    override suspend fun putFile(file: File, path: String, contentType: String): RemoteItem {
+    override suspend fun putFile(file: File, path: String, contentType: String, onProgress: ((Long) -> Unit)?): RemoteItem {
         puts.add(path)
+        onPut?.invoke(path)
+        failPuts[path]?.let { throw OneDriveException(it) }
         val bytes = file.readBytes()
         val id = idOfPath(path)?.also { items[it]!!.bytes = bytes } ?: addFile(path, bytes)
         val stored = if (corruptNextPut) bytes + byteArrayOf(0) else bytes
         corruptNextPut = false
+        onProgress?.invoke(bytes.size.toLong())
         items[id]!!.bytes = stored
         return RemoteItem(id, path.substringAfterLast('/'), stored.size.toLong(), QuickXorHash.of(stored))
     }

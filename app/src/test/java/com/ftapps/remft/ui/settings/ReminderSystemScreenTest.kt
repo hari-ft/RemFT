@@ -39,7 +39,10 @@ class ReminderSystemScreenTest {
 
     private fun stored(): ReminderProfile = ReminderProfile.parse(alarms.setting(SettingKeys.ReminderProfile))
 
-    private fun waitForSlots(slots: List<Int>) = compose.waitFor { compose.tagCount("reminder-step-${slots.lastIndex}") == 1 && compose.tagCount("reminder-step-${slots.size}") == 0 }
+    private fun waitForSlots(slots: List<Int>) = compose.waitFor {
+        compose.tagCount("reminder-step-${slots.lastIndex}") == 1 && compose.tagCount("reminder-step-${slots.size}") == 0 &&
+            slots.all { m -> compose.textCount(if (m == 0) "on time" else "+$m min") >= 1 }
+    }
 
     @Test
     fun standardIsTheDefaultAndShowsTheTimeline() {
