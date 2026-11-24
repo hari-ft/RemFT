@@ -1,3 +1,5 @@
+import java.time.Duration
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
@@ -20,5 +22,5 @@ dependencies {
 tasks.withType<Test>().configureEach {
     systemProperty("fixtures.dir", rootProject.file("fixtures").absolutePath)
     maxParallelForks = 3
-    timeout.set(java.time.Duration.ofMinutes(10))
+    timeout.set(Duration.ofMinutes(10))
 }

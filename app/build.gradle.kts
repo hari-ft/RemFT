@@ -1,3 +1,4 @@
+import java.time.Duration
 import java.util.Properties
 
 plugins {
@@ -127,7 +128,7 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
 
 tasks.withType<Test>().configureEach {
     maxParallelForks = 2
-    timeout.set(java.time.Duration.ofMinutes(15))
+    timeout.set(Duration.ofMinutes(15))
 }
 
 val copyReleaseToBuildsFt = tasks.register("copyReleaseToBuildsFt") {
