@@ -19,4 +19,5 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     systemProperty("fixtures.dir", rootProject.file("fixtures").absolutePath)
+    maxParallelForks = 3
 }
