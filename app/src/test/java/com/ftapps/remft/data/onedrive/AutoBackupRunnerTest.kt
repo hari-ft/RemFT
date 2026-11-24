@@ -227,7 +227,7 @@ class FakeBackupMirror : BackupMirror {
     var plan: Map<String, MirrorRef> = emptyMap()
     var planError: Exception? = null
 
-    override suspend fun catchUp(deadline: Instant?): MirrorCatchUp {
+    override suspend fun catchUp(deadline: Instant?, force: Boolean): MirrorCatchUp {
         catchUps++
         return MirrorCatchUp()
     }

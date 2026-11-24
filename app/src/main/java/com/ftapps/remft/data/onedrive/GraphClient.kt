@@ -48,7 +48,7 @@ interface BackupDestination {
 }
 
 interface MirrorRemote {
-    suspend fun putFile(file: File, path: String, contentType: String = OCTET_STREAM): RemoteItem
+    suspend fun putFile(file: File, path: String, contentType: String = OCTET_STREAM, onProgress: ((Long) -> Unit)? = null): RemoteItem
     suspend fun itemsById(ids: Collection<String>): Map<String, RemoteItem?>
     suspend fun listFolder(path: String): List<RemoteEntry>?
     suspend fun childrenOf(itemId: String): List<RemoteEntry>?
@@ -112,15 +112,15 @@ class GraphClient(
         guard { put(zip, name, ZIP) }
     }
 
-    override suspend fun putFile(file: File, path: String, contentType: String): RemoteItem = guard {
-        val res = put(file, path, contentType)
+    override suspend fun putFile(file: File, path: String, contentType: String, onProgress: ((Long) -> Unit)?): RemoteItem = guard {
+        val res = put(file, path, contentType, onProgress)
         remoteItem(res.json) ?: throw OneDriveException(OneDriveErrors.ERROR)
     }
 
-    private suspend fun put(file: File, path: String, contentType: String): GraphResponse {
+    private suspend fun put(file: File, path: String, contentType: String, onProgress: ((Long) -> Unit)? = null): GraphResponse {
         if (!file.isFile) throw LocalFileGone()
         val size = file.length()
-        if (size >= SIMPLE_UPLOAD_MAX) return uploadInChunks(file, path, size)
+        if (size >= SIMPLE_UPLOAD_MAX) return uploadInChunks(file, path, size, onProgress)
         return ensureOk(
             graph(
                 "PUT",
@@ -384,7 +384,7 @@ class GraphClient(
         return first.substringBefore('-').toLongOrNull()
     }
 
-    private suspend fun uploadInChunks(file: File, name: String, size: Long): GraphResponse {
+    private suspend fun uploadInChunks(file: File, name: String, size: Long, onProgress: ((Long) -> Unit)? = null): GraphResponse {
         var url = createSession(name)
         var sessions = 1
         var offset = 0L
@@ -410,10 +410,14 @@ class GraphClient(
                     null
                 }
                 val status = res?.code
-                if (res != null && (res.code == 200 || res.code == 201)) return res
+                if (res != null && (res.code == 200 || res.code == 201)) {
+                    onProgress?.invoke(size)
+                    return res
+                }
                 if (res != null && res.code == 202) {
                     offset = nextOffset(res) ?: end
                     failures = 0
+                    onProgress?.invoke(offset)
                     continue
                 }
                 if (status == 404 && sessions < MAX_SESSIONS) {

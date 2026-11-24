@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -20,6 +21,8 @@ import com.ftapps.remft.data.backup.RestoreStage
 import com.ftapps.remft.data.mirror.MirrorCounts
 import com.ftapps.remft.data.mirror.MirrorDownloadPhase
 import com.ftapps.remft.data.mirror.MirrorDownloadState
+import com.ftapps.remft.data.mirror.MirrorPhase
+import com.ftapps.remft.data.mirror.MirrorProgress
 import com.ftapps.remft.data.onedrive.AutoBackupSnapshot
 import com.ftapps.remft.data.onedrive.AutoBackupTrouble
 import com.ftapps.remft.domain.backup.auto.AutoBackupPause
@@ -266,5 +269,60 @@ class AutoBackupScreenTest {
         compose.onNodeWithText("Downloading the backup…").assertIsDisplayed()
         restore = RestoreUiState.Running(RestoreStage.Files, 2, 5)
         compose.onNodeWithText("Downloading files from OneDrive… 2 of 5").assertIsDisplayed()
+    }
+
+    @Test
+    fun syncNowShowsLastSyncedAndRunsOnTap() {
+        var syncs = 0
+        compose.setContent {
+            RemftTheme {
+                AutoBackupContent(
+                    AutoBackupUi(
+                        snapshot(),
+                        counts = MirrorCounts(files = 3, mirrored = 3, toDownload = 0),
+                        dateFormat = DateFormatId.Iso,
+                        lastSynced = Instant.parse("2026-11-20T09:30:00Z"),
+                    ),
+                    onBack = {},
+                    actions = AutoBackupActions(onSyncNow = { syncs++ }),
+                )
+            }
+        }
+        reveal("auto-backup-sync-now")
+        compose.onNodeWithTag("auto-backup-mirror-last-synced").assertIsDisplayed()
+        compose.onNodeWithText("Last synced", substring = true).assertIsDisplayed()
+        compose.onNodeWithTag("auto-backup-sync-now").assertIsEnabled()
+        compose.onNodeWithTag("auto-backup-sync-now").performClick()
+        assertEquals(1, syncs)
+        compose.onNodeWithTag("auto-backup-mirror-progress").assertDoesNotExist()
+    }
+
+    @Test
+    fun aRunningSyncShowsItsProgressAndBlocksASecondTap() {
+        var syncs = 0
+        var progress by mutableStateOf<MirrorProgress?>(MirrorProgress(MirrorPhase.Uploading, done = 2, total = 12, name = "invoice.pdf"))
+        compose.setContent {
+            RemftTheme {
+                AutoBackupContent(
+                    AutoBackupUi(snapshot(), counts = MirrorCounts(files = 12, mirrored = 2, toDownload = 0), syncing = true, progress = progress),
+                    onBack = {},
+                    actions = AutoBackupActions(onSyncNow = { syncs++ }),
+                )
+            }
+        }
+        reveal("auto-backup-sync-now")
+        compose.onNodeWithText("Uploading 3 of 12 · invoice.pdf").assertIsDisplayed()
+        compose.onNodeWithTag("auto-backup-sync-now").assertIsNotEnabled()
+        compose.onNodeWithText("Syncing…").assertIsDisplayed()
+        compose.onNodeWithTag("auto-backup-sync-now").performClick()
+        assertEquals(0, syncs)
+        progress = MirrorProgress(MirrorPhase.Uploading, done = 2, total = 12, name = "invoice.pdf", bytes = 50, size = 100)
+        compose.onNodeWithText("Uploading 3 of 12 · invoice.pdf (50%)").assertIsDisplayed()
+        progress = MirrorProgress(MirrorPhase.Moving, done = 1, total = 5)
+        compose.onNodeWithText("Moving 2 of 5…").assertIsDisplayed()
+        progress = MirrorProgress(MirrorPhase.Folders)
+        compose.onNodeWithText("Checking folders…").assertIsDisplayed()
+        progress = MirrorProgress(MirrorPhase.Downloading, done = 0, total = 3)
+        compose.onNodeWithText("Downloading 1 of 3…").assertIsDisplayed()
     }
 }

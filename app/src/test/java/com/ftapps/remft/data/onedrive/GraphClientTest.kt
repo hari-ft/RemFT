@@ -123,6 +123,21 @@ class GraphClientTest {
     }
 
     @Test
+    fun aLargeMirrorUploadReportsItsBytesAfterEachChunk() = runBlocking {
+        val chunk = 6 * GraphClient.CHUNK_UNIT
+        val size = GraphClient.SIMPLE_UPLOAD_MAX.toInt()
+        val session = server.url("/upload/1").toString()
+        server.enqueue(json(200, """{"uploadUrl":"$session"}"""))
+        server.enqueue(json(202, """{"nextExpectedRanges":["$chunk-"]}"""))
+        server.enqueue(json(202, """{"nextExpectedRanges":["${2 * chunk}-"]}"""))
+        server.enqueue(json(201, """{"id":"BIG","name":"big (F9).bin","size":$size}"""))
+        val sent = ArrayList<Long>()
+        val item = client(chunk).putFile(file(ByteArray(size)), "Files/Other/big (F9).bin") { sent.add(it) }
+        assertEquals("BIG", item.id)
+        assertEquals(listOf(chunk.toLong(), 2L * chunk, size.toLong()), sent)
+    }
+
+    @Test
     fun listFollowsTheNextLinkAndKeepsOnlyFiles() = runBlocking {
         val next = server.url("/v1.0/me/drive/special/approot/children?page=2").toString()
         server.enqueue(

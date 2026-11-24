@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,11 +29,15 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PauseCircleOutline
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -50,6 +55,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -58,6 +64,8 @@ import com.ftapps.remft.R
 import com.ftapps.remft.data.mirror.MirrorCounts
 import com.ftapps.remft.data.mirror.MirrorDownloadPhase
 import com.ftapps.remft.data.mirror.MirrorDownloadState
+import com.ftapps.remft.data.mirror.MirrorPhase
+import com.ftapps.remft.data.mirror.MirrorProgress
 import com.ftapps.remft.data.onedrive.AutoBackupSnapshot
 import com.ftapps.remft.domain.backup.auto.BackupFrequency
 import com.ftapps.remft.domain.backup.auto.BackupSchedule
@@ -71,6 +79,7 @@ import com.ftapps.remft.ui.components.PreviewSurface
 import com.ftapps.remft.ui.components.RemftDialog
 import com.ftapps.remft.ui.components.RemftFilledButton
 import com.ftapps.remft.ui.components.RemftTextButton
+import com.ftapps.remft.ui.components.RemftTonalButton
 import com.ftapps.remft.ui.components.RemftTimePickerDialog
 import com.ftapps.remft.ui.components.SectionScaffold
 import com.ftapps.remft.ui.components.stringFilled
@@ -94,6 +103,9 @@ data class AutoBackupUi(
     val downloads: MirrorDownloadState = MirrorDownloadState(),
     val busy: Boolean = false,
     val dateFormat: DateFormatId = DateFormatId.System,
+    val syncing: Boolean = false,
+    val progress: MirrorProgress? = null,
+    val lastSynced: Instant? = null,
 )
 
 class AutoBackupActions(
@@ -105,6 +117,7 @@ class AutoBackupActions(
     val onBackUpNow: () -> Unit = {},
     val onBackUpAnyway: () -> Unit = {},
     val onRetryDownloads: () -> Unit = {},
+    val onSyncNow: () -> Unit = {},
 )
 
 @Composable
@@ -114,11 +127,15 @@ fun AutoBackupScreen(onBack: () -> Unit, viewModel: AutoBackupViewModel = hiltVi
     val downloads by viewModel.downloadState.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val dateFormat by viewModel.dateFormat.collectAsStateWithLifecycle()
+    val syncing by viewModel.syncing.collectAsStateWithLifecycle()
+    val syncProgress by viewModel.syncProgress.collectAsStateWithLifecycle()
+    val lastSynced by viewModel.lastSynced.collectAsStateWithLifecycle()
     val resources = LocalResources.current
     val snackbars = remember { SnackbarHostState() }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         viewModel.onSignInResult(result.data)
     }
+    val connect = { viewModel.signInIntent()?.let { runCatching { launcher.launch(it) } } }
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->
             val text = when (message) {
@@ -126,17 +143,23 @@ fun AutoBackupScreen(onBack: () -> Unit, viewModel: AutoBackupViewModel = hiltVi
                 is AutoBackupMessage.Error -> resources.getString(AutoBackupText.error(message.code))
                 AutoBackupMessage.Working -> resources.getString(R.string.autoBackup_working)
                 AutoBackupMessage.Disconnected -> resources.getString(R.string.autoBackup_disconnected)
+                is AutoBackupMessage.Synced -> SyncNowText.message(resources, message.result)
             }
             snackbars.currentSnackbarData?.dismiss()
-            snackbars.showSnackbar(text)
+            if (message is AutoBackupMessage.Synced && SyncNowText.needsConnect(message.result)) {
+                val answer = snackbars.showSnackbar(text, actionLabel = resources.getString(R.string.syncnow_connect))
+                if (answer == SnackbarResult.ActionPerformed) connect()
+            } else {
+                snackbars.showSnackbar(text)
+            }
         }
     }
     Box(Modifier.fillMaxSize()) {
         AutoBackupContent(
-            ui = AutoBackupUi(snapshot, counts, downloads, busy, dateFormat),
+            ui = AutoBackupUi(snapshot, counts, downloads, busy, dateFormat, syncing, syncProgress, lastSynced),
             onBack = onBack,
             actions = AutoBackupActions(
-                onConnect = { viewModel.signInIntent()?.let { runCatching { launcher.launch(it) } } },
+                onConnect = { connect() },
                 onSetOn = viewModel::setOn,
                 onDisconnect = viewModel::disconnect,
                 onSchedule = viewModel::setSchedule,
@@ -144,6 +167,7 @@ fun AutoBackupScreen(onBack: () -> Unit, viewModel: AutoBackupViewModel = hiltVi
                 onBackUpNow = viewModel::backUpNow,
                 onBackUpAnyway = viewModel::backUpAnyway,
                 onRetryDownloads = viewModel::retryDownloads,
+                onSyncNow = viewModel::syncNow,
             ),
         )
         SnackbarHost(
@@ -227,7 +251,7 @@ fun AutoBackupContent(ui: AutoBackupUi, onBack: () -> Unit, actions: AutoBackupA
             item { ScheduleCard(s, ui, onEdit = { dialog = it }) }
             item { SettingsSectionHeader(stringResource(R.string.setx_sectionStorage)) }
             if (s.connected) {
-                item { MirrorStatusCard(ui.counts, ui.downloads, actions.onRetryDownloads) }
+                item { MirrorStatusCard(ui, actions) }
                 item { Spacer(Modifier.height(Space.x3)) }
             }
             item {
@@ -380,14 +404,17 @@ private fun ScheduleCard(s: AutoBackupSnapshot, ui: AutoBackupUi, onEdit: (AutoB
 }
 
 @Composable
-private fun MirrorStatusCard(counts: MirrorCounts?, downloads: MirrorDownloadState, onRetry: () -> Unit) {
+private fun MirrorStatusCard(ui: AutoBackupUi, actions: AutoBackupActions) {
     val resources = LocalResources.current
+    val counts = ui.counts
+    val downloads = ui.downloads
+    val progress = ui.progress
     val lines = buildList {
         if (counts != null) {
             add(resources.getString(R.string.mirror_counts).fill("n" to counts.mirrored, "total" to counts.files))
             if (counts.notFound > 0) add(resources.getString(R.string.mirror_notFound).fill("n" to counts.notFound))
         }
-        AutoBackupText.downloadLine(resources, downloads)?.let { add(it) }
+        if (progress?.phase != MirrorPhase.Downloading) AutoBackupText.downloadLine(resources, downloads)?.let { add(it) }
     }
     SettingsCard {
         SettingsItem(
@@ -399,6 +426,32 @@ private fun MirrorStatusCard(counts: MirrorCounts?, downloads: MirrorDownloadSta
                 Column {
                     if (lines.isNotEmpty()) {
                         Text(lines.joinToString("\n"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    ui.lastSynced?.let { at ->
+                        Text(
+                            stringFilled(R.string.syncnow_lastSynced, "date" to formatBackupDate(at, ui.dateFormat)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("auto-backup-mirror-last-synced"),
+                        )
+                    }
+                    if (progress != null) {
+                        Spacer(Modifier.height(Space.x2))
+                        SyncProgressLine(progress, Modifier.testTag("auto-backup-mirror-progress"))
+                    }
+                    Spacer(Modifier.height(Space.x2))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RemftTonalButton(
+                            stringResource(if (ui.syncing) R.string.syncnow_syncing else R.string.syncnow_action),
+                            onClick = actions.onSyncNow,
+                            enabled = !ui.syncing,
+                            icon = Icons.Outlined.Sync,
+                            modifier = Modifier.testTag("auto-backup-sync-now"),
+                        )
+                        if (ui.syncing) {
+                            Spacer(Modifier.width(Space.x3))
+                            CircularProgressIndicator(Modifier.size(20.dp).testTag("auto-backup-sync-spinner"), strokeWidth = 2.dp)
+                        }
                     }
                     Spacer(Modifier.height(Space.x1))
                     Text(
@@ -415,11 +468,32 @@ private fun MirrorStatusCard(counts: MirrorCounts?, downloads: MirrorDownloadSta
                         modifier = Modifier.testTag("auto-backup-mirror-review"),
                     )
                     if (downloads.phase == MirrorDownloadPhase.Waiting) {
-                        RemftTextButton(stringResource(R.string.mirror_retry), onClick = onRetry, modifier = Modifier.testTag("auto-backup-mirror-retry"))
+                        RemftTextButton(stringResource(R.string.mirror_retry), onClick = actions.onRetryDownloads, modifier = Modifier.testTag("auto-backup-mirror-retry"))
                     }
                 }
             },
         )
+    }
+}
+
+@Composable
+fun SyncProgressLine(progress: MirrorProgress, modifier: Modifier = Modifier) {
+    val resources = LocalResources.current
+    Column(modifier) {
+        Text(
+            SyncNowText.progress(resources, progress),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(Space.x1))
+        val fraction = progress.fraction
+        if (fraction != null) {
+            LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().testTag("sync-progress-bar"))
+        } else {
+            LinearProgressIndicator(Modifier.fillMaxWidth().testTag("sync-progress-bar"))
+        }
     }
 }
 

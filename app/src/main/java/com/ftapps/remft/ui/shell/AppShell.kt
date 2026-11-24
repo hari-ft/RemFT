@@ -147,7 +147,13 @@ private fun RemftNavHost(navController: NavHostController, showBottomBar: Boolea
         composable<InboxRoute> { InboxScreen(bottomPadding, openSettings) }
         notesSection(navController, bottomPadding, openSettings)
         composable<FilesRoute> {
-            FilesScreen(bottomPadding, openSettings, { navController.openTask(it) }, { navController.navigate(NoteRoute(it)) { launchSingleTop = true } })
+            FilesScreen(
+                bottomPadding,
+                openSettings,
+                { navController.openTask(it) },
+                { navController.navigate(NoteRoute(it)) { launchSingleTop = true } },
+                { navController.openAutoBackup() },
+            )
         }
         composable<SettingsRoute> {
             SettingsScreen(

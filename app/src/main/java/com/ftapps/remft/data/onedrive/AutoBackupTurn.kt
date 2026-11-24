@@ -11,6 +11,7 @@ import com.ftapps.remft.domain.backup.lock.WorkLockNames
 import com.ftapps.remft.domain.backup.lock.WorkLocks
 import com.ftapps.remft.domain.backup.restore.ScratchSweep
 import com.ftapps.remft.domain.settings.SettingKeys
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +22,15 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Duration
 import java.time.Instant
+
+sealed interface MirrorSyncOutcome {
+    data class Ran(val result: MirrorCatchUp) : MirrorSyncOutcome
+    data object Off : MirrorSyncOutcome
+    data object SignedOut : MirrorSyncOutcome
+    data object RestoreBusy : MirrorSyncOutcome
+    data object Busy : MirrorSyncOutcome
+    data class Failed(val code: String) : MirrorSyncOutcome
+}
 
 class AutoBackupTurn(
     private val store: SettingsStore,
@@ -75,6 +85,34 @@ class AutoBackupTurn(
             null
         }
     }
+
+    suspend fun syncMirrorNow(budget: Duration = BUDGET): MirrorSyncOutcome {
+        if (!auth.isConnected()) return MirrorSyncOutcome.SignedOut
+        if (store.get(SettingKeys.OneDriveOn.name) != OneDriveAuth.TRUE) return MirrorSyncOutcome.Off
+        if (!auth.canWork()) return MirrorSyncOutcome.SignedOut
+        if (restoreRunning()) return MirrorSyncOutcome.RestoreBusy
+        return try {
+            val result = exclusive(lockWait) { mirror.catchUp(clock().plus(budget), force = true) }
+            when {
+                result != null -> MirrorSyncOutcome.Ran(result)
+                restoreRunning() -> MirrorSyncOutcome.RestoreBusy
+                else -> MirrorSyncOutcome.Busy
+            }
+        } catch (_: DatabaseRestoring) {
+            MirrorSyncOutcome.RestoreBusy
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: OneDriveException) {
+            log.warn("mirror.sync_now_failed", fields = mapOf("code" to e.code))
+            MirrorSyncOutcome.Failed(e.code)
+        } catch (e: Exception) {
+            log.warn("mirror.sync_now_failed", e)
+            MirrorSyncOutcome.Failed(OneDriveErrors.UNKNOWN)
+        }
+    }
+
+    private suspend fun restoreRunning(): Boolean =
+        restoring() || withContext(Dispatchers.IO) { locks().isHeld(WorkLockNames.RESTORE) }
 
     suspend fun planWake() {
         wake.plan(book = true)

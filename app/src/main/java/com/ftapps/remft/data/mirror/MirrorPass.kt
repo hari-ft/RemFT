@@ -31,6 +31,8 @@ class MirrorPass(
     private val clock: () -> Instant,
     private val log: BackupLog,
     private val past: () -> Boolean,
+    private val force: Boolean = false,
+    private val onMoving: (Int, Int) -> Unit = { _, _ -> },
 ) {
     private var folders: LinkedHashMap<String, MirrorFolder>? = null
     private val ids = HashMap<String, String>()
@@ -370,24 +372,34 @@ class MirrorPass(
     suspend fun placeFiles(needed: Map<String, String>, rows: Map<String, MirrorRecord>) {
         if (folders == null) return
         val stale = clock().minus(UPLOAD_STALE)
-        for ((name, want) in needed) {
-            val row = rows[name] ?: continue
+        val due = needed.mapNotNull { (name, want) ->
+            val row = rows[name] ?: return@mapNotNull null
             val lost = lost(row)
-            if (row.remotePath == want && !lost) continue
-            if (lost && !dueAgain(row)) continue
-            if (row.state == MirrorState.UPLOADING && row.updatedAt?.isAfter(stale) == true) continue
+            if (row.remotePath == want && !lost) return@mapNotNull null
+            if (lost && !dueAgain(row)) return@mapNotNull null
+            if (row.state == MirrorState.UPLOADING && row.updatedAt?.isAfter(stale) == true) return@mapNotNull null
+            row to want
+        }
+        val moving = due.count { (row, _) -> movable(row) }
+        var step = 0
+        for ((row, want) in due) {
             val itemId = row.itemId?.takeIf { it.isNotEmpty() }
             val byPath = row.remotePath?.takeIf { MirrorPaths.isMirrorPath(it) }
             if (itemId == null && byPath == null) {
-                setPath(name, want)
+                setPath(row.localPath, want)
                 continue
             }
             stopIfPast()
+            onMoving(step++, moving)
             attempt("mirror.move_failed") { moveFile(row, itemId, byPath, want, rows) }
         }
     }
 
+    private fun movable(row: MirrorRecord): Boolean =
+        !row.itemId.isNullOrEmpty() || row.remotePath?.let { MirrorPaths.isMirrorPath(it) } == true
+
     private fun dueAgain(row: MirrorRecord): Boolean {
+        if (force) return true
         val last = row.updatedAt ?: return true
         val steps = row.attempts.coerceIn(0, 10)
         val wait = LOST_RETRY.multipliedBy(1L shl steps).let { if (it > LOST_RETRY_MAX) LOST_RETRY_MAX else it }

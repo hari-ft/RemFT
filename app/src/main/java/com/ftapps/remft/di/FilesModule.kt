@@ -10,6 +10,7 @@ import com.ftapps.remft.data.files.FilesRepository
 import com.ftapps.remft.data.files.OneDriveNames
 import com.ftapps.remft.data.identity.LocalIdentityRepository
 import com.ftapps.remft.data.mirror.MirrorDownloads
+import com.ftapps.remft.data.onedrive.MirrorSyncNow
 import com.ftapps.remft.data.onedrive.OneDriveAuth
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.ui.files.FilesEnvironment
@@ -94,6 +95,7 @@ object FilesModule {
         settings: SettingsStore,
         holder: DatabaseHolder,
         auth: OneDriveAuth,
+        sync: MirrorSyncNow,
     ): FilesEnvironment = FilesEnvironment(
         attachments = attachments,
         files = files,
@@ -101,5 +103,6 @@ object FilesModule {
         settings = settings,
         authority = BuildConfig.FILES_AUTHORITY,
         oneDriveNames = OneDriveNames({ holder.db }, auth.connected, checkConnected = { auth.isConnected() }),
+        oneDriveSync = sync,
     )
 }

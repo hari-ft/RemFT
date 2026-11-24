@@ -15,6 +15,7 @@ import com.ftapps.remft.data.onedrive.BackupWake
 import com.ftapps.remft.data.onedrive.CloudBackups
 import com.ftapps.remft.data.onedrive.GraphClient
 import com.ftapps.remft.data.onedrive.KeystoreTokenCipher
+import com.ftapps.remft.data.onedrive.MirrorSyncNow
 import com.ftapps.remft.data.onedrive.OneDriveAuth
 import com.ftapps.remft.data.onedrive.OneDriveBackups
 import com.ftapps.remft.data.onedrive.OneDriveRestoredFiles
@@ -146,4 +147,23 @@ object OneDriveModule {
         locks: WorkLocks,
         paths: BackupPaths,
     ): OneDriveTriggers = OneDriveTriggers(store, auth, turn, downloads, holder, { locks }, paths.cacheDir)
+
+    @Provides
+    @Singleton
+    fun syncNow(
+        store: SettingsStore,
+        auth: OneDriveAuth,
+        turn: AutoBackupTurn,
+        mirror: FileMirror,
+        downloads: MirrorDownloads,
+        triggers: OneDriveTriggers,
+    ): MirrorSyncNow = MirrorSyncNow(
+        store = store,
+        auth = auth,
+        turn = turn,
+        mirror = mirror,
+        downloads = downloads,
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        continueLater = { triggers.mirrorSoon() },
+    )
 }

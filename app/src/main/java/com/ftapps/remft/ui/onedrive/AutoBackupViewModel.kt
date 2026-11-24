@@ -8,17 +8,20 @@ import com.ftapps.remft.data.mirror.FileMirror
 import com.ftapps.remft.data.mirror.MirrorCounts
 import com.ftapps.remft.data.mirror.MirrorDownloadState
 import com.ftapps.remft.data.mirror.MirrorDownloads
+import com.ftapps.remft.data.mirror.MirrorProgress
 import com.ftapps.remft.data.onedrive.AutoBackupHealth
 import com.ftapps.remft.data.onedrive.AutoBackupOutcome
 import com.ftapps.remft.data.onedrive.AutoBackupSnapshot
 import com.ftapps.remft.data.onedrive.AutoBackupTurn
 import com.ftapps.remft.data.onedrive.GraphClient
+import com.ftapps.remft.data.onedrive.MirrorSyncNow
 import com.ftapps.remft.data.onedrive.OneDriveAuth
 import com.ftapps.remft.data.onedrive.OneDriveConfig
 import com.ftapps.remft.data.onedrive.OneDriveErrors
 import com.ftapps.remft.data.onedrive.OneDriveException
 import com.ftapps.remft.data.onedrive.OneDriveSignIn
 import com.ftapps.remft.data.onedrive.OneDriveTriggers
+import com.ftapps.remft.data.onedrive.SyncNowResult
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.backup.auto.BackupSchedule
 import com.ftapps.remft.domain.backup.auto.DestinationStatus
@@ -37,6 +40,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
 import javax.inject.Inject
 
 sealed interface AutoBackupMessage {
@@ -44,6 +48,7 @@ sealed interface AutoBackupMessage {
     data class Error(val code: String) : AutoBackupMessage
     data object Working : AutoBackupMessage
     data object Disconnected : AutoBackupMessage
+    data class Synced(val result: SyncNowResult) : AutoBackupMessage
 }
 
 @HiltViewModel
@@ -56,6 +61,7 @@ class AutoBackupViewModel @Inject constructor(
     private val mirror: FileMirror,
     private val downloads: MirrorDownloads,
     private val triggers: OneDriveTriggers,
+    private val sync: MirrorSyncNow,
 ) : ViewModel() {
     val snapshot: StateFlow<AutoBackupSnapshot?> = AutoBackupHealth.snapshots(store, auth.connected)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -69,6 +75,13 @@ class AutoBackupViewModel @Inject constructor(
     private val mutableCounts = MutableStateFlow<MirrorCounts?>(null)
     val counts: StateFlow<MirrorCounts?> = mutableCounts.asStateFlow()
 
+    val syncing: StateFlow<Boolean> = sync.running
+
+    val syncProgress: StateFlow<MirrorProgress?> = sync.progress
+
+    val lastSynced: StateFlow<Instant?> = sync.lastSynced
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private val mutableBusy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = mutableBusy.asStateFlow()
 
@@ -79,6 +92,23 @@ class AutoBackupViewModel @Inject constructor(
         viewModelScope.launch { runCatching { auth.isConnected() }.onFailure { if (it !is CancellationException) AndroidBackupLog.warn("autobackup.onedrive_state_failed", it) } }
         refreshCounts()
         viewModelScope.launch { turn.outcomes.collect { refreshCounts() } }
+        viewModelScope.launch {
+            sync.results.collect { result ->
+                refreshCounts()
+                messageChannel.trySend(AutoBackupMessage.Synced(result))
+            }
+        }
+        viewModelScope.launch {
+            var was = false
+            sync.progress.collect { p ->
+                if (was && p == null) refreshCounts()
+                was = p != null
+            }
+        }
+    }
+
+    fun syncNow() {
+        sync.start()
     }
 
     private fun refreshCounts() {
