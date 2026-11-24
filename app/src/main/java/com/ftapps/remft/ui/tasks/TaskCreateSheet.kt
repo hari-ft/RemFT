@@ -74,6 +74,19 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
+import androidx.compose.ui.text.style.TextOverflow
+import com.ftapps.remft.domain.text.fill
+import com.ftapps.remft.ui.components.ChipRow
+import com.ftapps.remft.ui.files.AttachButton
+import com.ftapps.remft.ui.files.FilesEnvironment
+import com.ftapps.remft.ui.files.LocalFilesEnvironment
+import com.ftapps.remft.ui.files.PickedFile
+import com.ftapps.remft.ui.files.UploadTarget
 
 class TaskSheetState(
     title: String,
@@ -175,8 +188,14 @@ fun TaskCreateSheet(
     val repeatDraft = rememberSaveable(saver = RepeatDraft.Saver) { RepeatDraft() }
     var titleError by rememberSaveable { mutableStateOf(false) }
     val session = rememberSaveable { UUID.randomUUID().toString() }
-    val saver: TaskSheetViewModel = viewModel(key = "task-sheet-$session") { TaskSheetViewModel(env) }
+    val files = LocalFilesEnvironment.current
+    val saver: TaskSheetViewModel = viewModel(key = "task-sheet-$session") { TaskSheetViewModel(env, attach = files?.let(::taskUploader)) }
     val saveState by saver.state.collectAsStateWithLifecycle()
+    val picks by saver.picks.collectAsStateWithLifecycle()
+    val dismiss: () -> Unit = {
+        saver.discard()
+        onDismiss()
+    }
     val saving = saveState == SheetSave.Saving
     LaunchedEffect(saveState) {
         if (saveState == SheetSave.Saved) onDismiss()
@@ -216,7 +235,7 @@ fun TaskCreateSheet(
         }
     }
     RemftBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = dismiss,
         sheetState = sheetState,
         modifier = Modifier.testTag("task-sheet"),
     ) {
@@ -307,6 +326,10 @@ fun TaskCreateSheet(
                     Spacer(Modifier.height(Space.x2))
                     SheetSurface { CreateSheetRepeatRow(repeatDraft, state, now) }
                 }
+                if (files != null) {
+                    Spacer(Modifier.height(Space.x2))
+                    SheetSurface { SheetAttachments(picks, saver::addPicks, saver::removePick) }
+                }
                 if (state.isUrgent && state.dueAt == null && state.remindAt == null) {
                     Text(
                         stringResource(R.string.task_urgentNeedsTime),
@@ -330,6 +353,52 @@ fun TaskCreateSheet(
                 }
             }
             SheetSaveButton(stringResource(if (editing != null) R.string.common_save else R.string.task_createTask), saving, save)
+        }
+    }
+}
+
+fun taskUploader(files: FilesEnvironment): suspend (String, List<PickedFile>) -> Unit = { taskId, picks ->
+    files.uploads.enqueueAll(UploadTarget(files.files.workspace(), "task", taskId), picks)
+}
+
+@Composable
+private fun SheetAttachments(picks: List<PickedFile>, onPicked: (List<PickedFile>) -> Unit, onRemove: (Int) -> Unit) {
+    val context = LocalContext.current
+    val pickFailed = stringResource(R.string.file_pickFailed)
+    val removeLabel = stringResource(R.string.taskattach_removePick)
+    Column(Modifier.padding(start = Space.x4, end = Space.x3, top = Space.x2, bottom = Space.x3).testTag("task-sheet-attachments")) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.task_attachments),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
+            AttachButton(
+                onPicked = onPicked,
+                onFailed = { android.widget.Toast.makeText(context, pickFailed, android.widget.Toast.LENGTH_SHORT).show() },
+                tag = "task-sheet-attach",
+            )
+        }
+        if (picks.isNotEmpty()) {
+            Spacer(Modifier.height(Space.x2))
+            ChipRow(Modifier.testTag("task-sheet-picks")) {
+                picks.forEachIndexed { index, pick ->
+                    InputChip(
+                        selected = false,
+                        onClick = { onRemove(index) },
+                        label = { Text(pick.name, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 200.dp)) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Outlined.Close,
+                                contentDescription = removeLabel.fill("name" to pick.name),
+                                modifier = Modifier.size(InputChipDefaults.IconSize),
+                            )
+                        },
+                        shape = MarkedShapes.pill,
+                        modifier = Modifier.testTag("task-sheet-pick-$index"),
+                    )
+                }
+            }
         }
     }
 }
