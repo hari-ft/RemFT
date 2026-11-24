@@ -72,6 +72,8 @@ class UploadCenter(
     suspend fun uploadAll(target: UploadTarget, picks: List<PickedFile>): List<String> =
         startAll(target, picks, wantsLink = false).mapNotNull { await(it) }
 
+    fun enqueueAll(target: UploadTarget, picks: List<PickedFile>): List<Long> = startAll(target, picks, wantsLink = false)
+
     suspend fun retry(localId: Long): String? {
         if (state.value.none { it.localId == localId }) return null
         state.update { jobs -> jobs.map { if (it.localId == localId) it.copy(phase = UploadPhase.Running, errorCode = null) else it } }

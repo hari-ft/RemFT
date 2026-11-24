@@ -961,4 +961,11 @@
     </plurals>
     <string name="uigap_oneDriveUpdating">OneDrive: {path} (updating)</string>
     <string name="uigap_binFileLine">{name}: {text}</string>
+    <string name="taskattach_attach">Attach file</string>
+    <string name="taskattach_removePick">Remove {name}</string>
+    <string name="taskattach_hasFiles">Has attachments</string>
+    <plurals name="taskattach_attachWithCount">
+        <item quantity="one">Attach file, %d attached</item>
+        <item quantity="other">Attach file, %d attached</item>
+    </plurals>
 </resources>

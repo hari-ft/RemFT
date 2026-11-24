@@ -47,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -159,6 +160,7 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
             val message = deletedText.fill("title" to task.title)
             deleter.request(task, message, deleteThis = { vm.delete(task, message) })
         },
+        attached = rememberAttachedTaskIds(),
     )
     val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val imeInset = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
@@ -313,6 +315,7 @@ class RowActions(
     val onToggle: (Task) -> Unit,
     val onOpen: (Task) -> Unit,
     val onDelete: (Task) -> Unit,
+    val attached: Set<String> = emptySet(),
 )
 
 private fun homeDateLines(today: LocalDate, format: DateFormatId): List<String> {
@@ -457,8 +460,16 @@ private fun LazyListScope.homeGroup(group: HomeGroup, format: DateFormatId, zone
             dimmed = group.dimmed,
             highlighted = group.bucket == HomeBucket.SelectedDay,
             position = groupPosition(index, group.tasks.size),
+            hasAttachments = task.id in actions.attached,
         )
     }
+}
+
+@Composable
+fun rememberAttachedTaskIds(): Set<String> {
+    val files = LocalFilesEnvironment.current ?: return emptySet()
+    val ids by remember(files) { files.files.watchAttachedTaskIds() }.collectAsStateWithLifecycle(emptySet())
+    return ids
 }
 
 fun bucketLabel(bucket: HomeBucket): Int = when (bucket) {

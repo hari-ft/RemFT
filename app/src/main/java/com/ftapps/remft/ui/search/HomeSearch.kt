@@ -146,6 +146,7 @@ fun LazyListScope.homeSearchResults(
                         onToggle = { actions.onToggle(row.task) },
                         onOpen = { actions.onOpen(row.task) },
                         onDelete = { actions.onDelete(row.task) },
+                        hasAttachments = row.task.id in actions.attached,
                     )
                     row.context?.let { snippet ->
                         SearchSnippet(snippet, query)
