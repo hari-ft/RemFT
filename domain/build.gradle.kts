@@ -20,4 +20,5 @@ dependencies {
 tasks.withType<Test>().configureEach {
     systemProperty("fixtures.dir", rootProject.file("fixtures").absolutePath)
     maxParallelForks = 3
+    timeout.set(java.time.Duration.ofMinutes(10))
 }
