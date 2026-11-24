@@ -17,6 +17,8 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.SaveAlt
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -122,6 +124,7 @@ fun FileDialogsHost(
     val couldNotDelete = stringResource(R.string.file_couldNotDelete)
     val couldNotMove = stringResource(R.string.files_couldNotMove)
     val couldNotDeleteFolder = stringResource(R.string.lowdt_folderCouldNotDelete)
+    val exporter = rememberFileExporter(env, onMessage)
     var ruleError by remember { mutableStateOf<String?>(null) }
     val ruleText = ruleError?.let { folderRuleText(it) }
     LaunchedEffect(ruleText) {
@@ -153,6 +156,14 @@ fun FileDialogsHost(
                     val outcome = FileOpener.open(context, env, dialog.row) { onMessage(fetching) }
                     FileOpener.messageOf(outcome)?.let { onMessage(resources.getString(it)) }
                 }
+            },
+            onShare = {
+                close()
+                exporter.share(dialog.row)
+            },
+            onSave = {
+                close()
+                exporter.save(dialog.row)
             },
             onRename = { state.dialog = FileDialog.Rename(dialog.row) },
             onDelete = { state.dialog = FileDialog.Delete(dialog.row) },
@@ -274,6 +285,8 @@ private fun FileActionsSheet(
     extras: List<ExtraAction>,
     onDismiss: () -> Unit,
     onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onSave: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -294,6 +307,8 @@ private fun FileActionsSheet(
                 }
             }
             SheetRow(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(R.string.file_openDownload), "file-action-open", onClick = onOpen)
+            SheetRow(Icons.Outlined.Share, stringResource(R.string.sharesave_share), "file-action-share", onClick = onShare)
+            SheetRow(Icons.Outlined.SaveAlt, stringResource(SaveTarget.of(row.mime).label), "file-action-save", onClick = onSave)
             SheetRow(Icons.Outlined.DriveFileRenameOutline, stringResource(R.string.file_rename), "file-action-rename", onClick = onRename)
             SheetRow(Icons.Outlined.DeleteOutline, stringResource(R.string.common_delete), "file-action-delete", danger = true, onClick = onDelete)
             Spacer(Modifier.height(Space.x2))

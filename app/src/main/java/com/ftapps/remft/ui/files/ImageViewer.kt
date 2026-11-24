@@ -20,6 +20,8 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.SaveAlt
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -113,6 +115,7 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
     val resources = LocalResources.current
     val fetching = stringResource(R.string.mirror_fetching)
     val couldNotDelete = stringResource(R.string.file_couldNotDelete)
+    val exporter = rememberFileExporter(env, onMessage)
     val counterArgs = arrayOf("index" to index + 1, "total" to ids.size)
     val position = stringResource(R.string.file_viewerPosition).fill(*counterArgs)
     val scheme = MaterialTheme.colorScheme
@@ -177,6 +180,22 @@ private fun ViewerContent(ids: MutableList<String>, initial: Int, env: FilesEnvi
                 },
                 enabled = current != null,
                 modifier = Modifier.testTag("viewer-open"),
+                tint = ink,
+            )
+            RemftIconButton(
+                icon = Icons.Outlined.Share,
+                label = stringResource(R.string.sharesave_share),
+                onClick = { current?.let(exporter::share) },
+                enabled = current != null,
+                modifier = Modifier.testTag("viewer-share"),
+                tint = ink,
+            )
+            RemftIconButton(
+                icon = Icons.Outlined.SaveAlt,
+                label = stringResource(SaveTarget.of(current?.mime ?: "image/*").label),
+                onClick = { current?.let(exporter::save) },
+                enabled = current != null,
+                modifier = Modifier.testTag("viewer-save"),
                 tint = ink,
             )
             RemftIconButton(icon = Icons.Outlined.DeleteOutline, label = stringResource(R.string.common_delete), onClick = { confirm = current }, enabled = current != null, modifier = Modifier.testTag("viewer-delete"), tint = ink)
