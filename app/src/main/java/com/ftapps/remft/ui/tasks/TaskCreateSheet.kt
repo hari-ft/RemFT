@@ -177,6 +177,7 @@ fun TaskCreateSheet(
     initialDue: LocalDateTime? = null,
     editing: Task? = null,
     initialTitle: String = "",
+    initialPicks: List<PickedFile> = emptyList(),
 ) {
     val env = LocalTasksEnvironment.current
     val repository = env.repository
@@ -192,6 +193,13 @@ fun TaskCreateSheet(
     val saver: TaskSheetViewModel = viewModel(key = "task-sheet-$session") { TaskSheetViewModel(env, attach = files?.let(::taskUploader)) }
     val saveState by saver.state.collectAsStateWithLifecycle()
     val picks by saver.picks.collectAsStateWithLifecycle()
+    var seeded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(saver) {
+        if (!seeded) {
+            seeded = true
+            if (initialPicks.isNotEmpty()) saver.addPicks(initialPicks)
+        }
+    }
     val dismiss: () -> Unit = {
         saver.discard()
         onDismiss()

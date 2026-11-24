@@ -38,6 +38,10 @@ import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.ui.files.FilesEnvironment
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
+import com.ftapps.remft.data.notes.NotesRepository
+import com.ftapps.remft.ui.share.ShareInHost
+import com.ftapps.remft.ui.share.ShareInbox
+import com.ftapps.remft.ui.share.ShareIntents
 import com.ftapps.remft.ui.onboarding.LocalTourController
 import com.ftapps.remft.ui.onboarding.TourController
 import com.ftapps.remft.ui.shell.AppShell
@@ -67,6 +71,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var filesEnvironment: FilesEnvironment
 
+    @Inject
+    lateinit var shareInbox: ShareInbox
+
+    @Inject
+    lateinit var notes: NotesRepository
+
     private var deepLink by mutableStateOf<String?>(null)
 
     private val overLock = AlarmOverLock { AlarmActivitySupport.setOverLock(this, it) }
@@ -83,6 +93,7 @@ class MainActivity : ComponentActivity() {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) deepLink = launchDeepLink(intent)
+        ShareIntents.atLaunch(intent, restored = savedInstanceState != null)?.let(shareInbox::receive)
         startup.start()
         splash.setKeepOnScreenCondition {
             val state = startup.state.value
@@ -110,6 +121,14 @@ class MainActivity : ComponentActivity() {
                                 AppShell(deepLink = deepLink, onDeepLinkHandled = { deepLink = null })
                             }
                             NotificationPermissionRequest(ready = tour.settled)
+                            ShareInHost(
+                                inbox = shareInbox,
+                                files = filesEnvironment,
+                                tasks = tasksEnvironment,
+                                notes = notes,
+                                ready = !tour.running,
+                                onOpenTask = { deepLink = "remft://task/$it" },
+                            )
                         }
                         is StartupState.Failed -> StartupErrorScreen(onRetry = startup::retry)
                         StartupState.Starting -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
@@ -129,6 +148,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleAlarmIntent(intent)
+        ShareIntents.parse(intent)?.let(shareInbox::receive)
         intent.dataString?.let { deepLink = it }
     }
 

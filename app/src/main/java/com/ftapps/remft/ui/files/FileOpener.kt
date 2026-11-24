@@ -2,6 +2,7 @@ package com.ftapps.remft.ui.files
 
 import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -20,6 +21,7 @@ enum class OpenOutcome { Opened, Missing, Failed, NeedsOneDrive, Offline, FetchF
 
 object FileOpener {
     private const val SHARED_FOLDER = "shared"
+    const val SELF_ACTIVITY = "com.ftapps.remft.MainActivity"
     private val unsafe = Regex("[\\\\/:*?\"<>|\\u0000-\\u001f]")
 
     fun displayName(name: String, fallback: String): String = name.replace(unsafe, "_").trim().trim('.').ifBlank { fallback }
@@ -115,6 +117,7 @@ object FileOpener {
             is Prepared.Ready -> prepared.uri
         }
         val chooser = Intent.createChooser(shareIntent(uri, row.mime), title).apply {
+            putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(context.packageName, SELF_ACTIVITY)))
             if (context !is android.app.Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         return try {

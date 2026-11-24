@@ -13,11 +13,16 @@ import com.ftapps.remft.data.mirror.MirrorDownloads
 import com.ftapps.remft.data.onedrive.OneDriveAuth
 import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.ui.files.FilesEnvironment
+import com.ftapps.remft.ui.share.ShareCopier
+import com.ftapps.remft.ui.share.ShareInbox
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import java.io.File
@@ -70,6 +75,11 @@ object FilesModule {
         workspaceId = identity::workspaceId,
         bin = bin,
     )
+
+    @Provides
+    @Singleton
+    fun shareInbox(@ApplicationContext context: Context): ShareInbox =
+        ShareInbox(CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate), ShareCopier(context))
 
     @Provides
     @Singleton

@@ -977,4 +977,49 @@
     <string name="sharesave_savedChosen">Saved a copy to the chosen folder</string>
     <string name="sharesave_saveFailed">Could not save a copy to this phone</string>
     <string name="sharesave_couldNotShare">Could not share this file</string>
+    <string name="sharein_title">Save to RemFT</string>
+    <string name="sharein_destFiles">Save in Files</string>
+    <string name="sharein_destNewTask">Attach to a new task</string>
+    <string name="sharein_destTask">Attach to an existing task</string>
+    <string name="sharein_destNote">Attach to a note</string>
+    <string name="sharein_textNewTask">New task from this text</string>
+    <string name="sharein_textNewNote">New note from this text</string>
+    <string name="sharein_pickFolder">Choose a folder</string>
+    <string name="sharein_pickTask">Choose a task</string>
+    <string name="sharein_pickNote">Choose a note</string>
+    <string name="sharein_search">Search</string>
+    <string name="sharein_newNote">New note</string>
+    <string name="sharein_noTasks">No open tasks match</string>
+    <string name="sharein_noNotes">No notes match</string>
+    <string name="sharein_nothing">There was nothing RemFT could save from this share.</string>
+    <string name="sharein_noteCreated">Saved as a new note</string>
+    <string name="sharein_failed">Could not save the shared items</string>
+    <plurals name="sharein_preparing">
+        <item quantity="one">Getting %d item ready…</item>
+        <item quantity="other">Getting %d items ready…</item>
+    </plurals>
+    <plurals name="sharein_unreadable">
+        <item quantity="one">%d item could not be read.</item>
+        <item quantity="other">%d items could not be read.</item>
+    </plurals>
+    <plurals name="sharein_tooLarge">
+        <item quantity="one">%d item is over the 100 MB limit.</item>
+        <item quantity="other">%d items are over the 100 MB limit.</item>
+    </plurals>
+    <plurals name="sharein_unsupported">
+        <item quantity="one">%d item is not a file RemFT can save.</item>
+        <item quantity="other">%d items are not files RemFT can save.</item>
+    </plurals>
+    <plurals name="sharein_savingToFiles">
+        <item quantity="one">Saving %d file in Files</item>
+        <item quantity="other">Saving %d files in Files</item>
+    </plurals>
+    <plurals name="sharein_attachingToTask">
+        <item quantity="one">Attaching %d file to the task</item>
+        <item quantity="other">Attaching %d files to the task</item>
+    </plurals>
+    <plurals name="sharein_attachingToNote">
+        <item quantity="one">Attaching %d file to the note</item>
+        <item quantity="other">Attaching %d files to the note</item>
+    </plurals>
 </resources>
