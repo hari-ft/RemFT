@@ -57,6 +57,9 @@ class FilesRepository(
     fun watchTarget(targetType: String, targetId: String): Flow<List<FileRowEntity>> =
         flow { emit(Unit) }.flatMapLatest { dao.watchForTarget(targetType, targetId) }.flowOn(Dispatchers.IO)
 
+    fun watchAttachedTaskIds(): Flow<Set<String>> =
+        flow { emit(Unit) }.flatMapLatest { dao.watchTaskIdsWithFiles() }.map { it.toSet() }.flowOn(Dispatchers.IO)
+
     fun watchFile(id: String): Flow<FileRowEntity?> =
         flow { emit(Unit) }.flatMapLatest { dao.watchFile(id) }.flowOn(Dispatchers.IO)
 

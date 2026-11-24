@@ -63,6 +63,9 @@ interface FilesDao {
     @Query("SELECT * FROM file_rows WHERE target_type = :targetType AND target_id = :targetId ORDER BY created_at DESC, id DESC")
     fun watchForTarget(targetType: String, targetId: String): Flow<List<FileRowEntity>>
 
+    @Query("SELECT DISTINCT target_id FROM file_rows WHERE target_type = 'task'")
+    fun watchTaskIdsWithFiles(): Flow<List<String>>
+
     @Query(
         "SELECT * FROM file_rows WHERE workspace_id = :workspaceId AND target_type = 'workspace' " +
             "ORDER BY created_at DESC, id DESC",

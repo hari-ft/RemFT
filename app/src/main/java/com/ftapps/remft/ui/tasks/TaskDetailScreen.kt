@@ -103,6 +103,16 @@ import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.files.AttachmentsSection
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
+import com.ftapps.remft.ui.files.AttachSourceSheet
+import com.ftapps.remft.ui.files.FilesEnvironment
+import com.ftapps.remft.ui.files.rememberAttachLauncher
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.res.pluralStringResource
+import kotlinx.coroutines.launch
 import com.ftapps.remft.ui.theme.Sizes
 import com.ftapps.remft.ui.theme.Space
 import java.time.LocalDateTime
@@ -126,12 +136,14 @@ fun TaskDetailScreen(taskId: String, onBack: () -> Unit, bottomPadding: Dp = 0.d
         }
     }
     val ready = load as? DetailLoad.Ready
+    val files = LocalFilesEnvironment.current
     TasksScaffold(
         title = stringResource(R.string.task_detailTitle),
         bottomPadding = bottomPadding,
         onBack = onBack,
         actions = {
             if (ready != null) {
+                if (files != null) TaskAttachAction(taskId, files)
                 val completed = ready.detail.task.isCompleted
                 RemftIconButton(label = stringResource(if (completed) R.string.task_reopen else R.string.task_complete), onClick = vm::toggleComplete, modifier = Modifier.testTag("task-complete")) {
                     Icon(
@@ -165,6 +177,37 @@ fun TaskDetailScreen(taskId: String, onBack: () -> Unit, bottomPadding: Dp = 0.d
                 is DetailLoad.Ready -> TaskDetailBody(current.detail, vm, asker)
             }
         }
+    }
+}
+
+@Composable
+private fun TaskAttachAction(taskId: String, files: FilesEnvironment) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val rows by remember(files, taskId) { files.files.watchTarget("task", taskId) }.collectAsState(emptyList())
+    val count = rows.size
+    var sheet by rememberSaveable { mutableStateOf(false) }
+    val pickFailed = stringResource(R.string.file_pickFailed)
+    val upload = remember(files) { taskUploader(files) }
+    val launcher = rememberAttachLauncher(
+        onPicked = { picks -> scope.launch { upload(taskId, picks) } },
+        onFailed = { android.widget.Toast.makeText(context, pickFailed, android.widget.Toast.LENGTH_SHORT).show() },
+    )
+    val label = stringResource(R.string.taskattach_attach)
+    val described = if (count > 0) pluralStringResource(R.plurals.taskattach_attachWithCount, count, count) else label
+    RemftIconButton(label = label, onClick = { sheet = true }, modifier = Modifier.testTag("task-attach")) {
+        BadgedBox(badge = { if (count > 0) Badge(Modifier.testTag("task-attach-count")) { Text(count.toString()) } }) {
+            Icon(Icons.Outlined.AttachFile, contentDescription = described)
+        }
+    }
+    if (sheet) {
+        AttachSourceSheet(
+            onPick = {
+                sheet = false
+                launcher.launch(it)
+            },
+            onDismiss = { sheet = false },
+        )
     }
 }
 

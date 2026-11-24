@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationImportant
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +61,7 @@ fun TaskRow(
     dimmed: Boolean = false,
     highlighted: Boolean = false,
     position: GroupPosition = GroupPosition.Single,
+    hasAttachments: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
     val container = when {
@@ -76,7 +78,7 @@ fun TaskRow(
     ) {
         if (grouped) {
             GroupedCardItem(position, Modifier.testTag("task-row-${task.id}"), color = container) {
-                TaskRowContent(task, format, zone, now, onToggle, onOpen)
+                TaskRowContent(task, format, zone, now, onToggle, onOpen, hasAttachments)
             }
         } else {
             Surface(
@@ -85,7 +87,7 @@ fun TaskRow(
                 border = if (highlighted) BorderStroke(1.dp, scheme.primary.copy(alpha = 0.45f)) else null,
                 modifier = Modifier.fillMaxWidth().testTag("task-row-${task.id}"),
             ) {
-                TaskRowContent(task, format, zone, now, onToggle, onOpen)
+                TaskRowContent(task, format, zone, now, onToggle, onOpen, hasAttachments)
             }
         }
     }
@@ -99,6 +101,7 @@ private fun TaskRowContent(
     now: Instant,
     onToggle: () -> Unit,
     onOpen: () -> Unit,
+    hasAttachments: Boolean,
 ) {
     val scheme = MaterialTheme.colorScheme
     val completed = task.isCompleted
@@ -164,6 +167,15 @@ private fun TaskRowContent(
             }
         }
         Spacer(Modifier.width(Space.x2))
+        if (hasAttachments) {
+            Icon(
+                Icons.Outlined.AttachFile,
+                contentDescription = stringResource(R.string.taskattach_hasFiles),
+                tint = scheme.outline,
+                modifier = Modifier.size(18.dp).testTag("task-attached-${task.id}"),
+            )
+            Spacer(Modifier.width(Space.x1))
+        }
         Icon(
             statusIcon(task.status),
             contentDescription = stringResource(R.string.task_statusSemantic).fill("status" to stringResource(statusLabel(task.status))),
