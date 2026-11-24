@@ -1,3 +1,4 @@
+import java.time.Duration
 import java.util.Properties
 
 plugins {
@@ -117,21 +118,28 @@ ksp {
 }
 
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    val store = releaseSigning.getProperty("storeFile")?.let { rootProject.file(it) }
     doFirst {
-        val store = releaseSigning.getProperty("storeFile")?.let { rootProject.file(it) }
         if (store == null || !store.exists()) {
             throw GradleException("Release signing key missing: key.properties or its keystore was not found.")
         }
     }
 }
 
+tasks.withType<Test>().configureEach {
+    maxParallelForks = 2
+    timeout.set(Duration.ofMinutes(15))
+}
+
 val copyReleaseToBuildsFt = tasks.register("copyReleaseToBuildsFt") {
+    val outDir = rootProject.file("builds-ft")
+    val apkDir = layout.buildDirectory.dir("outputs/apk/release")
+    val apkName = "remft-$appMajor.$appMinor.$appBugfix-arm64.apk"
     doLast {
-        val outDir = rootProject.file("builds-ft")
         outDir.mkdirs()
-        val apk = layout.buildDirectory.dir("outputs/apk/release").get().asFile
+        val apk = apkDir.get().asFile
             .listFiles { file -> file.extension == "apk" }?.firstOrNull() ?: return@doLast
-        apk.copyTo(outDir.resolve("remft-${android.defaultConfig.versionName}-arm64.apk"), overwrite = true)
+        apk.copyTo(outDir.resolve(apkName), overwrite = true)
         outDir.listFiles { file -> file.extension == "apk" }
             ?.sortedByDescending { it.lastModified() }
             ?.drop(3)
