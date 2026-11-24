@@ -961,4 +961,13 @@
     </plurals>
     <string name="uigap_oneDriveUpdating">OneDrive: {path} (updating)</string>
     <string name="uigap_binFileLine">{name}: {text}</string>
+    <string name="sharesave_share">Share</string>
+    <string name="sharesave_saveToGallery">Save to gallery</string>
+    <string name="sharesave_saveToDownloads">Save to Downloads</string>
+    <string name="sharesave_savedPictures">Saved to Pictures/RemFT</string>
+    <string name="sharesave_savedMovies">Saved to Movies/RemFT</string>
+    <string name="sharesave_savedDownloads">Saved to Download/RemFT</string>
+    <string name="sharesave_savedChosen">Saved a copy to the chosen folder</string>
+    <string name="sharesave_saveFailed">Could not save a copy to this phone</string>
+    <string name="sharesave_couldNotShare">Could not share this file</string>
 </resources>

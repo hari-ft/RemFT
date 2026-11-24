@@ -1,6 +1,9 @@
 package com.ftapps.remft.ui.files
 
+import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.core.content.FileProvider
 import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.bin.RecycleBin
 import com.ftapps.remft.data.files.AttachmentStore
@@ -22,6 +25,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import java.io.InputStream
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicLong
@@ -184,6 +188,8 @@ class FilesEnvironment(
     val clock: Clock = Clock.systemDefaultZone(),
     val pickOverride: (suspend (AttachSource) -> List<PickedFile>)? = null,
     val oneDriveNames: OneDriveNames? = null,
+    val deviceSaver: DeviceSaver? = null,
+    val uriForFile: (Context, String, File) -> Uri = { context, authority, file -> FileProvider.getUriForFile(context, authority, file) },
 )
 
 val LocalFilesEnvironment = staticCompositionLocalOf<FilesEnvironment?> { null }
