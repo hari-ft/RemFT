@@ -12,6 +12,7 @@ import com.ftapps.remft.data.alarm.AppLogs
 import com.ftapps.remft.data.db.entity.FileRowEntity
 import com.ftapps.remft.data.files.AttachmentFetchFailed
 import com.ftapps.remft.data.files.FetchProblem
+import com.ftapps.remft.ui.share.ShareReceiverActivity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,7 +22,7 @@ enum class OpenOutcome { Opened, Missing, Failed, NeedsOneDrive, Offline, FetchF
 
 object FileOpener {
     private const val SHARED_FOLDER = "shared"
-    const val SELF_ACTIVITY = "com.ftapps.remft.MainActivity"
+    val SELF_ACTIVITY: String = ShareReceiverActivity::class.java.name
     private val unsafe = Regex("[\\\\/:*?\"<>|\\u0000-\\u001f]")
 
     fun displayName(name: String, fallback: String): String = name.replace(unsafe, "_").trim().trim('.').ifBlank { fallback }
