@@ -16,6 +16,7 @@ import com.ftapps.remft.data.prefs.SettingsStore
 import com.ftapps.remft.domain.settings.SettingKeys
 import com.ftapps.remft.ui.share.FakeShareProvider
 import com.ftapps.remft.ui.share.ShareInbox
+import com.ftapps.remft.ui.share.ShareReceiverActivity
 import com.ftapps.remft.ui.share.ShareState
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -23,11 +24,16 @@ import dagger.hilt.android.testing.HiltTestApplication
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
 import javax.inject.Inject
@@ -67,6 +73,7 @@ class MainActivityShareTest {
         runBlocking { settings.set(SettingKeys.OnboardingSeen.name, "true") }
         provider = FakeShareProvider.install()
         provider.entries["a"] = FakeShareProvider.Entry("Beach.png", "image/png", "pixels".toByteArray())
+        provider.entries["b"] = FakeShareProvider.Entry("Forest.png", "image/png", "trees".toByteArray())
     }
 
     @After
@@ -75,10 +82,16 @@ class MainActivityShareTest {
         controller?.let { runCatching { it.pause().stop().destroy() } }
     }
 
-    private fun shareIntent(): Intent = Intent(context, MainActivity::class.java)
-        .setAction(Intent.ACTION_SEND)
+    private fun galleryShare(key: String): Intent = Intent(Intent.ACTION_SEND)
         .setType("image/png")
-        .putExtra(Intent.EXTRA_STREAM, FakeShareProvider.uri("a"))
+        .putExtra(Intent.EXTRA_STREAM, FakeShareProvider.uri(key))
+        .addFlags(GALLERY_FLAGS)
+
+    private fun shareIntent(key: String = "a"): Intent = ShareReceiverActivity.forwardIntent(context, galleryShare(key))!!
+
+    private fun awaitHome() {
+        compose.waitUntil(LAUNCH_TIMEOUT_MS) { compose.onAllNodes(hasTestTag("screen-home")).fetchSemanticsNodes().isNotEmpty() }
+    }
 
     private fun awaitSheetWith(name: String) {
         compose.waitUntil(LAUNCH_TIMEOUT_MS) { compose.onAllNodes(hasTestTag("sharein-sheet")).fetchSemanticsNodes().isNotEmpty() }
@@ -93,14 +106,35 @@ class MainActivityShareTest {
     }
 
     @Test
-    fun aShareWhileTheAppIsOpenArrivesThroughNewIntent() {
+    fun everyShareWhileTheAppIsOpenArrivesInTheSameActivity() {
         controller = Robolectric.buildActivity(MainActivity::class.java, Intent(context, MainActivity::class.java)).setup()
-        compose.waitUntil(LAUNCH_TIMEOUT_MS) { compose.onAllNodes(hasTestTag("screen-home")).fetchSemanticsNodes().isNotEmpty() }
-        controller!!.newIntent(shareIntent())
+        val activity = controller!!.get()
+        awaitHome()
+
+        controller!!.newIntent(shareIntent("a"))
         awaitSheetWith("Beach.png")
+        controller!!.newIntent(shareIntent("b"))
+        awaitSheetWith("Forest.png")
+
+        assertSame(activity, controller!!.get())
+        assertFalse(activity.isFinishing)
+        val started = generateSequence { shadowOf(activity).nextStartedActivity }.toList()
+        assertTrue(started.none { it.component?.packageName == context.packageName })
+        compose.waitUntil(LAUNCH_TIMEOUT_MS) { (inbox.state.value as? ShareState.Ready)?.intake?.items?.singleOrNull()?.name == "Forest.png" }
+    }
+
+    @Test
+    fun reopeningTheShareTaskFromRecentsDoesNotReplayTheShare() {
+        val fromRecents = shareIntent().addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)
+        controller = Robolectric.buildActivity(MainActivity::class.java, fromRecents).setup()
+        awaitHome()
+        compose.waitForIdle()
+        assertNull(inbox.state.value)
+        assertEquals(0, compose.onAllNodes(hasTestTag("sharein-sheet")).fetchSemanticsNodes().size)
     }
 
     private companion object {
         const val LAUNCH_TIMEOUT_MS = 20_000L
+        const val GALLERY_FLAGS = 0x1b080101
     }
 }
