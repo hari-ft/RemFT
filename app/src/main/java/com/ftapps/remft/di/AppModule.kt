@@ -8,6 +8,9 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import com.ftapps.remft.data.db.DatabaseHolder
 import com.ftapps.remft.data.identity.LocalIdentityRepository
 import com.ftapps.remft.data.prefs.SettingsStore
+import com.ftapps.remft.data.voice.AndroidVoiceSupport
+import com.ftapps.remft.data.voice.VoiceSupport
+import com.ftapps.remft.ui.voice.VoiceEnvironment
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,6 +33,14 @@ object AppModule {
     @Provides
     @Singleton
     fun databaseHolder(@ApplicationContext context: Context): DatabaseHolder = DatabaseHolder(context)
+
+    @Provides
+    @Singleton
+    fun voiceSupport(@ApplicationContext context: Context): VoiceSupport = AndroidVoiceSupport(context)
+
+    @Provides
+    @Singleton
+    fun voiceEnvironment(support: VoiceSupport, store: SettingsStore): VoiceEnvironment = VoiceEnvironment(support, store)
 
     @Provides
     @Singleton

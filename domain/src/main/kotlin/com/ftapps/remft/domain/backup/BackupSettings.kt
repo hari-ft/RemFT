@@ -25,6 +25,9 @@ object BackupSettings {
         "remft_files_sort",
         "remft_notes_view_mode",
         "remft_onboarding_seen_v1",
+        "remft_voice_buttons",
+        "remft_voice_language",
+        "remft_voice_prefer_offline",
     )
 
     val pendingKey: String = SettingKeys.RestorePendingSettings.name

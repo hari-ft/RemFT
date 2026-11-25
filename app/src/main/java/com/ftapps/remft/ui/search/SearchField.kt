@@ -1,6 +1,7 @@
 package com.ftapps.remft.ui.search
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -40,6 +42,7 @@ import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftThemeExtras
 import com.ftapps.remft.ui.theme.Space
+import com.ftapps.remft.ui.voice.VoiceMicButton
 
 object SearchHighlight {
     fun ranges(text: String, query: String): List<IntRange> = rangesForWords(text, SearchMatch.queryWords(query))
@@ -124,6 +127,7 @@ fun SearchField(
     focusRequester: FocusRequester? = null,
     onSearch: (() -> Unit)? = null,
     container: Color = MaterialTheme.colorScheme.surface,
+    voiceTag: String? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     OutlinedTextField(
@@ -135,8 +139,13 @@ fun SearchField(
         textStyle = MaterialTheme.typography.bodyLarge,
         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.padding(start = Space.x1)) },
         trailingIcon = {
-            if (query.isNotEmpty()) {
-                RemftIconButton(icon = Icons.Outlined.Close, label = stringResource(R.string.common_clear), onClick = { onQueryChange("") }, modifier = Modifier.testTag("$tag-clear"))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (voiceTag != null) {
+                    VoiceMicButton(tag = voiceTag, label = stringResource(R.string.voice_speakSearch), onText = { spoken -> onQueryChange(spoken.trim()) })
+                }
+                if (query.isNotEmpty()) {
+                    RemftIconButton(icon = Icons.Outlined.Close, label = stringResource(R.string.common_clear), onClick = { onQueryChange("") }, modifier = Modifier.testTag("$tag-clear"))
+                }
             }
         },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),

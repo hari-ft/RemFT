@@ -227,7 +227,7 @@ fun HomeTasksScreen(bottomPadding: Dp, onOpenSettings: () -> Unit, onOpenTask: (
                     }
                     if (searchOpen) {
                         item(key = "home-search-field") {
-                            SearchField(searchQuery, { searchQuery = it }, stringResource(R.string.home_searchHint), "home-search")
+                            SearchField(searchQuery, { searchQuery = it }, stringResource(R.string.home_searchHint), "home-search", voiceTag = "voice-home-search")
                         }
                     }
                     item(key = "home-quick-add") {

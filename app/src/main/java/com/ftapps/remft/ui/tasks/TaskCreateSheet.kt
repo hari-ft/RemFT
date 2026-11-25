@@ -87,6 +87,9 @@ import com.ftapps.remft.ui.files.FilesEnvironment
 import com.ftapps.remft.ui.files.LocalFilesEnvironment
 import com.ftapps.remft.ui.files.PickedFile
 import com.ftapps.remft.ui.files.UploadTarget
+import com.ftapps.remft.data.voice.VoiceText
+import com.ftapps.remft.ui.voice.LocalVoiceEnvironment
+import com.ftapps.remft.ui.voice.VoiceMicButton
 
 class TaskSheetState(
     title: String,
@@ -270,6 +273,10 @@ fun TaskCreateSheet(
                         null
                     },
                     singleLine = true,
+                    trailingIcon = voiceTrailing("voice-task-title", stringResource(R.string.voice_speakTitle)) { spoken ->
+                        state.title = VoiceText.append(state.title, spoken)
+                        if (state.title.isNotBlank()) titleError = false
+                    },
                     shape = MarkedShapes.small,
                     colors = sheetFieldColors(),
                     modifier = Modifier.fillMaxWidth().testTag("task-sheet-title"),
@@ -282,6 +289,9 @@ fun TaskCreateSheet(
                     placeholder = { Text(stringResource(R.string.task_descriptionHint)) },
                     minLines = 1,
                     maxLines = 4,
+                    trailingIcon = voiceTrailing("voice-task-notes", stringResource(R.string.voice_speakNotes)) { spoken ->
+                        state.description = VoiceText.append(state.description, spoken)
+                    },
                     shape = MarkedShapes.small,
                     colors = sheetFieldColors(),
                     modifier = Modifier.fillMaxWidth().testTag("task-sheet-description"),
@@ -449,6 +459,14 @@ fun SheetHeading(text: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.onSurface,
         modifier = modifier.semantics { heading() },
     )
+}
+
+@Composable
+private fun voiceTrailing(tag: String, label: String, onText: (String) -> Unit): (@Composable () -> Unit)? {
+    val env = LocalVoiceEnvironment.current ?: return null
+    val show by env.showButtons.collectAsStateWithLifecycle(false)
+    if (!show) return null
+    return { VoiceMicButton(tag = tag, label = label, onText = onText) }
 }
 
 @Composable

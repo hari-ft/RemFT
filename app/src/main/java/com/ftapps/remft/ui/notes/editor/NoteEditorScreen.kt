@@ -1,5 +1,7 @@
 package com.ftapps.remft.ui.notes.editor
 
+import com.ftapps.remft.data.voice.VoiceText
+import com.ftapps.remft.ui.voice.VoiceMicButton
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -599,6 +601,17 @@ private fun EditorBody(viewModel: NoteEditorViewModel) {
                 actions = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+                            if (viewModel.mode == EditorMode.Source) {
+                                VoiceMicButton(
+                                    tag = "voice-note",
+                                    label = stringResource(R.string.voice_speakNote),
+                                    onText = { spoken ->
+                                        val current = viewModel.source
+                                        val insert = VoiceText.insertion(current.text, current.selection.min, current.selection.max, spoken)
+                                        if (insert.isNotEmpty()) viewModel.insertText(insert)
+                                    },
+                                )
+                            }
                             RemftIconButton(label = stringResource(R.string.note_outline), onClick = { outline = true }, modifier = Modifier.testTag("open-outline")) {
                                 Icon(Icons.AutoMirrored.Outlined.Toc, contentDescription = stringResource(R.string.note_outline))
                             }

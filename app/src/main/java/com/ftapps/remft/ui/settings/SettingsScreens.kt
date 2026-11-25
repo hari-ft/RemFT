@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Copyright
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Schedule
@@ -80,6 +81,7 @@ fun SettingsScreen(
     onOpenCompleted: () -> Unit = {},
     onOpenScheduled: () -> Unit = {},
     onOpenBin: () -> Unit = {},
+    onOpenVoice: () -> Unit = {},
 ) {
     var licences by remember { mutableStateOf(false) }
     SectionScaffold(title = stringResource(R.string.settings_title), onBack = onBack) { padding ->
@@ -90,6 +92,7 @@ fun SettingsScreen(
                     SettingsRow(Icons.Outlined.Tune, stringResource(R.string.settings_group_general), stringResource(R.string.settings_group_generalSub), "settings-general", onClick = onOpenGeneral)
                     SettingsRow(Icons.Outlined.NotificationsActive, stringResource(R.string.settings_group_notifications), stringResource(R.string.settings_group_notificationsSub), "settings-notifications", onClick = onOpenNotifications)
                     SettingsRow(Icons.Outlined.Security, stringResource(R.string.settings_group_permissions), stringResource(R.string.settings_group_permissionsSub), "settings-permissions", onClick = onOpenPermissions)
+                    SettingsRow(Icons.Outlined.Mic, stringResource(R.string.voice_title), stringResource(R.string.voice_sub), "settings-voice", onClick = onOpenVoice)
                 }
             }
             item { SettingsSectionHeader(stringResource(R.string.setx_sectionData)) }

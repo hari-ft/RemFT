@@ -48,6 +48,8 @@ import com.ftapps.remft.ui.shell.AppShell
 import com.ftapps.remft.ui.tasks.LocalTasksEnvironment
 import com.ftapps.remft.ui.tasks.TasksEnvironment
 import com.ftapps.remft.ui.theme.RemftTheme
+import com.ftapps.remft.ui.voice.LocalVoiceEnvironment
+import com.ftapps.remft.ui.voice.VoiceEnvironment
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -76,6 +78,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var notes: NotesRepository
+
+    @Inject
+    lateinit var voice: VoiceEnvironment
 
     private var deepLink by mutableStateOf<String?>(null)
 
@@ -116,6 +121,7 @@ class MainActivity : ComponentActivity() {
                             LocalAlarmEnvironment provides alarms,
                             LocalFilesEnvironment provides filesEnvironment,
                             LocalTourController provides tour,
+                            LocalVoiceEnvironment provides voice,
                         ) {
                             AlarmRingHost(alarms, onOpenTask = { deepLink = "remft://task/$it" }) {
                                 AppShell(deepLink = deepLink, onDeepLinkHandled = { deepLink = null })
@@ -137,6 +143,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        voice.refresh()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
