@@ -22,6 +22,9 @@ object SettingKeys {
     val FilesSort = SettingKey("remft_files_sort", "date:desc", true)
     val NotesViewMode = SettingKey("remft_notes_view_mode", "list", true)
     val OnboardingSeen = SettingKey("remft_onboarding_seen_v1", null, true)
+    val VoiceButtons = SettingKey("remft_voice_buttons", "true", true)
+    val VoiceLanguage = SettingKey("remft_voice_language", null, true)
+    val VoicePreferOffline = SettingKey("remft_voice_prefer_offline", "false", true)
 
     val LocalWorkspaceId = SettingKey("remft_local_workspace_id", null, false)
     val LastBackupAt = SettingKey("remft_last_backup_at", null, false)
@@ -52,6 +55,7 @@ object SettingKeys {
         AlarmSound, ReminderSound, ReminderProfile, SnoozePresets, NotificationPrivacy, DateFormat,
         NoteSourceStyling, BinEnabled, BinAutoDelete, BinDays, AutoBackupSchedule, AutoBackupKeepDays,
         HomeCalendarVisible, TasksSort, InboxSort, NotesSort, FilesSort, NotesViewMode, OnboardingSeen,
+        VoiceButtons, VoiceLanguage, VoicePreferOffline,
         LocalWorkspaceId, LastBackupAt, BackupReminderDismissed, OneDriveOn, OneDriveAccount,
         OneDriveReconnect, AutoBackupLastOk, AutoBackupLastSize, AutoBackupPaused, AutoBackupDropAccepted,
         AutoBackupUnavailable, AutoBackupStatusOneDrive, AutoBackupWakeSlots, MirrorDownloadsPending,

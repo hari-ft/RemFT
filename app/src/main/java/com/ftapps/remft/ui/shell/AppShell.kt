@@ -63,6 +63,8 @@ import com.ftapps.remft.ui.settings.SettingsGeneralScreen
 import com.ftapps.remft.ui.settings.alarmSettingsDestinations
 import com.ftapps.remft.ui.settings.openAlarmSettings
 import com.ftapps.remft.ui.settings.SettingsScreen
+import com.ftapps.remft.ui.voice.SettingsVoiceRoute
+import com.ftapps.remft.ui.voice.voiceSettingsDestination
 import com.ftapps.remft.ui.theme.Breakpoints
 import com.ftapps.remft.ui.theme.Motion
 import com.ftapps.remft.ui.theme.Sizes
@@ -166,6 +168,7 @@ private fun RemftNavHost(navController: NavHostController, showBottomBar: Boolea
                 onOpenCompleted = { navController.navigate(SettingsCompletedRoute) },
                 onOpenScheduled = { navController.navigate(SettingsScheduledRoute) },
                 onOpenBin = { navController.navigate(SettingsBinRoute) },
+                onOpenVoice = { navController.navigate(SettingsVoiceRoute) { launchSingleTop = true } },
             )
         }
         composable<SettingsGeneralRoute> { SettingsGeneralScreen(onBack = { navController.popBackStack() }, onReplayTour = onReplayTour) }
@@ -175,6 +178,7 @@ private fun RemftNavHost(navController: NavHostController, showBottomBar: Boolea
         }
         oneDriveDestinations(navController)
         alarmSettingsDestinations(navController)
+        voiceSettingsDestination(onBack = { navController.popBackStack() })
         filesDestinations(onBack = { navController.popBackStack() }, onOpenTask = { navController.openTask(it) })
         scheduledDestinations(onBack = { navController.popBackStack() }, onOpenTask = { navController.openTask(it) })
     }

@@ -40,6 +40,16 @@ class MiscDomainTest {
     }
 
     @Test
+    fun voicePreferencesAreBackedUp() {
+        assertTrue("remft_voice_buttons" in SettingKeys.backedUp)
+        assertTrue("remft_voice_language" in SettingKeys.backedUp)
+        assertTrue("remft_voice_prefer_offline" in SettingKeys.backedUp)
+        assertEquals("true", SettingKeys.VoiceButtons.default)
+        assertEquals(null, SettingKeys.VoiceLanguage.default)
+        assertEquals("false", SettingKeys.VoicePreferOffline.default)
+    }
+
+    @Test
     fun enumeratedSettingsFallBackToDefaults() {
         assertEquals(DateFormatId.Iso, DateFormatId.parse("iso"))
         assertEquals(DateFormatId.System, DateFormatId.parse("junk"))

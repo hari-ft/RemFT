@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -74,6 +75,8 @@ import com.ftapps.remft.ui.tasks.rememberDateFormat
 import com.ftapps.remft.ui.theme.MarkedShapes
 import com.ftapps.remft.ui.theme.RemftTheme
 import com.ftapps.remft.ui.theme.Space
+import com.ftapps.remft.data.voice.VoiceText
+import com.ftapps.remft.ui.voice.VoiceMicButton
 
 class QuickAddHighlight(private val ranges: List<IntRange>, private val style: SpanStyle) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
@@ -170,24 +173,13 @@ private fun QuickAddField(
         focusedPlaceholderColor = scheme.onSurfaceVariant,
     )
     val trailing: @Composable () -> Unit = {
-        if (text.isEmpty()) {
-            RemftIconButton(
-                label = stringResource(R.string.task_quickParse_helpTooltip),
-                onClick = onHelp,
-                colors = IconButtonDefaults.iconButtonColors(contentColor = scheme.onSurfaceVariant),
-                modifier = Modifier.testTag("$tag-help"),
-            ) {
-                Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = stringResource(R.string.task_quickParse_helpTooltip))
-            }
-        } else {
-            RemftIconButton(
-                label = stringResource(R.string.task_addTask),
-                onClick = onSubmit,
-                colors = IconButtonDefaults.iconButtonColors(containerColor = scheme.primary, contentColor = scheme.onPrimary),
-                modifier = Modifier.padding(end = Space.x1).testTag("$tag-submit"),
-            ) {
-                Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.task_addTask))
-            }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            VoiceMicButton(
+                tag = "voice-$tag",
+                label = stringResource(R.string.voice_speakTask),
+                onText = { spoken -> onTextChange(VoiceText.append(text, spoken)) },
+            )
+            QuickAddAction(text, tag, onHelp, onSubmit)
         }
     }
     BasicTextField(
@@ -223,6 +215,30 @@ private fun QuickAddField(
                 )
             },
         )
+    }
+}
+
+@Composable
+private fun QuickAddAction(text: String, tag: String, onHelp: () -> Unit, onSubmit: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    if (text.isEmpty()) {
+        RemftIconButton(
+            label = stringResource(R.string.task_quickParse_helpTooltip),
+            onClick = onHelp,
+            colors = IconButtonDefaults.iconButtonColors(contentColor = scheme.onSurfaceVariant),
+            modifier = Modifier.testTag("$tag-help"),
+        ) {
+            Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = stringResource(R.string.task_quickParse_helpTooltip))
+        }
+    } else {
+        RemftIconButton(
+            label = stringResource(R.string.task_addTask),
+            onClick = onSubmit,
+            colors = IconButtonDefaults.iconButtonColors(containerColor = scheme.primary, contentColor = scheme.onPrimary),
+            modifier = Modifier.padding(end = Space.x1).testTag("$tag-submit"),
+        ) {
+            Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.task_addTask))
+        }
     }
 }
 
